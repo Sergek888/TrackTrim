@@ -1,14 +1,9 @@
 import { parseGPX } from '@we-gold/gpxjs'
-
-export type GpxTrackPoint = {
-  lat: number
-  lon: number
-  ele: number | null
-  time: Date | null
-}
+import { Track } from '../../model/Track'
+import type { TrackPoint } from '../../model/TrackPoint'
 
 export type GpxReadResult = {
-  points: GpxTrackPoint[]
+  track: Track
 }
 
 export async function readGpxFile(file: File): Promise<GpxReadResult> {
@@ -26,7 +21,7 @@ export async function readGpxFile(file: File): Promise<GpxReadResult> {
     throw new Error('File could not be parsed as GPX.')
   }
 
-  const points: GpxTrackPoint[] = parsedGpx.tracks.flatMap((track) =>
+  const points: TrackPoint[] = parsedGpx.tracks.flatMap((track) =>
     track.points.map((point) => ({
       lat: point.latitude,
       lon: point.longitude,
@@ -35,5 +30,5 @@ export async function readGpxFile(file: File): Promise<GpxReadResult> {
     })),
   )
 
-  return { points }
+  return { track: new Track(points) }
 }

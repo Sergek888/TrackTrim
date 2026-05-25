@@ -1,97 +1,19 @@
 import { useState, type ChangeEvent } from 'react'
+import { readGpxFile, type GpxReadResult } from '../../formats/gpx/GpxFormat'
+import type { TrackPoint } from '../../model/TrackPoint'
+import type { TrackStatistics } from '../../model/TrackStatistics'
 import {
-  calculateTrackStatistics,
-  type TrackStatistics,
-} from '../../application/TrackStatistics'
-import { readGpxFile, type GpxReadResult, type GpxTrackPoint } from '../../formats/gpx/GpxFormat'
+  formatAverageSpeed,
+  formatDateTime,
+  formatDistance,
+  formatDuration,
+  formatFileSize,
+  formatModifiedDate,
+  formatNullableNumber,
+  formatPointDate,
+} from '../formatters'
 
-function formatFileSize(bytes: number): string {
-  const megabytes = bytes / 1024 / 1024
-
-  if (megabytes >= 1) {
-    return `${megabytes.toFixed(1)} MB`
-  }
-
-  const kilobytes = bytes / 1024
-
-  if (kilobytes >= 1) {
-    return `${kilobytes.toFixed(1)} KB`
-  }
-
-  return `${bytes} B`
-}
-
-function formatModifiedDate(timestamp: number): string {
-  const date = new Date(timestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-
-  return `${year}-${month}-${day} ${hours}:${minutes}`
-}
-
-function formatDateTime(date: Date | null): string {
-  if (date === null) {
-    return 'Unknown'
-  }
-
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
-
-function formatPointDate(date: Date | null): string {
-  if (date === null) {
-    return 'not available'
-  }
-
-  return formatModifiedDate(date.getTime())
-}
-
-function formatNullableNumber(value: number | null): string {
-  if (value === null || Number.isNaN(value)) {
-    return 'not available'
-  }
-
-  return String(value)
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) {
-    return 'Unknown'
-  }
-
-  const totalMinutes = Math.floor(seconds / 60)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  }
-
-  return `${minutes}m`
-}
-
-function formatDistance(distanceKm: number): string {
-  return `${distanceKm.toFixed(1)} km`
-}
-
-function formatAverageSpeed(speedKmh: number | null): string {
-  if (speedKmh === null) {
-    return 'Unknown'
-  }
-
-  return `${speedKmh.toFixed(1)} km/h`
-}
-
-function TrackPointInfo({ point, title }: { point: GpxTrackPoint; title: string }) {
+function TrackPointInfo({ point, title }: { point: TrackPoint; title: string }) {
   return (
     <section className="track-point">
       <h3>{title}</h3>
@@ -177,15 +99,10 @@ export default function FileInput() {
     }
   }
 
-  const firstPoint = gpxResult?.points[0] ?? null
-  const lastPoint =
-    gpxResult !== null && gpxResult.points.length > 0
-      ? gpxResult.points[gpxResult.points.length - 1]
-      : null
-  const statistics =
-    gpxResult !== null && gpxResult.points.length > 0
-      ? calculateTrackStatistics(gpxResult.points)
-      : null
+  const track = gpxResult?.track ?? null
+  const firstPoint = track?.firstPoint() ?? null
+  const lastPoint = track?.lastPoint() ?? null
+  const statistics = track?.statistics() ?? null
 
   return (
     <section className="file-panel" aria-label="File selection">
@@ -223,13 +140,13 @@ export default function FileInput() {
           <section className="track-info" aria-label="Track information">
             <h2>Track information</h2>
 
-            {gpxResult.points.length === 0 ? (
+            {track === null || track.pointsCount() === 0 ? (
               <p>No track points found</p>
             ) : (
               <>
                 <dl>
                   <dt>Points:</dt>
-                  <dd>{gpxResult.points.length}</dd>
+                  <dd>{track.pointsCount()}</dd>
                 </dl>
 
                 {firstPoint !== null && <TrackPointInfo point={firstPoint} title="First point:" />}
