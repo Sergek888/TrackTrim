@@ -135,6 +135,28 @@ export class Track {
     return this.distanceKm() / (durationSec / 3600)
   }
 
+  public segmentUntilTimeFromStart(cutFromEndSec: number): Track {
+    const durationSec = this.durationSec()
+
+    if (durationSec === null) {
+      return this
+    }
+
+    const visibleUntilSec = durationSec - cutFromEndSec
+
+    if (visibleUntilSec <= 0) {
+      const firstPoint = this.trackPoints[0] ?? null
+
+      return new Track(firstPoint === null ? [] : [this.copyPointInput(firstPoint)])
+    }
+
+    return new Track(
+      this.trackPoints
+        .filter((point) => point.elapsedSec !== null && point.elapsedSec <= visibleUntilSec)
+        .map((point) => this.copyPointInput(point)),
+    )
+  }
+
   public averageSpeedBetween(fromIndex: number, toIndex: number): number | null {
     const durationSec = this.durationBetween(fromIndex, toIndex)
 
@@ -145,14 +167,16 @@ export class Track {
     return this.distanceBetween(fromIndex, toIndex) / (durationSec / 3600)
   }
 
-  public statistics(): TrackStatistics | null {
+  public statistics(intervals?: readonly TrackInterval[]): TrackStatistics | null {
     if (this.trackPoints.length < 2) {
       return null
     }
 
     const timedPoints = this.trackPoints.filter((point) => point.time !== null)
     const options = this.resolveSpeedSegmentationOptions()
-    const pauses = this.findPauseIntervals(0, this.trackPoints.length - 1, options)
+    const pauses =
+      intervals?.filter((interval) => interval.kind === 'pause') ??
+      this.findPauseIntervals(0, this.trackPoints.length - 1, options)
     const pauseDurationSec = pauses.reduce((total, pause) => total + pause.durationSec, 0)
     const durationSec = this.durationSec()
     const movingDurationSec =
@@ -248,6 +272,15 @@ export class Track {
         distanceFromStartKm,
       }
     })
+  }
+
+  private copyPointInput(point: TrackPoint): TrackPointInput {
+    return {
+      lat: point.lat,
+      lon: point.lon,
+      ele: point.ele,
+      time: point.time === null ? null : new Date(point.time.getTime()),
+    }
   }
 
   private pointSpeedSamples(): PointSpeedSample[] {
@@ -498,9 +531,22 @@ export class Track {
     toIndex: number,
     options: SpeedSegmentationOptions,
   ): number | null {
+    const startPoint = this.trackPoints[startIndex]
+
+    if (startPoint === undefined) {
+      return null
+    }
+
     let bestEndIndex: number | null = null
+    let maxDistanceFromStartKm = 0
 
     for (let endIndex = startIndex + 1; endIndex <= toIndex; endIndex += 1) {
+      const point = this.trackPoints[endIndex]
+
+      if (point === undefined) {
+        continue
+      }
+
       const durationSec = this.durationBetween(startIndex, endIndex)
 
       if (durationSec === null) {
@@ -511,11 +557,22 @@ export class Track {
         break
       }
 
+      maxDistanceFromStartKm = Math.max(
+        maxDistanceFromStartKm,
+        distanceMetersBetween(startPoint, point) / 1000,
+      )
+
+      if (maxDistanceFromStartKm > options.pauseMaxDistanceKm) {
+        break
+      }
+
       if (durationSec < options.pauseMinDurationSec) {
         continue
       }
 
-      if (this.isPauseRange(startIndex, endIndex, options)) {
+      const averageSpeedKmh = this.averageSpeedBetween(startIndex, endIndex)
+
+      if (averageSpeedKmh !== null && averageSpeedKmh <= options.pauseMaxAverageSpeedKmh) {
         bestEndIndex = endIndex
       }
     }
@@ -529,10 +586,34 @@ export class Track {
     toIndex: number,
     options: SpeedSegmentationOptions,
   ): number {
+    const startPoint = this.trackPoints[startIndex]
+
+    if (startPoint === undefined) {
+      return windowEndIndex
+    }
+
     let pauseEndIndex = windowEndIndex
+    let maxDistanceFromStartKm = this.maxDistanceFromPointKm(startIndex, windowEndIndex)
 
     for (let endIndex = windowEndIndex + 1; endIndex <= toIndex; endIndex += 1) {
-      if (!this.isPauseRange(startIndex, endIndex, options)) {
+      const point = this.trackPoints[endIndex]
+
+      if (point === undefined) {
+        continue
+      }
+
+      maxDistanceFromStartKm = Math.max(
+        maxDistanceFromStartKm,
+        distanceMetersBetween(startPoint, point) / 1000,
+      )
+
+      const averageSpeedKmh = this.averageSpeedBetween(startIndex, endIndex)
+
+      if (
+        maxDistanceFromStartKm > options.pauseMaxDistanceKm ||
+        averageSpeedKmh === null ||
+        averageSpeedKmh > options.pauseMaxAverageSpeedKmh
+      ) {
         break
       }
 
@@ -540,26 +621,6 @@ export class Track {
     }
 
     return pauseEndIndex
-  }
-
-  private isPauseRange(
-    fromIndex: number,
-    toIndex: number,
-    options: SpeedSegmentationOptions,
-  ): boolean {
-    const durationSec = this.durationBetween(fromIndex, toIndex)
-
-    if (durationSec === null || durationSec <= 0) {
-      return false
-    }
-
-    const averageSpeedKmh = this.averageSpeedBetween(fromIndex, toIndex)
-
-    return (
-      this.maxDistanceFromPointKm(fromIndex, toIndex) <= options.pauseMaxDistanceKm &&
-      averageSpeedKmh !== null &&
-      averageSpeedKmh <= options.pauseMaxAverageSpeedKmh
-    )
   }
 
   private maxDistanceFromPointKm(fromIndex: number, toIndex: number): number {
