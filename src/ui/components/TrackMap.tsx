@@ -83,7 +83,7 @@ export default function TrackMap({ track, boundsTrack }: TrackMapProps) {
         type: 'line',
         source: TRACK_SOURCE_ID,
         paint: {
-          'line-color': '#0f766e',
+          'line-color': '#2563eb',
           'line-width': 4,
           'line-opacity': 0.9,
         },
