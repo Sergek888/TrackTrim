@@ -1,25 +1,54 @@
-import type { Track } from './Track'
+export type TrackIntervalKind = 'speed' | 'pause'
 
 export class TrackInterval {
-  public readonly track: Track
   public readonly fromIndex: number
   public readonly toIndex: number
+  public readonly durationSec: number
+  public readonly distanceKm: number
+  public readonly kind: TrackIntervalKind
 
-  public constructor(track: Track, fromIndex: number, toIndex: number) {
-    this.track = track
+  private readonly segmentSpeedsKmh: readonly number[]
+
+  public constructor({
+    fromIndex,
+    toIndex,
+    durationSec,
+    distanceKm,
+    kind = 'speed',
+    segmentSpeedsKmh,
+  }: {
+    fromIndex: number
+    toIndex: number
+    durationSec: number
+    distanceKm: number
+    kind?: TrackIntervalKind
+    segmentSpeedsKmh: number[]
+  }) {
     this.fromIndex = fromIndex
     this.toIndex = toIndex
-  }
-
-  public distanceM(): number {
-    throw new Error("Not implemented")
-  }
-
-  public durationSec(): number {
-    throw new Error("Not implemented")
+    this.durationSec = durationSec
+    this.distanceKm = distanceKm
+    this.kind = kind
+    this.segmentSpeedsKmh = [...segmentSpeedsKmh]
   }
 
   public averageSpeedKmh(): number {
-    throw new Error("Not implemented")
+    if (this.kind === 'pause') {
+      return 0
+    }
+
+    if (this.durationSec <= 0) {
+      return 0
+    }
+
+    return this.distanceKm / (this.durationSec / 3600)
+  }
+
+  public maxSpeedKmh(): number {
+    if (this.segmentSpeedsKmh.length === 0) {
+      return 0
+    }
+
+    return Math.max(...this.segmentSpeedsKmh)
   }
 }

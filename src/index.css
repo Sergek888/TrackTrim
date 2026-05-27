@@ -57,6 +57,7 @@ body {
 }
 
 .file-info,
+.speed-intervals,
 .track-info,
 .track-statistics {
   width: min(100%, 420px);
@@ -68,6 +69,7 @@ body {
 }
 
 .file-info h2,
+.speed-intervals h2,
 .track-info h2,
 .track-statistics h2 {
   margin: 0 0 20px;
@@ -75,6 +77,7 @@ body {
 }
 
 .file-info dl,
+.speed-intervals dl,
 .track-info dl,
 .track-statistics dl {
   display: grid;
@@ -83,6 +86,7 @@ body {
 }
 
 .file-info dt,
+.speed-intervals dt,
 .track-info dt,
 .track-statistics dt {
   color: #52616b;
@@ -90,10 +94,21 @@ body {
 }
 
 .file-info dd,
+.speed-intervals dd,
 .track-info dd,
 .track-statistics dd {
   margin: 0 0 12px;
   overflow-wrap: anywhere;
+}
+
+.speed-interval-list {
+  display: grid;
+  gap: 16px;
+}
+
+.speed-interval {
+  border-top: 1px solid #d9e2ec;
+  padding-top: 16px;
 }
 
 .track-point {
