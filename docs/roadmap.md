@@ -8,7 +8,7 @@
 
 ## Current stage
 
-Базовая сегментация трека по изменению средней скорости
+Interactive trim preview on map
 
 ## Completed
 

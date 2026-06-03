@@ -1,25 +1,22 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import {
-  readGpxFile,
-  writeTrimmedGpxFromSource,
-  type GpxReadResult,
-} from '../../formats/gpx/GpxFormat'
+import type { GpxReadResult } from '../../formats/gpx/GpxFormat'
+import { localFileSource } from '../../application/sources/LocalFileSource'
 import TimeSlider from './TimeSlider'
-import TrackMap from './TrackMap'
+import TrackMap, { type TrackMapPoint } from './TrackMap'
 
 export default function FileInput() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [gpxResult, setGpxResult] = useState<GpxReadResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isReading, setIsReading] = useState<boolean>(false)
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
   const [trimEndDurationSec, setTrimEndDurationSec] = useState<number>(0)
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
     const file = event.target.files?.[0] ?? null
 
-    setSelectedFile(file)
     setGpxResult(null)
     setErrorMessage(null)
+    setSelectedPointIndex(null)
     setTrimEndDurationSec(0)
 
     if (file === null) {
@@ -29,7 +26,7 @@ export default function FileInput() {
     setIsReading(true)
 
     try {
-      const result = await readGpxFile(file)
+      const result = await localFileSource.readGpxFile(file)
 
       setGpxResult(result)
     } catch (error) {
@@ -41,30 +38,13 @@ export default function FileInput() {
     }
   }
 
-  function trimmedFileName(fileName: string | null): string {
-    if (fileName === null) {
-      return 'tracktrim-trimmed.gpx'
-    }
-
-    return fileName.replace(/\.(gpx|xml)$/i, '') + '-trimmed.gpx'
-  }
-
-  function handleSaveClick(): void {
+  async function handleSaveClick(): Promise<void> {
     if (previewTrack === null || gpxResult === null) {
       return
     }
 
     try {
-      const gpxText = writeTrimmedGpxFromSource(gpxResult.sourceText, previewTrack.pointsCount())
-      const blob = new Blob([gpxText], { type: 'application/gpx+xml;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-
-      link.href = url
-      link.download = trimmedFileName(selectedFile?.name ?? null)
-      link.click()
-
-      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      await localFileSource.saveTrack(previewTrack, 'gpx')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Trimmed GPX could not be saved.'
 
@@ -75,9 +55,69 @@ export default function FileInput() {
   const track = gpxResult?.track ?? null
   const durationSec = track?.durationSec() ?? null
   const previewTrack = useMemo(
-    () => track?.segmentUntilTimeFromStart(trimEndDurationSec) ?? null,
-    [track, trimEndDurationSec],
+    () =>
+      track === null
+        ? null
+        : selectedPointIndex === null
+          ? track
+          : track.segmentUntilIndex(selectedPointIndex),
+    [track, selectedPointIndex],
   )
+  const removedTrack = useMemo(
+    () =>
+      track === null || selectedPointIndex === null
+        ? null
+        : track.segmentFromIndex(selectedPointIndex),
+    [track, selectedPointIndex],
+  )
+  const selectedPoint = useMemo<TrackMapPoint | null>(() => {
+    if (track === null || selectedPointIndex === null) {
+      return null
+    }
+
+    const point = track.point(selectedPointIndex)
+
+    return point === null ? null : { latitude: point.lat, longitude: point.lon }
+  }, [track, selectedPointIndex])
+
+  function handleTrackClick(point: TrackMapPoint): void {
+    if (track === null || durationSec === null) {
+      return
+    }
+
+    const closestPointIndex = track.closestPointIndex(point.latitude, point.longitude)
+
+    if (closestPointIndex >= 0) {
+      const selectedPoint = track.point(closestPointIndex)
+
+      setSelectedPointIndex(closestPointIndex)
+
+      if (selectedPoint?.elapsedSec !== null && selectedPoint?.elapsedSec !== undefined) {
+        setTrimEndDurationSec(Math.max(0, durationSec - selectedPoint.elapsedSec))
+      }
+    }
+  }
+
+  function handleTrimEndDurationChange(nextTrimEndDurationSec: number): void {
+    setTrimEndDurationSec(nextTrimEndDurationSec)
+
+    if (track === null || durationSec === null) {
+      return
+    }
+
+    if (nextTrimEndDurationSec <= 0) {
+      setSelectedPointIndex(null)
+      return
+    }
+
+    const closestPointIndex = track.closestPointIndexByElapsedSec(
+      Math.max(0, durationSec - nextTrimEndDurationSec),
+    )
+
+    if (closestPointIndex >= 0) {
+      setSelectedPointIndex(closestPointIndex)
+    }
+  }
 
   return (
     <section className="file-panel" aria-label="File selection">
@@ -113,14 +153,20 @@ export default function FileInput() {
       ) : (
         <>
           {previewTrack !== null && track !== null && (
-            <TrackMap track={previewTrack} boundsTrack={track} />
+            <TrackMap
+              track={previewTrack}
+              removedTrack={removedTrack}
+              boundsTrack={track}
+              selectedPoint={selectedPoint}
+              onTrackClick={handleTrackClick}
+            />
           )}
 
           {durationSec !== null && (
             <TimeSlider
               durationSec={durationSec}
               trimEndDurationSec={trimEndDurationSec}
-              onChange={setTrimEndDurationSec}
+              onChange={handleTrimEndDurationChange}
             />
           )}
         </>

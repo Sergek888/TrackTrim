@@ -3,6 +3,7 @@ import {
   type SpeedSegmentationOptions,
 } from './SpeedSegmentationOptions'
 import type { TrackPoint, TrackPointInput } from './TrackPoint'
+import type { TrackOrigin } from './TrackOrigin'
 import { TrackInterval } from './TrackInterval'
 import type { TrackStatistics } from './TrackStatistics'
 
@@ -89,7 +90,10 @@ function createInterval(segments: PointSpeedSample[]): TrackInterval | null {
 export class Track {
   private readonly trackPoints: readonly TrackPoint[]
 
-  public constructor(points: TrackPointInput[]) {
+  public constructor(
+    points: TrackPointInput[],
+    public readonly origin: TrackOrigin | null = null,
+  ) {
     this.trackPoints = this.createTrackPoints(points)
   }
 
@@ -107,6 +111,10 @@ export class Track {
 
   public lastPoint(): TrackPoint | null {
     return this.trackPoints[this.trackPoints.length - 1] ?? null
+  }
+
+  public point(index: number): TrackPoint | null {
+    return this.trackPoints[index] ?? null
   }
 
   public distanceKm(): number {
@@ -147,13 +155,111 @@ export class Track {
     if (visibleUntilSec <= 0) {
       const firstPoint = this.trackPoints[0] ?? null
 
-      return new Track(firstPoint === null ? [] : [this.copyPointInput(firstPoint)])
+      return new Track(firstPoint === null ? [] : [this.copyPointInput(firstPoint)], this.origin)
     }
 
     return new Track(
       this.trackPoints
         .filter((point) => point.elapsedSec !== null && point.elapsedSec <= visibleUntilSec)
         .map((point) => this.copyPointInput(point)),
+      this.origin,
+    )
+  }
+
+  public segmentFromTimeFromStart(startFromStartSec: number): Track {
+    const startIndex = this.trackPoints.findIndex(
+      (point) => point.elapsedSec !== null && point.elapsedSec >= startFromStartSec,
+    )
+
+    if (startIndex === -1) {
+      const lastPoint = this.lastPoint()
+
+      return new Track(lastPoint === null ? [] : [this.copyPointInput(lastPoint)], this.origin)
+    }
+
+    const segmentStartIndex = Math.max(0, startIndex - 1)
+
+    return new Track(
+      this.trackPoints
+        .slice(segmentStartIndex)
+        .map((point) => this.copyPointInput(point)),
+      this.origin,
+    )
+  }
+
+  public closestPointIndex(latitude: number, longitude: number): number {
+    if (this.trackPoints.length === 0) {
+      return -1
+    }
+
+    let closestIndex = 0
+    let closestDistanceMeters = Number.POSITIVE_INFINITY
+
+    for (let index = 0; index < this.trackPoints.length; index += 1) {
+      const point = this.trackPoints[index]
+      const distanceMeters = distanceMetersBetween(
+        { lat: latitude, lon: longitude, ele: null, time: null },
+        point,
+      )
+
+      if (distanceMeters < closestDistanceMeters) {
+        closestDistanceMeters = distanceMeters
+        closestIndex = index
+      }
+    }
+
+    return closestIndex
+  }
+
+  public closestPointIndexByElapsedSec(elapsedSec: number): number {
+    let closestIndex = -1
+    let closestDifferenceSec = Number.POSITIVE_INFINITY
+
+    for (let index = 0; index < this.trackPoints.length; index += 1) {
+      const pointElapsedSec = this.trackPoints[index].elapsedSec
+
+      if (pointElapsedSec === null) {
+        continue
+      }
+
+      const differenceSec = Math.abs(pointElapsedSec - elapsedSec)
+
+      if (differenceSec < closestDifferenceSec) {
+        closestDifferenceSec = differenceSec
+        closestIndex = index
+      }
+    }
+
+    return closestIndex
+  }
+
+  public segmentUntilIndex(index: number): Track {
+    if (this.trackPoints.length === 0) {
+      return new Track([], this.origin)
+    }
+
+    const endIndex = Math.max(0, Math.min(index, this.trackPoints.length - 1))
+
+    return new Track(
+      this.trackPoints
+        .slice(0, endIndex + 1)
+        .map((point) => this.copyPointInput(point)),
+      this.origin,
+    )
+  }
+
+  public segmentFromIndex(index: number): Track {
+    if (this.trackPoints.length === 0) {
+      return new Track([], this.origin)
+    }
+
+    const startIndex = Math.max(0, Math.min(index, this.trackPoints.length - 1))
+
+    return new Track(
+      this.trackPoints
+        .slice(startIndex)
+        .map((point) => this.copyPointInput(point)),
+      this.origin,
     )
   }
 

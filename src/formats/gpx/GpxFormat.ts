@@ -1,4 +1,5 @@
 import { Track } from '../../model/Track'
+import type { TrackOrigin } from '../../model/TrackOrigin'
 import type { TrackPointInput } from '../../model/TrackPoint'
 
 export type GpxReadResult = {
@@ -52,15 +53,10 @@ function trackPointElements(xml: Document): Element[] {
     : Array.from(xml.getElementsByTagName('trkpt'))
 }
 
-export async function readGpxFile(file: File): Promise<GpxReadResult> {
-  let text: string
-
-  try {
-    text = await file.text()
-  } catch {
-    throw new Error('File could not be read.')
-  }
-
+export async function readGpxText(
+  text: string,
+  origin: TrackOrigin | null = null,
+): Promise<GpxReadResult> {
   await new Promise((resolve) => window.setTimeout(resolve, 0))
 
   const xml = new DOMParser().parseFromString(text, 'application/xml')
@@ -88,7 +84,19 @@ export async function readGpxFile(file: File): Promise<GpxReadResult> {
     })
     .filter((point): point is TrackPointInput => point !== null)
 
-  return { track: new Track(points), sourceText: text }
+  return { track: new Track(points, origin), sourceText: text }
+}
+
+export async function readGpxFile(file: File): Promise<GpxReadResult> {
+  let text: string
+
+  try {
+    text = await file.text()
+  } catch {
+    throw new Error('File could not be read.')
+  }
+
+  return readGpxText(text)
 }
 
 export function writeTrimmedGpxFromSource(sourceText: string, visiblePointsCount: number): string {

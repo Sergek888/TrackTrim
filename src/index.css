@@ -204,8 +204,8 @@ body {
     to right,
     #d5dee3 0%,
     #d5dee3 var(--cut-from-end-percent),
-    var(--color-accent) var(--cut-from-end-percent),
-    var(--color-accent) 100%
+    #2563eb var(--cut-from-end-percent),
+    #2563eb 100%
   );
 }
 
@@ -213,7 +213,7 @@ body {
   appearance: none;
   width: 19px;
   height: 19px;
-  border: 3px solid var(--color-accent);
+  border: 3px solid #2563eb;
   border-radius: 50%;
   background: var(--color-panel);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
@@ -227,15 +227,15 @@ body {
     to right,
     #d5dee3 0%,
     #d5dee3 var(--cut-from-end-percent),
-    var(--color-accent) var(--cut-from-end-percent),
-    var(--color-accent) 100%
+    #2563eb var(--cut-from-end-percent),
+    #2563eb 100%
   );
 }
 
 .time-slider input::-moz-range-thumb {
   width: 19px;
   height: 19px;
-  border: 3px solid var(--color-accent);
+  border: 3px solid #2563eb;
   border-radius: 50%;
   background: var(--color-panel);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
