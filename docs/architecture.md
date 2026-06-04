@@ -110,3 +110,31 @@ UI не должен:
 - TrackMap только отображает данные
 - любые производные Track создаются model
 - исходный Track не мутируется
+
+## Interactive map selection
+
+- карта не принимает решений
+- карта не ищет место обрезки
+- карта не создает Track
+- карта не мутирует Track
+- карта только отображает готовые данные
+- карта только генерирует пользовательское событие выбора
+- Map -> selected coordinates
+- selected coordinates -> model.closestPointIndex()
+- производные Track создаются только model
+
+## Track sources
+
+- Track может хранить TrackOrigin как паспорт происхождения.
+- TrackOrigin хранит живой экземпляр TrackSource и remoteId.
+- TrackOrigin делегирует внешние ссылки источнику через getOriginalUrl() и getShareUrl().
+- Track не вызывает TrackSource напрямую и не знает про GPX, XML, API, авторизацию или скачивание.
+- Производные Track сохраняют тот же TrackOrigin.
+- TrackSource находится в application/sources и описывает жизненный цикл источника, список треков, загрузку, сохранение и внешние ссылки.
+- LocalFileSource является текущей реализацией TrackSource для локального GPX.
+- KomootTrackSource является будущей реализацией TrackSource для Komoot.
+- Первый этап Komoot-интеграции работает от URL тура и создает TrackOrigin без загрузки геометрии.
+- Загрузка геометрии Komoot включается только после проверки доступного GPX/JSON endpoint и CORS.
+- UI вызывает источник через контракт и не работает с сырым GPX-текстом.
+- TrackConverter находится в formats и переводит RawPayload в геометрию TrackPointInput[] и обратно.
+- GpxConverter является текущей реализацией TrackConverter для GPX.

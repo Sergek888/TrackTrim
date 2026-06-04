@@ -1,9 +1,9 @@
-import FileInput from './ui/components/FileInput'
+import TrackWorkspace from './ui/components/TrackWorkspace'
 
 export default function App() {
   return (
     <main className="app">
-      <FileInput />
+      <TrackWorkspace />
     </main>
   )
 }

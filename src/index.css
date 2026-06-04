@@ -67,6 +67,43 @@ body {
   gap: 8px;
 }
 
+.komoot-import {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(44vw, 420px);
+}
+
+.komoot-import input {
+  min-height: 36px;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  padding: 0 10px;
+}
+
+.komoot-import input:focus-visible {
+  outline: 3px solid #99f6e4;
+  outline-offset: 3px;
+}
+
+.komoot-import-error {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  margin: 0;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .file-panel {
   display: grid;
   gap: 10px;
@@ -122,7 +159,8 @@ body {
 }
 
 .file-picker:active,
-.save-button:active {
+.save-button:active,
+.secondary-button:active {
   transform: translateY(1px);
 }
 
@@ -204,8 +242,8 @@ body {
     to right,
     #d5dee3 0%,
     #d5dee3 var(--cut-from-end-percent),
-    var(--color-accent) var(--cut-from-end-percent),
-    var(--color-accent) 100%
+    #2563eb var(--cut-from-end-percent),
+    #2563eb 100%
   );
 }
 
@@ -213,7 +251,7 @@ body {
   appearance: none;
   width: 19px;
   height: 19px;
-  border: 3px solid var(--color-accent);
+  border: 3px solid #2563eb;
   border-radius: 50%;
   background: var(--color-panel);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
@@ -227,15 +265,15 @@ body {
     to right,
     #d5dee3 0%,
     #d5dee3 var(--cut-from-end-percent),
-    var(--color-accent) var(--cut-from-end-percent),
-    var(--color-accent) 100%
+    #2563eb var(--cut-from-end-percent),
+    #2563eb 100%
   );
 }
 
 .time-slider input::-moz-range-thumb {
   width: 19px;
   height: 19px;
-  border: 3px solid var(--color-accent);
+  border: 3px solid #2563eb;
   border-radius: 50%;
   background: var(--color-panel);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
@@ -261,6 +299,38 @@ body {
     background 120ms ease,
     box-shadow 120ms ease,
     transform 120ms ease;
+}
+
+.secondary-button {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 12px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: #9fb0ba;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.secondary-button:focus-visible {
+  outline: 3px solid #99f6e4;
+  outline-offset: 3px;
 }
 
 .save-button:focus-visible {
@@ -379,11 +449,18 @@ body {
     flex-wrap: wrap;
   }
 
+  .komoot-import {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
   .app-brand {
     gap: 0;
   }
 
   .file-picker,
+  .secondary-button,
   .save-button {
     flex: 1 1 150px;
     width: 100%;
