@@ -1,4 +1,4 @@
-import type { TrackSource } from './TrackSource'
+import type { TrackSource } from '../application/sources/TrackSource'
 
 export class TrackOrigin {
   public constructor(

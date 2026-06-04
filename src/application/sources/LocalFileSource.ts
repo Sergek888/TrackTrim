@@ -1,17 +1,30 @@
-import {
-  readGpxText,
-  writeTrimmedGpxFromSource,
-  type GpxReadResult,
-} from '../../formats/gpx/GpxFormat'
+import { gpxConverter } from '../../formats/gpx/GpxConverter'
 import type { Track } from '../../model/Track'
+import { Track as TrackModel } from '../../model/Track'
 import { TrackOrigin } from '../../model/TrackOrigin'
-import type { TrackFormat, TrackSource } from '../../model/TrackSource'
+import type {
+  SourceConnectionStatus,
+  TrackFormat,
+  TrackSource,
+} from './TrackSource'
 
 export class LocalFileSource implements TrackSource {
   public readonly providerName = 'local_file'
   private readonly sourceTexts = new Map<string, string>()
 
-  public async readGpxFile(file: File): Promise<GpxReadResult> {
+  public getConnectionStatus(): SourceConnectionStatus {
+    return { type: 'connected' }
+  }
+
+  public async connect(_credentials: Record<string, unknown>): Promise<void> {}
+
+  public async disconnect(): Promise<void> {}
+
+  public async getTrackList(): Promise<TrackOrigin[]> {
+    return []
+  }
+
+  public async createOriginFromFile(file: File): Promise<TrackOrigin> {
     let text: string
 
     try {
@@ -25,7 +38,17 @@ export class LocalFileSource implements TrackSource {
 
     this.sourceTexts.set(remoteId, text)
 
-    return readGpxText(text, origin)
+    return origin
+  }
+
+  public async loadTrack(origin: TrackOrigin): Promise<Track> {
+    const sourceText = this.sourceTexts.get(origin.remoteId) ?? null
+
+    if (sourceText === null) {
+      throw new Error('Original GPX source is missing.')
+    }
+
+    return this.createTrackFromText(sourceText, origin)
   }
 
   public getOriginalUrl(): string | null {
@@ -53,13 +76,26 @@ export class LocalFileSource implements TrackSource {
       throw new Error('Original GPX source is missing.')
     }
 
-    const gpxText = writeTrimmedGpxFromSource(sourceText, track.pointsCount())
+    const gpxText = gpxConverter.trimSourceToPointsCount(sourceText, track.pointsCount())
 
-    this.downloadText(gpxText, this.trimmedFileName(origin.name), 'application/gpx+xml;charset=utf-8')
+    this.downloadText(
+      gpxText,
+      this.trimmedFileName(origin.name),
+      'application/gpx+xml;charset=utf-8',
+    )
   }
 
   private createRemoteId(file: File): string {
     return `${file.name}:${file.size}:${file.lastModified}`
+  }
+
+  private createTrackFromText(text: string, origin: TrackOrigin): Track {
+    const geometry = gpxConverter.deserialize({
+      data: text,
+      mimeType: 'application/gpx+xml',
+    })
+
+    return new TrackModel(geometry.points, origin)
   }
 
   private trimmedFileName(fileName: string): string {
