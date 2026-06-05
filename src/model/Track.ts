@@ -2,8 +2,8 @@ import {
   DEFAULT_SPEED_SEGMENTATION_OPTIONS,
   type SpeedSegmentationOptions,
 } from './SpeedSegmentationOptions'
+import type { TrackMeta } from './TrackMeta'
 import type { TrackPoint, TrackPointInput } from './TrackPoint'
-import type { TrackOrigin } from './TrackOrigin'
 import { TrackInterval } from './TrackInterval'
 import type { TrackStatistics } from './TrackStatistics'
 
@@ -92,7 +92,7 @@ export class Track {
 
   public constructor(
     points: TrackPointInput[],
-    public readonly origin: TrackOrigin | null = null,
+    public readonly meta: TrackMeta | null = null,
   ) {
     this.trackPoints = this.createTrackPoints(points)
   }
@@ -155,14 +155,14 @@ export class Track {
     if (visibleUntilSec <= 0) {
       const firstPoint = this.trackPoints[0] ?? null
 
-      return new Track(firstPoint === null ? [] : [this.copyPointInput(firstPoint)], this.origin)
+      return new Track(firstPoint === null ? [] : [this.copyPointInput(firstPoint)], this.meta)
     }
 
     return new Track(
       this.trackPoints
         .filter((point) => point.elapsedSec !== null && point.elapsedSec <= visibleUntilSec)
         .map((point) => this.copyPointInput(point)),
-      this.origin,
+      this.meta,
     )
   }
 
@@ -174,7 +174,7 @@ export class Track {
     if (startIndex === -1) {
       const lastPoint = this.lastPoint()
 
-      return new Track(lastPoint === null ? [] : [this.copyPointInput(lastPoint)], this.origin)
+      return new Track(lastPoint === null ? [] : [this.copyPointInput(lastPoint)], this.meta)
     }
 
     const segmentStartIndex = Math.max(0, startIndex - 1)
@@ -183,7 +183,7 @@ export class Track {
       this.trackPoints
         .slice(segmentStartIndex)
         .map((point) => this.copyPointInput(point)),
-      this.origin,
+      this.meta,
     )
   }
 
@@ -235,7 +235,7 @@ export class Track {
 
   public segmentUntilIndex(index: number): Track {
     if (this.trackPoints.length === 0) {
-      return new Track([], this.origin)
+      return new Track([], this.meta)
     }
 
     const endIndex = Math.max(0, Math.min(index, this.trackPoints.length - 1))
@@ -244,13 +244,13 @@ export class Track {
       this.trackPoints
         .slice(0, endIndex + 1)
         .map((point) => this.copyPointInput(point)),
-      this.origin,
+      this.meta,
     )
   }
 
   public segmentFromIndex(index: number): Track {
     if (this.trackPoints.length === 0) {
-      return new Track([], this.origin)
+      return new Track([], this.meta)
     }
 
     const startIndex = Math.max(0, Math.min(index, this.trackPoints.length - 1))
@@ -259,7 +259,7 @@ export class Track {
       this.trackPoints
         .slice(startIndex)
         .map((point) => this.copyPointInput(point)),
-      this.origin,
+      this.meta,
     )
   }
 

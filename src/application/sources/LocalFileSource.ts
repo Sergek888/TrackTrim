@@ -1,54 +1,42 @@
 import { gpxConverter } from '../../formats/gpx/GpxConverter'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
-import { TrackOrigin } from '../../model/TrackOrigin'
-import type {
-  SourceConnectionStatus,
-  TrackFormat,
-  TrackSource,
-} from './TrackSource'
+import { TrackMeta } from '../../model/TrackMeta'
+import type { TrackFormat, TrackSource } from './TrackSource'
 
-export class LocalFileSource implements TrackSource {
-  public readonly providerName = 'local_file'
+export class LocalFileTrackSource implements TrackSource {
+  public visible = true
+  public expanded = true
+  public order = 0
+
   private readonly sourceTexts = new Map<string, string>()
 
-  public getConnectionStatus(): SourceConnectionStatus {
-    return { type: 'connected' }
-  }
+  public constructor(
+    private readonly files: readonly File[],
+    public name: string,
+    public color: string,
+  ) {}
 
-  public async connect(_credentials: Record<string, unknown>): Promise<void> {}
+  public async loadTracks(): Promise<Track[]> {
+    const tracks: Track[] = []
 
-  public async disconnect(): Promise<void> {}
+    for (const file of this.files) {
+      const sourceText = await this.readFileText(file)
+      const remoteId = this.createRemoteId(file)
+      const meta = new TrackMeta(
+        this,
+        remoteId,
+        file.name,
+        this.color,
+        true,
+        new Date(file.lastModified),
+      )
 
-  public async getTrackList(): Promise<TrackOrigin[]> {
-    return []
-  }
-
-  public async createOriginFromFile(file: File): Promise<TrackOrigin> {
-    let text: string
-
-    try {
-      text = await file.text()
-    } catch {
-      throw new Error('File could not be read.')
+      this.sourceTexts.set(remoteId, sourceText)
+      tracks.push(this.createTrackFromText(sourceText, meta))
     }
 
-    const remoteId = this.createRemoteId(file)
-    const origin = new TrackOrigin(this, remoteId, file.name, new Date(file.lastModified))
-
-    this.sourceTexts.set(remoteId, text)
-
-    return origin
-  }
-
-  public async loadTrack(origin: TrackOrigin): Promise<Track> {
-    const sourceText = this.sourceTexts.get(origin.remoteId) ?? null
-
-    if (sourceText === null) {
-      throw new Error('Original GPX source is missing.')
-    }
-
-    return this.createTrackFromText(sourceText, origin)
+    return tracks
   }
 
   public getOriginalUrl(): string | null {
@@ -64,38 +52,57 @@ export class LocalFileSource implements TrackSource {
       throw new Error('Only GPX export is supported.')
     }
 
-    const origin = track.origin
+    const meta = track.meta
 
-    if (origin === null) {
-      throw new Error('Track origin is missing.')
+    if (meta === null) {
+      throw new Error('Track metadata is missing.')
     }
 
-    const sourceText = this.sourceTexts.get(origin.remoteId) ?? null
+    const sourceText = this.sourceTexts.get(meta.remoteId) ?? null
 
     if (sourceText === null) {
-      throw new Error('Original GPX source is missing.')
+      const payload = gpxConverter.serialize(track.getPoints(), meta.name)
+
+      if (typeof payload.data !== 'string') {
+        throw new Error('GPX payload must be text.')
+      }
+
+      this.downloadText(
+        payload.data,
+        this.trimmedFileName(meta.name),
+        payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
+      )
+      return
     }
 
     const gpxText = gpxConverter.trimSourceToPointsCount(sourceText, track.pointsCount())
 
     this.downloadText(
       gpxText,
-      this.trimmedFileName(origin.name),
+      this.trimmedFileName(meta.name),
       'application/gpx+xml;charset=utf-8',
     )
+  }
+
+  private async readFileText(file: File): Promise<string> {
+    try {
+      return await file.text()
+    } catch {
+      throw new Error(`${file.name} could not be read.`)
+    }
   }
 
   private createRemoteId(file: File): string {
     return `${file.name}:${file.size}:${file.lastModified}`
   }
 
-  private createTrackFromText(text: string, origin: TrackOrigin): Track {
+  private createTrackFromText(text: string, meta: TrackMeta): Track {
     const geometry = gpxConverter.deserialize({
       data: text,
       mimeType: 'application/gpx+xml',
     })
 
-    return new TrackModel(geometry.points, origin)
+    return new TrackModel(geometry.points, meta)
   }
 
   private trimmedFileName(fileName: string): string {
@@ -114,5 +121,3 @@ export class LocalFileSource implements TrackSource {
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 }
-
-export const localFileSource = new LocalFileSource()

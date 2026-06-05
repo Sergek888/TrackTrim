@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react'
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
-import { trackToLineGeoJson, type TrackLineGeoJson } from '../map/trackToGeoJson'
+import {
+  tracksToFeatureCollectionGeoJson,
+  type TracksFeatureCollectionGeoJson,
+} from '../map/trackToGeoJson'
 
 type TrackMapProps = {
-  track: Track
-  removedTrack?: Track | null
-  boundsTrack: Track
-  selectedPoint?: TrackMapPoint | null
-  onTrackClick?: (point: TrackMapPoint) => void
+  tracks: readonly Track[]
+  activeTrack: Track | null
+  focusedTrack: Track | null
+  onTrackClick: (track: Track, point: TrackMapPoint) => void
+  onMapClick: () => void
 }
 
 export type TrackMapPoint = {
@@ -16,17 +19,11 @@ export type TrackMapPoint = {
   longitude: number
 }
 
-const TRACK_SOURCE_ID = 'track'
-const TRACK_LAYER_ID = 'track-line'
-const REMOVED_TRACK_SOURCE_ID = 'removed-track'
-const REMOVED_TRACK_LAYER_ID = 'removed-track-line'
-const EMPTY_LINE_GEOJSON: TrackLineGeoJson = {
-  type: 'Feature',
-  geometry: {
-    type: 'LineString',
-    coordinates: [],
-  },
-  properties: {},
+const TRACKS_SOURCE_ID = 'tracks'
+const TRACKS_LAYER_ID = 'track-lines'
+const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
+  type: 'FeatureCollection',
+  features: [],
 }
 
 function trackBounds(track: Track): LngLatBoundsLike | null {
@@ -49,6 +46,25 @@ function trackBounds(track: Track): LngLatBoundsLike | null {
   return bounds
 }
 
+function allTracksBounds(tracks: readonly Track[]): LngLatBoundsLike | null {
+  let bounds: maplibregl.LngLatBounds | null = null
+
+  for (const track of tracks) {
+    const points = track.getPoints()
+
+    for (const point of points) {
+      if (bounds === null) {
+        bounds = new maplibregl.LngLatBounds([point.lon, point.lat], [point.lon, point.lat])
+        continue
+      }
+
+      bounds.extend([point.lon, point.lat])
+    }
+  }
+
+  return bounds
+}
+
 function setInteractiveCursor(map: maplibregl.Map): void {
   map.getCanvas().style.cursor = 'pointer'
 }
@@ -57,37 +73,27 @@ function resetInteractiveCursor(map: maplibregl.Map): void {
   map.getCanvas().style.cursor = ''
 }
 
-function emitTrackClick(
-  event: maplibregl.MapLayerMouseEvent,
-  onTrackClick: ((point: TrackMapPoint) => void) | undefined,
-): void {
-  onTrackClick?.({
-    latitude: event.lngLat.lat,
-    longitude: event.lngLat.lng,
-  })
-}
-
 export default function TrackMap({
-  track,
-  removedTrack = null,
-  boundsTrack,
-  selectedPoint = null,
+  tracks,
+  activeTrack,
+  focusedTrack,
   onTrackClick,
+  onMapClick,
 }: TrackMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const markerRef = useRef<maplibregl.Marker | null>(null)
-  const fittedBoundsTrackRef = useRef<Track | null>(null)
-  const latestTrackRef = useRef(track)
-  const latestRemovedTrackRef = useRef(removedTrack)
-  const latestBoundsTrackRef = useRef(boundsTrack)
+  const latestTracksRef = useRef(tracks)
+  const latestActiveTrackRef = useRef(activeTrack)
   const latestOnTrackClickRef = useRef(onTrackClick)
+  const latestOnMapClickRef = useRef(onMapClick)
+  const fittedInitialBoundsRef = useRef(false)
+  const focusedTrackRef = useRef<Track | null>(null)
   const isMapReadyRef = useRef(false)
 
-  latestTrackRef.current = track
-  latestRemovedTrackRef.current = removedTrack
-  latestBoundsTrackRef.current = boundsTrack
+  latestTracksRef.current = tracks
+  latestActiveTrackRef.current = activeTrack
   latestOnTrackClickRef.current = onTrackClick
+  latestOnMapClickRef.current = onMapClick
 
   useEffect(() => {
     if (containerRef.current === null || mapRef.current !== null) {
@@ -119,67 +125,77 @@ export default function TrackMap({
     })
 
     mapRef.current = map
-    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.addControl(new maplibregl.NavigationControl(), 'top-left')
 
     map.on('load', () => {
       isMapReadyRef.current = true
 
-      map.addSource(REMOVED_TRACK_SOURCE_ID, {
+      map.addSource(TRACKS_SOURCE_ID, {
         type: 'geojson',
         data:
-          latestRemovedTrackRef.current === null
-            ? EMPTY_LINE_GEOJSON
-            : trackToLineGeoJson(latestRemovedTrackRef.current),
+          latestTracksRef.current.length === 0
+            ? EMPTY_TRACKS_GEOJSON
+            : tracksToFeatureCollectionGeoJson(
+                latestTracksRef.current,
+                latestActiveTrackRef.current,
+              ),
       })
       map.addLayer({
-        id: REMOVED_TRACK_LAYER_ID,
+        id: TRACKS_LAYER_ID,
         type: 'line',
-        source: REMOVED_TRACK_SOURCE_ID,
+        source: TRACKS_SOURCE_ID,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
         paint: {
-          'line-color': '#6b7280',
-          'line-width': 5,
-          'line-opacity': 0.55,
+          'line-color': ['get', 'color'],
+          'line-width': ['case', ['==', ['get', 'active'], true], 6, 3],
+          'line-opacity': ['case', ['==', ['get', 'active'], true], 0.95, 0.72],
         },
       })
-      map.addSource(TRACK_SOURCE_ID, {
-        type: 'geojson',
-        data: trackToLineGeoJson(latestTrackRef.current),
+
+      map.on('mouseenter', TRACKS_LAYER_ID, () => setInteractiveCursor(map))
+      map.on('mouseleave', TRACKS_LAYER_ID, () => resetInteractiveCursor(map))
+      map.on('click', TRACKS_LAYER_ID, (event) => {
+        const featureIndex = event.features?.[0]?.properties?.featureIndex
+
+        if (typeof featureIndex !== 'number') {
+          return
+        }
+
+        const track = latestTracksRef.current[featureIndex] ?? null
+
+        if (track === null) {
+          return
+        }
+
+        latestOnTrackClickRef.current(track, {
+          latitude: event.lngLat.lat,
+          longitude: event.lngLat.lng,
+        })
       })
-      map.addLayer({
-        id: TRACK_LAYER_ID,
-        type: 'line',
-        source: TRACK_SOURCE_ID,
-        paint: {
-          'line-color': '#2563eb',
-          'line-width': 4,
-          'line-opacity': 0.9,
-        },
-      })
-      map.on('mouseenter', TRACK_LAYER_ID, () => setInteractiveCursor(map))
-      map.on('mouseleave', TRACK_LAYER_ID, () => resetInteractiveCursor(map))
-      map.on('click', TRACK_LAYER_ID, (event) => {
-        emitTrackClick(event, latestOnTrackClickRef.current)
-      })
-      map.on('mouseenter', REMOVED_TRACK_LAYER_ID, () => setInteractiveCursor(map))
-      map.on('mouseleave', REMOVED_TRACK_LAYER_ID, () => resetInteractiveCursor(map))
-      map.on('click', REMOVED_TRACK_LAYER_ID, (event) => {
-        emitTrackClick(event, latestOnTrackClickRef.current)
+      map.on('click', (event) => {
+        const features = map.queryRenderedFeatures(event.point, { layers: [TRACKS_LAYER_ID] })
+
+        if (features.length === 0) {
+          latestOnMapClickRef.current()
+        }
       })
 
-      const currentBoundsTrack = latestBoundsTrackRef.current
-      const bounds = trackBounds(currentBoundsTrack)
+      const bounds = allTracksBounds(latestTracksRef.current)
 
-      if (bounds !== null && fittedBoundsTrackRef.current !== currentBoundsTrack) {
-        map.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 16 })
-        fittedBoundsTrackRef.current = currentBoundsTrack
+      if (bounds !== null) {
+        map.fitBounds(bounds, { padding: 64, duration: 0, maxZoom: 16 })
+        fittedInitialBoundsRef.current = true
       }
     })
 
     return () => {
       map.remove()
       mapRef.current = null
-      markerRef.current = null
-      fittedBoundsTrackRef.current = null
+      focusedTrackRef.current = null
+      fittedInitialBoundsRef.current = false
       isMapReadyRef.current = false
     }
   }, [])
@@ -191,60 +207,43 @@ export default function TrackMap({
       return
     }
 
-    const source = map.getSource(TRACK_SOURCE_ID) as GeoJSONSource | undefined
+    const source = map.getSource(TRACKS_SOURCE_ID) as GeoJSONSource | undefined
 
-    source?.setData(trackToLineGeoJson(track))
-  }, [track])
+    source?.setData(
+      tracks.length === 0
+        ? EMPTY_TRACKS_GEOJSON
+        : tracksToFeatureCollectionGeoJson(tracks, activeTrack),
+    )
+
+    if (!fittedInitialBoundsRef.current) {
+      const bounds = allTracksBounds(tracks)
+
+      if (bounds !== null) {
+        map.fitBounds(bounds, { padding: 64, duration: 0, maxZoom: 16 })
+        fittedInitialBoundsRef.current = true
+      }
+    }
+  }, [tracks, activeTrack])
 
   useEffect(() => {
     const map = mapRef.current
 
-    if (map === null || !isMapReadyRef.current) {
+    if (
+      map === null ||
+      !isMapReadyRef.current ||
+      focusedTrack === null ||
+      focusedTrackRef.current === focusedTrack
+    ) {
       return
     }
 
-    const source = map.getSource(REMOVED_TRACK_SOURCE_ID) as GeoJSONSource | undefined
-
-    source?.setData(removedTrack === null ? EMPTY_LINE_GEOJSON : trackToLineGeoJson(removedTrack))
-  }, [removedTrack])
-
-  useEffect(() => {
-    const map = mapRef.current
-
-    if (map === null || !isMapReadyRef.current) {
-      return
-    }
-
-    if (selectedPoint === null) {
-      markerRef.current?.remove()
-      markerRef.current = null
-      return
-    }
-
-    if (markerRef.current === null) {
-      markerRef.current = new maplibregl.Marker({ color: '#111827' })
-        .setLngLat([selectedPoint.longitude, selectedPoint.latitude])
-        .addTo(map)
-      return
-    }
-
-    markerRef.current.setLngLat([selectedPoint.longitude, selectedPoint.latitude])
-  }, [selectedPoint])
-
-  useEffect(() => {
-    const map = mapRef.current
-
-    if (map === null || !isMapReadyRef.current || fittedBoundsTrackRef.current === boundsTrack) {
-      return
-    }
-
-    const bounds = trackBounds(boundsTrack)
+    const bounds = trackBounds(focusedTrack)
 
     if (bounds !== null) {
-      map.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 16 })
-      fittedBoundsTrackRef.current = boundsTrack
+      map.fitBounds(bounds, { padding: 80, duration: 450, maxZoom: 16 })
+      focusedTrackRef.current = focusedTrack
     }
-  }, [boundsTrack])
+  }, [focusedTrack])
 
   return <div className="track-map" ref={containerRef} aria-label="Track map" />
 }

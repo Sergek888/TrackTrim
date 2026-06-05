@@ -1,17 +1,18 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { komootTrackSource } from '../../application/sources/KomootTrackSource'
-import type { TrackOrigin } from '../../model/TrackOrigin'
+import { KomootTourTrackSource } from '../../application/sources/KomootTrackSource'
+import type { TrackSource } from '../../application/sources/TrackSource'
+import { defaultTrackColor } from '../trackColors'
 
 type KomootImportProps = {
-  readonly onOriginSelected: (origin: TrackOrigin) => void
+  readonly onSourceSelected: (source: TrackSource) => void
 }
 
-export default function KomootImport({ onOriginSelected }: KomootImportProps) {
+export default function KomootImport({ onSourceSelected }: KomootImportProps) {
   const [url, setUrl] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const origin = useMemo<TrackOrigin | null>(
-    () => komootTrackSource.createOriginFromUrl(url),
+  const canLoadUrl = useMemo(
+    () => KomootTourTrackSource.canLoadUrl(url),
     [url],
   )
 
@@ -21,12 +22,12 @@ export default function KomootImport({ onOriginSelected }: KomootImportProps) {
   }
 
   function handleLoadClick(): void {
-    if (origin === null) {
+    if (!canLoadUrl) {
       setErrorMessage('Komoot tour URL is invalid.')
       return
     }
 
-    onOriginSelected(origin)
+    onSourceSelected(new KomootTourTrackSource(url, 'Komoot tour', defaultTrackColor(0)))
   }
 
   return (
