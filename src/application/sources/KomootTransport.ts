@@ -128,7 +128,7 @@ function pathFromPathOrUrl(pathOrUrl: string): string {
     throw new KomootTransportError('Only Komoot API requests can use the server transport.')
   }
 
-  return url.pathname.slice('/api/v007'.length)
+  return `${url.pathname.slice('/api/v007'.length)}${url.search}`
 }
 
 function appendQuery(url: URL, query?: KomootRequestInput['query']): void {

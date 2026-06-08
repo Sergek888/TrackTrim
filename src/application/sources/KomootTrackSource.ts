@@ -66,6 +66,14 @@ type KomootUserToursResponse = {
   }
 }
 
+type KomootTourSummary = {
+  readonly remoteId: string
+  readonly name: string | null
+  readonly date: Date | null
+  readonly distanceMeters: number | null
+  readonly coordinatesUrl: string
+}
+
 type KomootSourceTarget =
   | { readonly tourId: string; readonly collectionId?: never; readonly userId?: never }
   | { readonly collectionId: string; readonly tourId?: never; readonly userId?: never }
@@ -96,6 +104,10 @@ function parseDistanceMeters(value: unknown): number | null {
   }
 
   return value
+}
+
+function parseString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null
 }
 
 function parseCoordinate(value: unknown): TrackPointInput | null {
@@ -136,6 +148,20 @@ function extractTourIdsFromText(text: string): string[] {
   }
 
   return uniqueValues(ids)
+}
+
+function linkHref(value: unknown, rel: string): string | null {
+  if (!isRecord(value) || !isRecord(value._links)) {
+    return null
+  }
+
+  const link = value._links[rel]
+
+  if (!isRecord(link)) {
+    return null
+  }
+
+  return parseString(link.href)
 }
 
 export class KomootTrackSource implements TrackSource {
@@ -309,23 +335,46 @@ export class KomootTrackSource implements TrackSource {
     listType: KomootUserListType,
   ): Promise<Track[]> {
     const mode: KomootRequestMode = this.credentials === null ? 'direct' : 'server'
-    const tourIds = await this.fetchUserTourIds(
+    const summaries = await this.fetchUserTourSummaries(
       userId,
       listType,
       mode,
     )
 
-    if (tourIds.length === 0) {
+    if (summaries.length === 0) {
       return []
     }
 
     const tracks: Track[] = []
 
-    for (const tourId of tourIds) {
-      tracks.push(await this.loadTrackByTourId(tourId, mode))
+    for (const summary of summaries) {
+      tracks.push(await this.loadUserTrackFromSummary(summary, mode))
     }
 
     return tracks
+  }
+
+  private async loadUserTrackFromSummary(
+    summary: KomootTourSummary,
+    mode: KomootRequestMode,
+  ): Promise<Track> {
+    const points = await this.fetchCoordinates(summary.coordinatesUrl, mode)
+
+    if (points.length === 0) {
+      throw new Error(`Komoot tour ${summary.remoteId} has no available coordinates.`)
+    }
+
+    const meta = new TrackMeta(
+      this,
+      summary.remoteId,
+      summary.name ?? `Komoot tour ${summary.remoteId}`,
+      this.color,
+      true,
+      summary.date,
+      summary.distanceMeters,
+    )
+
+    return new TrackModel(points, meta)
   }
 
   private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
@@ -460,31 +509,31 @@ export class KomootTrackSource implements TrackSource {
     return []
   }
 
-  private async fetchUserTourIds(
+  private async fetchUserTourSummaries(
     userId: string,
     listType: KomootUserListType,
     mode: KomootRequestMode = 'direct',
-  ): Promise<string[]> {
-    const apiTourIds = await this.fetchUserTourIdsFromApi(userId, listType, mode)
+  ): Promise<KomootTourSummary[]> {
+    const apiSummaries = await this.fetchUserTourSummariesFromApi(userId, listType, mode)
 
-    if (apiTourIds.length > 0) {
-      return apiTourIds
+    if (apiSummaries.length > 0) {
+      return apiSummaries
     }
 
     if (mode === 'server') {
       return []
     }
 
-    return this.fetchUserTourIdsFromHtml(userId, listType)
+    return this.fetchUserTourSummariesFromHtml(userId, listType)
   }
 
-  private async fetchUserTourIdsFromApi(
+  private async fetchUserTourSummariesFromApi(
     userId: string,
     listType: KomootUserListType,
     mode: KomootRequestMode,
-  ): Promise<string[]> {
+  ): Promise<KomootTourSummary[]> {
     const tourType = listType === 'planned' ? 'tour_planned' : 'tour_recorded'
-    const ids: string[] = []
+    const summaries: KomootTourSummary[] = []
     const apiBases =
       mode === 'server' ? [KOMOOT_API_BASE] : [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
 
@@ -520,7 +569,11 @@ export class KomootTrackSource implements TrackSource {
           ? userToursResponse._embedded.tours
           : []
 
-        ids.push(...tours.flatMap((tour) => this.extractUserTourIdsFromItem(tour)))
+        summaries.push(
+          ...tours
+            .map((tour) => this.tourSummaryFromUserTourItem(tour))
+            .filter((summary): summary is KomootTourSummary => summary !== null),
+        )
 
         const totalPages =
           typeof userToursResponse.page?.totalPages === 'number'
@@ -534,18 +587,18 @@ export class KomootTrackSource implements TrackSource {
         }
       }
 
-      if (ids.length > 0) {
-        return uniqueValues(ids)
+      if (summaries.length > 0) {
+        return this.uniqueTourSummaries(summaries)
       }
     }
 
     return []
   }
 
-  private async fetchUserTourIdsFromHtml(
+  private async fetchUserTourSummariesFromHtml(
     userId: string,
     listType: KomootUserListType,
-  ): Promise<string[]> {
+  ): Promise<KomootTourSummary[]> {
     const candidateUrls =
       listType === 'planned'
         ? [this.url, `${KOMOOT_WEB_BASE}/user/${userId}/tours`]
@@ -564,6 +617,7 @@ export class KomootTrackSource implements TrackSource {
 
         if (ids.length > 0) {
           return ids
+            .map((id) => this.tourSummaryFromRemoteId(id))
         }
       } catch (error) {
         if (
@@ -576,6 +630,55 @@ export class KomootTrackSource implements TrackSource {
     }
 
     return []
+  }
+
+  private tourSummaryFromUserTourItem(item: unknown): KomootTourSummary | null {
+    if (!isRecord(item)) {
+      return null
+    }
+
+    const id = item.id
+    const remoteId = typeof id === 'string' || typeof id === 'number' ? String(id) : null
+
+    if (remoteId === null) {
+      return null
+    }
+
+    return {
+      remoteId,
+      name: parseString(item.name),
+      date: parseDate(item.date),
+      distanceMeters: parseDistanceMeters(item.distance_m ?? item.distance),
+      coordinatesUrl: linkHref(item, 'coordinates') ?? this.defaultCoordinatesUrl(remoteId),
+    }
+  }
+
+  private tourSummaryFromRemoteId(remoteId: string): KomootTourSummary {
+    return {
+      remoteId,
+      name: null,
+      date: null,
+      distanceMeters: null,
+      coordinatesUrl: this.defaultCoordinatesUrl(remoteId),
+    }
+  }
+
+  private defaultCoordinatesUrl(remoteId: string): string {
+    return `${KOMOOT_API_BASE}/tours/${remoteId}/coordinates`
+  }
+
+  private uniqueTourSummaries(summaries: readonly KomootTourSummary[]): KomootTourSummary[] {
+    const seen = new Set<string>()
+    const uniqueSummaries: KomootTourSummary[] = []
+
+    for (const summary of summaries) {
+      if (!seen.has(summary.remoteId)) {
+        seen.add(summary.remoteId)
+        uniqueSummaries.push(summary)
+      }
+    }
+
+    return uniqueSummaries
   }
 
   private extractTourIdsFromUnknown(value: unknown): string[] {
@@ -607,20 +710,6 @@ export class KomootTrackSource implements TrackSource {
     }
 
     return uniqueValues(ids)
-  }
-
-  private extractUserTourIdsFromItem(item: unknown): string[] {
-    if (!isRecord(item)) {
-      return []
-    }
-
-    const id = item.id
-
-    if (typeof id === 'string' || typeof id === 'number') {
-      return [String(id)]
-    }
-
-    return this.extractTourIdsFromUnknown(item)
   }
 
   private async fetchTour(
