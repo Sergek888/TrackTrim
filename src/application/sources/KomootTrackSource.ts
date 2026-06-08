@@ -68,6 +68,8 @@ type KomootUserToursResponse = {
 
 type KomootUserResponse = {
   display_name?: unknown
+  displayname?: unknown
+  displayName?: unknown
   username?: unknown
   name?: unknown
 }
@@ -368,17 +370,10 @@ export class KomootTrackSource implements TrackSource {
     mode: KomootRequestMode,
   ): Promise<void> {
     try {
-      const response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/users/${userId}`, mode)
-
-      if (!isRecord(response)) {
-        return
-      }
-
-      const userResponse = response as KomootUserResponse
+      const response = await this.fetchUserProfile(userId, mode)
       const userName =
-        parseString(userResponse.display_name) ??
-        parseString(userResponse.username) ??
-        parseString(userResponse.name)
+        this.userNameFromProfileResponse(response) ??
+        await this.fetchUserNameFromHtml(userId)
 
       if (userName !== null) {
         const suffix = listType === 'planned' ? 'planned' : 'completed'
@@ -390,6 +385,75 @@ export class KomootTrackSource implements TrackSource {
         (error.status === 401 || error.status === 403 || error.status === 404)
       ) {
         return
+      }
+
+      throw error
+    }
+  }
+
+  private userNameFromProfileResponse(response: unknown): string | null {
+    if (!isRecord(response)) {
+      return null
+    }
+
+    const userResponse = response as KomootUserResponse
+
+    return (
+      parseString(userResponse.display_name) ??
+      parseString(userResponse.displayname) ??
+      parseString(userResponse.displayName) ??
+      parseString(userResponse.username) ??
+      parseString(userResponse.name)
+    )
+  }
+
+  private async fetchUserProfile(
+    userId: string,
+    mode: KomootRequestMode,
+  ): Promise<unknown> {
+    const apiBases =
+      mode === 'server' ? [KOMOOT_API_BASE] : [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
+
+    for (const apiBase of apiBases) {
+      try {
+        return await this.fetchKomootJson(`${apiBase}/users/${userId}/`, mode)
+      } catch (error) {
+        if (
+          error instanceof KomootTransportError &&
+          (error.status === 401 || error.status === 403 || error.status === 404)
+        ) {
+          continue
+        }
+
+        throw error
+      }
+    }
+
+    return null
+  }
+
+  private async fetchUserNameFromHtml(userId: string): Promise<string | null> {
+    try {
+      const html = await this.fetchPublicText(`${KOMOOT_WEB_BASE}/user/${userId}`)
+      const title = html.match(/<title>\s*([^<]+?)\s*<\/title>/i)?.[1] ?? null
+
+      if (title === null) {
+        return null
+      }
+
+      const userName = title
+        .replace(/\s*[|-]\s*komoot\s*$/i, '')
+        .replace(/\s*-\s*profile\s*$/i, '')
+        .trim()
+
+      if (userName === '' || /^komoot$/i.test(userName) || /log\s*in/i.test(userName)) {
+        return null
+      }
+
+      return userName
+    } catch (error) {
+      if (error instanceof KomootTransportError) {
+        return null
       }
 
       throw error
@@ -420,13 +484,13 @@ export class KomootTrackSource implements TrackSource {
   }
 
   private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
-    const apiTourIds = await this.fetchCollectionTourIdsFromApi(collectionId)
+    const htmlTourIds = await this.fetchCollectionTourIdsFromHtml(collectionId)
 
-    if (apiTourIds.length > 0) {
-      return apiTourIds
+    if (htmlTourIds.length > 0) {
+      return htmlTourIds
     }
 
-    return this.fetchCollectionTourIdsFromHtml(collectionId)
+    return this.fetchCollectionTourIdsFromApi(collectionId)
   }
 
   private async fetchCollectionTracksFromCompilationLines(collectionId: string): Promise<Track[]> {
@@ -525,18 +589,29 @@ export class KomootTrackSource implements TrackSource {
   }
 
   private async fetchCollectionTourIdsFromHtml(collectionId: string): Promise<string[]> {
-    const candidateUrls = [
+    const ids: string[] = []
+    const canonicalUrl = `${KOMOOT_WEB_BASE}/collection/${collectionId}`
+    const candidateUrls = uniqueValues([
       this.url,
-      `${KOMOOT_WEB_BASE}/collection/${collectionId}`,
-    ]
+      canonicalUrl,
+      ...Array.from({ length: 49 }, (_, index) => `${canonicalUrl}?page=${index + 2}`),
+    ])
 
     for (const url of candidateUrls) {
       try {
         const html = await this.fetchPublicText(url)
-        const ids = extractTourIdsFromText(html)
+        const pageIds = extractTourIdsFromText(html)
 
-        if (ids.length > 0) {
-          return ids
+        if (pageIds.length === 0 && ids.length > 0) {
+          break
+        }
+
+        const previousCount = ids.length
+
+        ids.push(...pageIds)
+
+        if (url.includes('?page=') && ids.length === previousCount && ids.length > 0) {
+          break
         }
       } catch (error) {
         if (
@@ -548,7 +623,7 @@ export class KomootTrackSource implements TrackSource {
       }
     }
 
-    return []
+    return uniqueValues(ids)
   }
 
   private async fetchUserTourSummaries(

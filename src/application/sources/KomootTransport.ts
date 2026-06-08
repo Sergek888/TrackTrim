@@ -1,5 +1,6 @@
 const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
+const KOMOOT_FALLBACK_WEB_BASE = 'https://api.komoot.de'
 
 export type KomootRequestMode = 'direct' | 'server'
 
@@ -120,8 +121,12 @@ function pathFromPathOrUrl(pathOrUrl: string): string {
     ? new URL(pathOrUrl)
     : new URL(pathOrUrl, KOMOOT_API_BASE)
 
-  if (url.origin !== KOMOOT_WEB_BASE) {
+  if (url.origin !== KOMOOT_WEB_BASE && url.origin !== KOMOOT_FALLBACK_WEB_BASE) {
     throw new KomootTransportError('Only Komoot requests can use the server transport.')
+  }
+
+  if (url.origin === KOMOOT_FALLBACK_WEB_BASE && url.pathname.startsWith('/v007/')) {
+    return `${url.pathname.slice('/v007'.length)}${url.search}`
   }
 
   if (!url.pathname.startsWith('/api/v007/')) {
