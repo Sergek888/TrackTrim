@@ -66,6 +66,12 @@ type KomootUserToursResponse = {
   }
 }
 
+type KomootUserResponse = {
+  display_name?: unknown
+  username?: unknown
+  name?: unknown
+}
+
 type KomootTourSummary = {
   readonly remoteId: string
   readonly name: string | null
@@ -335,6 +341,8 @@ export class KomootTrackSource implements TrackSource {
     listType: KomootUserListType,
   ): Promise<Track[]> {
     const mode: KomootRequestMode = this.credentials === null ? 'direct' : 'server'
+    await this.updateUserSourceName(userId, listType, mode)
+
     const summaries = await this.fetchUserTourSummaries(
       userId,
       listType,
@@ -352,6 +360,40 @@ export class KomootTrackSource implements TrackSource {
     }
 
     return tracks
+  }
+
+  private async updateUserSourceName(
+    userId: string,
+    listType: KomootUserListType,
+    mode: KomootRequestMode,
+  ): Promise<void> {
+    try {
+      const response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/users/${userId}`, mode)
+
+      if (!isRecord(response)) {
+        return
+      }
+
+      const userResponse = response as KomootUserResponse
+      const userName =
+        parseString(userResponse.display_name) ??
+        parseString(userResponse.username) ??
+        parseString(userResponse.name)
+
+      if (userName !== null) {
+        const suffix = listType === 'planned' ? 'planned' : 'completed'
+        this.name = `${userName} ${suffix}`
+      }
+    } catch (error) {
+      if (
+        error instanceof KomootTransportError &&
+        (error.status === 401 || error.status === 403 || error.status === 404)
+      ) {
+        return
+      }
+
+      throw error
+    }
   }
 
   private async loadUserTrackFromSummary(

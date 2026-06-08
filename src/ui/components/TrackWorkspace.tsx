@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import AddSourceDialog from './AddSourceDialog'
@@ -53,14 +54,23 @@ export default function TrackWorkspace() {
   }
 
   async function handleSourceCreate(source: TrackSource): Promise<void> {
+    const keepEmptySourceOnError = source instanceof KomootTrackSource
+
     setIsAddSourceOpen(false)
     setIsLoadingSource(true)
     setErrorMessage(null)
 
+    if (keepEmptySourceOnError) {
+      setSources((currentSources) => [...currentSources, source])
+    }
+
     try {
       const loadedTracks = await source.loadTracks()
 
-      setSources((currentSources) => [...currentSources, source])
+      if (!keepEmptySourceOnError) {
+        setSources((currentSources) => [...currentSources, source])
+      }
+
       setTracks((currentTracks) => [...currentTracks, ...loadedTracks])
 
       if (activeTrack === null && loadedTracks[0] !== undefined) {
