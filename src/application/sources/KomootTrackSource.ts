@@ -3,6 +3,13 @@ import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
 import type { TrackPointInput } from '../../model/TrackPoint'
+import {
+  komootRequestJson,
+  komootRequestText,
+  KomootTransportError,
+  type KomootCredentials,
+  type KomootRequestMode,
+} from './KomootTransport'
 import type { TrackFormat, TrackSource } from './TrackSource'
 
 const KOMOOT_TOUR_URL_PATTERN =
@@ -19,15 +26,6 @@ const KOMOOT_API_FALLBACK_BASE = 'https://api.komoot.de/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
 
 export type KomootUserListType = 'planned' | 'recorded'
-
-class KomootPublicApiError extends Error {
-  public constructor(
-    message: string,
-    public readonly status: number | null = null,
-  ) {
-    super(message)
-  }
-}
 
 type KomootCoordinatesResponse = {
   items?: unknown
@@ -77,24 +75,6 @@ type KomootSourceTarget =
       readonly tourId?: never
       readonly collectionId?: never
     }
-
-type KomootCredentials = {
-  readonly email: string
-  readonly password: string
-}
-
-type KomootAuthorizedTrackResponse = {
-  id?: unknown
-  name?: unknown
-  date?: unknown
-  distance?: unknown
-  points?: unknown
-}
-
-type KomootUserTracksResponse = {
-  tracks?: unknown
-  error?: unknown
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -325,11 +305,11 @@ export class KomootTrackSource implements TrackSource {
     userId: string,
     listType: KomootUserListType,
   ): Promise<Track[]> {
-    if (this.credentials !== null) {
-      return this.loadAuthorizedUserTracks(userId, listType, this.credentials)
-    }
-
-    const tourIds = await this.fetchUserTourIds(userId, listType)
+    const tourIds = await this.fetchUserTourIds(
+      userId,
+      listType,
+      this.credentials === null ? 'direct' : 'server',
+    )
 
     if (tourIds.length === 0) {
       return []
@@ -342,88 +322,6 @@ export class KomootTrackSource implements TrackSource {
     }
 
     return tracks
-  }
-
-  private async loadAuthorizedUserTracks(
-    userId: string,
-    listType: KomootUserListType,
-    credentials: KomootCredentials,
-  ): Promise<Track[]> {
-    let response: Response
-
-    try {
-      response = await fetch('/api/komoot/user-tours', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          listType,
-          email: credentials.email,
-          password: credentials.password,
-        }),
-      })
-    } catch {
-      throw new Error('Komoot authorization endpoint is not reachable.')
-    }
-
-    const payload = (await response.json()) as KomootUserTracksResponse
-
-    if (!response.ok) {
-      throw new Error(
-        typeof payload.error === 'string'
-          ? payload.error
-          : 'Komoot user tracks could not be loaded.',
-      )
-    }
-
-    const items = Array.isArray(payload.tracks) ? payload.tracks : []
-
-    return items
-      .map((item) => this.trackFromAuthorizedResponse(item))
-      .filter((track): track is Track => track !== null)
-  }
-
-  private trackFromAuthorizedResponse(item: unknown): Track | null {
-    if (!isRecord(item)) {
-      return null
-    }
-
-    const trackResponse = item as KomootAuthorizedTrackResponse
-    const remoteId =
-      typeof trackResponse.id === 'string' || typeof trackResponse.id === 'number'
-        ? String(trackResponse.id)
-        : null
-    const pointsInput = Array.isArray(trackResponse.points) ? trackResponse.points : []
-
-    if (remoteId === null || pointsInput.length === 0) {
-      return null
-    }
-
-    const points = pointsInput
-      .map((point) => parseCoordinate(point))
-      .filter((point): point is TrackPointInput => point !== null)
-
-    if (points.length === 0) {
-      return null
-    }
-
-    const name =
-      typeof trackResponse.name === 'string' && trackResponse.name.trim() !== ''
-        ? trackResponse.name
-        : `Komoot tour ${remoteId}`
-    const meta = new TrackMeta(
-      this,
-      remoteId,
-      name,
-      this.color,
-      true,
-      parseDate(trackResponse.date),
-      parseDistanceMeters(trackResponse.distance),
-    )
-
-    return new TrackModel(points, meta)
   }
 
   private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
@@ -451,7 +349,7 @@ export class KomootTrackSource implements TrackSource {
         .filter((track): track is Track => track !== null)
     } catch (error) {
       if (
-        error instanceof KomootPublicApiError &&
+        error instanceof KomootTransportError &&
         (error.status === 403 || error.status === 404)
       ) {
         return []
@@ -520,7 +418,7 @@ export class KomootTrackSource implements TrackSource {
         }
       } catch (error) {
         if (
-          !(error instanceof KomootPublicApiError) ||
+          !(error instanceof KomootTransportError) ||
           (error.status !== 403 && error.status !== 404)
         ) {
           throw error
@@ -547,7 +445,7 @@ export class KomootTrackSource implements TrackSource {
         }
       } catch (error) {
         if (
-          !(error instanceof KomootPublicApiError) ||
+          !(error instanceof KomootTransportError) ||
           (error.status !== 403 && error.status !== 404)
         ) {
           throw error
@@ -561,11 +459,16 @@ export class KomootTrackSource implements TrackSource {
   private async fetchUserTourIds(
     userId: string,
     listType: KomootUserListType,
+    mode: KomootRequestMode = 'direct',
   ): Promise<string[]> {
-    const apiTourIds = await this.fetchUserTourIdsFromApi(userId, listType)
+    const apiTourIds = await this.fetchUserTourIdsFromApi(userId, listType, mode)
 
     if (apiTourIds.length > 0) {
       return apiTourIds
+    }
+
+    if (mode === 'server') {
+      return []
     }
 
     return this.fetchUserTourIdsFromHtml(userId, listType)
@@ -574,23 +477,31 @@ export class KomootTrackSource implements TrackSource {
   private async fetchUserTourIdsFromApi(
     userId: string,
     listType: KomootUserListType,
+    mode: KomootRequestMode,
   ): Promise<string[]> {
     const tourType = listType === 'planned' ? 'tour_planned' : 'tour_recorded'
     const ids: string[] = []
+    const apiBases =
+      mode === 'server' ? [KOMOOT_API_BASE] : [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
 
-    for (const apiBase of [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]) {
+    for (const apiBase of apiBases) {
       let page = 0
 
       while (true) {
         let response: unknown
 
         try {
-          response = await this.fetchPublicJson(
-            `${apiBase}/users/${userId}/tours/?type=${tourType}&page=${page}`,
+          response = await this.fetchKomootJson(
+            `${apiBase}/users/${userId}/tours/`,
+            mode,
+            {
+              type: tourType,
+              page,
+            },
           )
         } catch (error) {
           if (
-            error instanceof KomootPublicApiError &&
+            error instanceof KomootTransportError &&
             (error.status === 401 || error.status === 403 || error.status === 404)
           ) {
             break
@@ -651,7 +562,7 @@ export class KomootTrackSource implements TrackSource {
         }
       } catch (error) {
         if (
-          !(error instanceof KomootPublicApiError) ||
+          !(error instanceof KomootTransportError) ||
           (error.status !== 403 && error.status !== 404)
         ) {
           throw error
@@ -711,16 +622,16 @@ export class KomootTrackSource implements TrackSource {
     let response: unknown
 
     try {
-      response = await this.fetchPublicJson(`${KOMOOT_API_BASE}/tours/${remoteId}`)
+      response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/tours/${remoteId}`)
     } catch (error) {
       if (
-        !(error instanceof KomootPublicApiError) ||
+        !(error instanceof KomootTransportError) ||
         (error.status !== 403 && error.status !== 404)
       ) {
         throw error
       }
 
-      response = await this.fetchPublicJson(`${KOMOOT_API_BASE}/discover_tours/${remoteId}`)
+      response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/discover_tours/${remoteId}`)
     }
 
     if (!isRecord(response)) {
@@ -741,7 +652,7 @@ export class KomootTrackSource implements TrackSource {
   }
 
   private async fetchCoordinates(url: string): Promise<TrackPointInput[]> {
-    const response = await this.fetchPublicJson(url)
+    const response = await this.fetchKomootJson(url)
     const items = this.coordinateItems(response)
 
     return items
@@ -764,48 +675,29 @@ export class KomootTrackSource implements TrackSource {
   }
 
   private async fetchPublicJson(url: string): Promise<unknown> {
-    const response = await this.fetchPublic(url, 'application/hal+json')
-
-    return response.json()
+    return this.fetchKomootJson(url)
   }
 
   private async fetchPublicText(url: string): Promise<string> {
-    const response = await this.fetchPublic(url, 'text/html')
-
-    return response.text()
+    return komootRequestText({
+      mode: 'direct',
+      pathOrUrl: url,
+      accept: 'text/html',
+    })
   }
 
-  private async fetchPublic(url: string, accept: string): Promise<Response> {
-    let response: Response
-
-    try {
-      response = await fetch(url, {
-        headers: {
-          accept,
-        },
-      })
-    } catch {
-      throw new KomootPublicApiError(
-        'Komoot public data is not reachable from the browser. Use local GPX import.',
-      )
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      throw new KomootPublicApiError(
-        'Komoot source is private or not available without authorization.',
-        response.status,
-      )
-    }
-
-    if (response.status === 404) {
-      throw new KomootPublicApiError('Komoot source was not found.', response.status)
-    }
-
-    if (!response.ok) {
-      throw new KomootPublicApiError('Komoot public request failed.', response.status)
-    }
-
-    return response
+  private async fetchKomootJson(
+    pathOrUrl: string,
+    mode: KomootRequestMode = 'direct',
+    query?: Readonly<Record<string, string | number | boolean | null | undefined>>,
+  ): Promise<unknown> {
+    return komootRequestJson({
+      mode,
+      pathOrUrl,
+      query,
+      accept: 'application/hal+json',
+      credentials: mode === 'server' ? this.credentials : null,
+    })
   }
 
   private trimmedFileName(name: string): string {
