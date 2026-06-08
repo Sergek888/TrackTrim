@@ -171,7 +171,8 @@ export default function AddSourceDialog({
 
             {komootTargetType === 'user' && (
               <p className="form-note">
-                Only public user routes are available without authorization.
+                User sources are added without authorization. Komoot may still return an empty
+                list for profile routes.
               </p>
             )}
           </>

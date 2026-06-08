@@ -309,9 +309,7 @@ export class KomootTrackSource implements TrackSource {
     const tourIds = await this.fetchUserTourIds(userId, listType)
 
     if (tourIds.length === 0) {
-      throw new Error(
-        `Komoot user has no public ${listType === 'planned' ? 'planned tours' : 'completed activities'} or could not be read without authorization.`,
-      )
+      return []
     }
 
     const tracks: Track[] = []
