@@ -275,10 +275,13 @@ export class KomootTrackSource implements TrackSource {
     return null
   }
 
-  private async loadTrackByTourId(tourId: string): Promise<Track> {
-    const tour = await this.fetchTour(tourId)
+  private async loadTrackByTourId(
+    tourId: string,
+    mode: KomootRequestMode = 'direct',
+  ): Promise<Track> {
+    const tour = await this.fetchTour(tourId, mode)
     const coordinatesUrl = this.coordinatesUrlFromTour(tour, tourId)
-    const points = await this.fetchCoordinates(coordinatesUrl)
+    const points = await this.fetchCoordinates(coordinatesUrl, mode)
 
     if (points.length === 0) {
       throw new Error(`Komoot tour ${tourId} has no public coordinates.`)
@@ -305,10 +308,11 @@ export class KomootTrackSource implements TrackSource {
     userId: string,
     listType: KomootUserListType,
   ): Promise<Track[]> {
+    const mode: KomootRequestMode = this.credentials === null ? 'direct' : 'server'
     const tourIds = await this.fetchUserTourIds(
       userId,
       listType,
-      this.credentials === null ? 'direct' : 'server',
+      mode,
     )
 
     if (tourIds.length === 0) {
@@ -318,7 +322,7 @@ export class KomootTrackSource implements TrackSource {
     const tracks: Track[] = []
 
     for (const tourId of tourIds) {
-      tracks.push(await this.loadTrackByTourId(tourId))
+      tracks.push(await this.loadTrackByTourId(tourId, mode))
     }
 
     return tracks
@@ -501,6 +505,7 @@ export class KomootTrackSource implements TrackSource {
           )
         } catch (error) {
           if (
+            mode === 'direct' &&
             error instanceof KomootTransportError &&
             (error.status === 401 || error.status === 403 || error.status === 404)
           ) {
@@ -618,11 +623,14 @@ export class KomootTrackSource implements TrackSource {
     return this.extractTourIdsFromUnknown(item)
   }
 
-  private async fetchTour(remoteId: string): Promise<KomootTourResponse> {
+  private async fetchTour(
+    remoteId: string,
+    mode: KomootRequestMode = 'direct',
+  ): Promise<KomootTourResponse> {
     let response: unknown
 
     try {
-      response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/tours/${remoteId}`)
+      response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/tours/${remoteId}`, mode)
     } catch (error) {
       if (
         !(error instanceof KomootTransportError) ||
@@ -631,7 +639,10 @@ export class KomootTrackSource implements TrackSource {
         throw error
       }
 
-      response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/discover_tours/${remoteId}`)
+      response = await this.fetchKomootJson(
+        `${KOMOOT_API_BASE}/discover_tours/${remoteId}`,
+        mode,
+      )
     }
 
     if (!isRecord(response)) {
@@ -651,8 +662,11 @@ export class KomootTrackSource implements TrackSource {
     return `${KOMOOT_API_BASE}/tours/${remoteId}/coordinates`
   }
 
-  private async fetchCoordinates(url: string): Promise<TrackPointInput[]> {
-    const response = await this.fetchKomootJson(url)
+  private async fetchCoordinates(
+    url: string,
+    mode: KomootRequestMode = 'direct',
+  ): Promise<TrackPointInput[]> {
+    const response = await this.fetchKomootJson(url, mode)
     const items = this.coordinateItems(response)
 
     return items
