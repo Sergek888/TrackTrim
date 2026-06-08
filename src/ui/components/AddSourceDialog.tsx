@@ -28,6 +28,8 @@ export default function AddSourceDialog({
   const [url, setUrl] = useState('')
   const [komootUserListType, setKomootUserListType] =
     useState<KomootUserListType>('planned')
+  const [komootEmail, setKomootEmail] = useState('')
+  const [komootPassword, setKomootPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const komootTargetType = KomootTrackSource.getTargetType(url)
 
@@ -63,6 +65,12 @@ export default function AddSourceDialog({
       }
 
       const targetType = KomootTrackSource.getTargetType(url)
+
+      if (targetType === 'user' && (komootEmail.trim() === '' || komootPassword === '')) {
+        setErrorMessage('Komoot email and password are required for user sources.')
+        return
+      }
+
       const fallbackName =
         targetType === 'user'
           ? `Komoot ${komootUserListType === 'planned' ? 'planned' : 'completed'}`
@@ -72,6 +80,12 @@ export default function AddSourceDialog({
         name.trim() === '' ? fallbackName : name.trim(),
         color,
         komootUserListType,
+        targetType === 'user'
+          ? {
+              email: komootEmail.trim(),
+              password: komootPassword,
+            }
+          : null,
       )
 
       source.order = sourceIndex
@@ -170,10 +184,33 @@ export default function AddSourceDialog({
             )}
 
             {komootTargetType === 'user' && (
-              <p className="form-note">
-                User sources are added without authorization. Komoot may still return an empty
-                list for profile routes.
-              </p>
+              <>
+                <label>
+                  <span>Komoot email</span>
+                  <input
+                    type="email"
+                    autoComplete="username"
+                    value={komootEmail}
+                    onChange={(event) => {
+                      setKomootEmail(event.target.value)
+                      setErrorMessage(null)
+                    }}
+                  />
+                </label>
+
+                <label>
+                  <span>Komoot password</span>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={komootPassword}
+                    onChange={(event) => {
+                      setKomootPassword(event.target.value)
+                      setErrorMessage(null)
+                    }}
+                  />
+                </label>
+              </>
             )}
           </>
         )}
