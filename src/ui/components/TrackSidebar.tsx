@@ -1,3 +1,4 @@
+import { Menu, Plus } from 'lucide-react'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import SourceAccordion from './SourceAccordion'
@@ -8,19 +9,19 @@ type TrackSidebarProps = {
   activeTrack: Track | null
   searchQuery: string
   loading: boolean
+  collapsed: boolean
   onSearchChange: (value: string) => void
   onAddSourceClick: () => void
+  onToggleCollapsed: () => void
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
-  onSourceColorChange: (source: TrackSource, color: string) => void
+  onSourceColorClick: (source: TrackSource, left: number, top: number) => void
   onMoveSource: (source: TrackSource, direction: -1 | 1) => void
   onDeleteSource: (source: TrackSource) => void
   onTrackActivate: (track: Track) => void
   onTrackFocus: (track: Track) => void
   onTrackVisibilityChange: (track: Track, visible: boolean) => void
-  onTrackColorChange: (track: Track, color: string) => void
-  onTrackExport: (track: Track) => void
-  onTrackDelete: (track: Track) => void
+  onTrackColorClick: (track: Track, left: number, top: number) => void
 }
 
 function trackMatchesQuery(track: Track, query: string): boolean {
@@ -45,43 +46,57 @@ export default function TrackSidebar({
   activeTrack,
   searchQuery,
   loading,
+  collapsed,
   onSearchChange,
   onAddSourceClick,
+  onToggleCollapsed,
   onSourceVisibilityChange,
   onSourceExpandedChange,
-  onSourceColorChange,
+  onSourceColorClick,
   onMoveSource,
   onDeleteSource,
   onTrackActivate,
   onTrackFocus,
   onTrackVisibilityChange,
-  onTrackColorChange,
-  onTrackExport,
-  onTrackDelete,
+  onTrackColorClick,
 }: TrackSidebarProps) {
   const orderedSources = [...sources].sort((left, right) => left.order - right.order)
 
   return (
-    <aside className="sidebar" aria-label="Track sources">
+    <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="Track sources">
+      <button
+        className="sidebar-toggle"
+        type="button"
+        aria-label={collapsed ? 'Show panel' : 'Hide panel'}
+        onClick={onToggleCollapsed}
+      >
+        <Menu aria-hidden="true" size={20} strokeWidth={2.4} />
+      </button>
+
       <header className="sidebar-header">
         <div className="app-brand">
-          <h1>TrackTrim</h1>
-          <p>GPS track workspace</p>
+          <h1>GPS Track Navigator</h1>
+          <p>Sources to nested tracks. Source order controls map layer order.</p>
         </div>
-        <button className="save-button" type="button" onClick={onAddSourceClick}>
-          Add source
-        </button>
       </header>
 
       <label className="search-control">
-        <span>Search</span>
         <input
           type="search"
           value={searchQuery}
-          placeholder="Track or source"
+          placeholder="Search by track name..."
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </label>
+      <div className="filter-row">
+        <select className="select-control" aria-label="Region filter">
+          <option>All regions</option>
+        </select>
+        <button className="save-button" type="button" onClick={onAddSourceClick}>
+          <Plus aria-hidden="true" size={16} strokeWidth={2.4} />
+          Add source
+        </button>
+      </div>
 
       {loading && <p className="status-message">Loading source...</p>}
 
@@ -92,7 +107,7 @@ export default function TrackSidebar({
             <p>Add GPX files or a Komoot tour URL.</p>
           </section>
         ) : (
-          orderedSources.map((source) => {
+          orderedSources.map((source, index) => {
             const sourceTracks = tracks.filter((track) => track.meta?.source === source)
             const displayedTracks = sourceTracks.filter((track) =>
               trackMatchesQuery(track, searchQuery),
@@ -111,6 +126,8 @@ export default function TrackSidebar({
                 key={`${source.name}:${source.order}`}
                 source={source}
                 tracks={sourceTracks}
+                canMoveUp={index > 0}
+                canMoveDown={index < orderedSources.length - 1}
                 displayedTracks={
                   source.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
                     ? sourceTracks
@@ -119,15 +136,13 @@ export default function TrackSidebar({
                 activeTrack={activeTrack}
                 onSourceVisibilityChange={onSourceVisibilityChange}
                 onSourceExpandedChange={onSourceExpandedChange}
-                onSourceColorChange={onSourceColorChange}
+                onSourceColorClick={onSourceColorClick}
                 onMoveSource={onMoveSource}
                 onDeleteSource={onDeleteSource}
                 onTrackActivate={onTrackActivate}
                 onTrackFocus={onTrackFocus}
                 onTrackVisibilityChange={onTrackVisibilityChange}
-                onTrackColorChange={onTrackColorChange}
-                onTrackExport={onTrackExport}
-                onTrackDelete={onTrackDelete}
+                onTrackColorClick={onTrackColorClick}
               />
             )
           })

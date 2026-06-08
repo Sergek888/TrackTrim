@@ -7,8 +7,18 @@ import type { TrackFormat, TrackSource } from './TrackSource'
 
 const KOMOOT_TOUR_URL_PATTERN =
   /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?(?:tour|discover_tours|smart_tours)\/(\d+)/i
+const KOMOOT_COLLECTION_URL_PATTERN =
+  /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?collection\/(\d+)/i
+const KOMOOT_USER_URL_PATTERN =
+  /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?user\/(\d+)(?:\/(?:tours|backfilled-tours))?/i
+const KOMOOT_USER_ID_PATTERN = /^\d{6,}$/
+const KOMOOT_TOUR_LINK_PATTERN =
+  /\/(?:tour|discover_tours|smart_tours)\/(\d+)/gi
 const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
+const KOMOOT_API_FALLBACK_BASE = 'https://api.komoot.de/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
+
+export type KomootUserListType = 'planned' | 'recorded'
 
 class KomootPublicApiError extends Error {
   public constructor(
@@ -24,14 +34,49 @@ type KomootCoordinatesResponse = {
 }
 
 type KomootTourResponse = {
+  id?: unknown
   name?: unknown
   date?: unknown
+  distance?: unknown
+  distance_m?: unknown
   _links?: {
     coordinates?: {
       href?: unknown
     }
   }
 }
+
+type KomootCompilationLineItem = {
+  id?: unknown
+  name?: unknown
+  distance?: unknown
+  geometry?: unknown
+}
+
+type KomootCompilationLinesResponse = {
+  _embedded?: {
+    items?: unknown
+  }
+}
+
+type KomootUserToursResponse = {
+  _embedded?: {
+    tours?: unknown
+  }
+  page?: {
+    totalPages?: unknown
+  }
+}
+
+type KomootSourceTarget =
+  | { readonly tourId: string; readonly collectionId?: never; readonly userId?: never }
+  | { readonly collectionId: string; readonly tourId?: never; readonly userId?: never }
+  | {
+      readonly userId: string
+      readonly listType: KomootUserListType
+      readonly tourId?: never
+      readonly collectionId?: never
+    }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -45,6 +90,14 @@ function parseDate(value: unknown): Date | null {
   const date = new Date(value)
 
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function parseDistanceMeters(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null
+  }
+
+  return value
 }
 
 function parseCoordinate(value: unknown): TrackPointInput | null {
@@ -69,54 +122,101 @@ function parseCoordinate(value: unknown): TrackPointInput | null {
   }
 }
 
-export class KomootTourTrackSource implements TrackSource {
+function uniqueValues(values: readonly string[]): string[] {
+  return Array.from(new Set(values))
+}
+
+function extractTourIdsFromText(text: string): string[] {
+  const ids: string[] = []
+
+  for (const match of text.matchAll(KOMOOT_TOUR_LINK_PATTERN)) {
+    const tourId = match[1]
+
+    if (tourId !== undefined) {
+      ids.push(tourId)
+    }
+  }
+
+  return uniqueValues(ids)
+}
+
+export class KomootTrackSource implements TrackSource {
   public visible = true
   public expanded = true
   public order = 0
 
-  private readonly remoteId: string
+  private readonly target: KomootSourceTarget
 
   public constructor(
     public readonly url: string,
     public name: string,
     public color: string,
+    userListType: KomootUserListType = 'planned',
   ) {
-    const remoteId = KomootTourTrackSource.parseTourId(url)
+    const target = KomootTrackSource.parseTarget(url, userListType)
 
-    if (remoteId === null) {
-      throw new Error('Komoot tour URL is invalid.')
+    if (target === null) {
+      throw new Error('Komoot tour, collection, profile URL, or user id is invalid.')
     }
 
-    this.remoteId = remoteId
+    this.target = target
   }
 
-  public static canLoadUrl(url: string): boolean {
-    return KomootTourTrackSource.parseTourId(url) !== null
+  public static canLoadUrl(
+    url: string,
+    userListType: KomootUserListType = 'planned',
+  ): boolean {
+    return KomootTrackSource.parseTarget(url, userListType) !== null
+  }
+
+  public static getTargetType(url: string): 'tour' | 'collection' | 'user' | null {
+    const target = KomootTrackSource.parseTarget(url)
+
+    if (target?.tourId !== undefined) {
+      return 'tour'
+    }
+
+    if (target?.collectionId !== undefined) {
+      return 'collection'
+    }
+
+    if (target?.userId !== undefined) {
+      return 'user'
+    }
+
+    return null
   }
 
   public async loadTracks(): Promise<Track[]> {
-    const tour = await this.fetchTour(this.remoteId)
-    const coordinatesUrl = this.coordinatesUrlFromTour(tour, this.remoteId)
-    const points = await this.fetchCoordinates(coordinatesUrl)
-
-    if (points.length === 0) {
-      throw new Error('Komoot tour has no public coordinates.')
+    if (this.target.tourId !== undefined) {
+      return [await this.loadTrackByTourId(this.target.tourId)]
     }
 
-    const trackName =
-      typeof tour.name === 'string' && tour.name.trim() !== ''
-        ? tour.name
-        : `Komoot tour ${this.remoteId}`
-    const meta = new TrackMeta(
-      this,
-      this.remoteId,
-      trackName,
-      this.color,
-      true,
-      parseDate(tour.date),
+    if (this.target.userId !== undefined) {
+      return this.loadUserTracks(this.target.userId, this.target.listType)
+    }
+
+    const collectionTracks = await this.fetchCollectionTracksFromCompilationLines(
+      this.target.collectionId,
     )
 
-    return [new TrackModel(points, meta)]
+    if (collectionTracks.length > 0) {
+      return collectionTracks
+    }
+
+    const tourIds = await this.fetchCollectionTourIds(this.target.collectionId)
+
+    if (tourIds.length === 0) {
+      throw new Error('Komoot collection has no public tours or could not be read.')
+    }
+
+    const tracks: Track[] = []
+
+    for (const tourId of tourIds) {
+      tracks.push(await this.loadTrackByTourId(tourId))
+    }
+
+    return tracks
   }
 
   public async saveTrack(track: Track, format: TrackFormat): Promise<void> {
@@ -146,10 +246,362 @@ export class KomootTourTrackSource implements TrackSource {
     return this.getOriginalUrl(meta)
   }
 
-  private static parseTourId(url: string): string | null {
-    const match = url.trim().match(KOMOOT_TOUR_URL_PATTERN)
+  private static parseTarget(
+    url: string,
+    userListType: KomootUserListType = 'planned',
+  ): KomootSourceTarget | null {
+    const trimmedUrl = url.trim()
+    const tourMatch = trimmedUrl.match(KOMOOT_TOUR_URL_PATTERN)
 
-    return match?.[1] ?? null
+    if (tourMatch?.[1] !== undefined) {
+      return { tourId: tourMatch[1] }
+    }
+
+    const collectionMatch = trimmedUrl.match(KOMOOT_COLLECTION_URL_PATTERN)
+
+    if (collectionMatch?.[1] !== undefined) {
+      return { collectionId: collectionMatch[1] }
+    }
+
+    const userMatch = trimmedUrl.match(KOMOOT_USER_URL_PATTERN)
+
+    if (userMatch?.[1] !== undefined) {
+      return { userId: userMatch[1], listType: userListType }
+    }
+
+    if (KOMOOT_USER_ID_PATTERN.test(trimmedUrl)) {
+      return { userId: trimmedUrl, listType: userListType }
+    }
+
+    return null
+  }
+
+  private async loadTrackByTourId(tourId: string): Promise<Track> {
+    const tour = await this.fetchTour(tourId)
+    const coordinatesUrl = this.coordinatesUrlFromTour(tour, tourId)
+    const points = await this.fetchCoordinates(coordinatesUrl)
+
+    if (points.length === 0) {
+      throw new Error(`Komoot tour ${tourId} has no public coordinates.`)
+    }
+
+    const trackName =
+      typeof tour.name === 'string' && tour.name.trim() !== ''
+        ? tour.name
+        : `Komoot tour ${tourId}`
+    const meta = new TrackMeta(
+      this,
+      tourId,
+      trackName,
+      this.color,
+      true,
+      parseDate(tour.date),
+      parseDistanceMeters(tour.distance_m ?? tour.distance),
+    )
+
+    return new TrackModel(points, meta)
+  }
+
+  private async loadUserTracks(
+    userId: string,
+    listType: KomootUserListType,
+  ): Promise<Track[]> {
+    const tourIds = await this.fetchUserTourIds(userId, listType)
+
+    if (tourIds.length === 0) {
+      throw new Error(
+        `Komoot user has no public ${listType === 'planned' ? 'planned tours' : 'completed activities'} or could not be read without authorization.`,
+      )
+    }
+
+    const tracks: Track[] = []
+
+    for (const tourId of tourIds) {
+      tracks.push(await this.loadTrackByTourId(tourId))
+    }
+
+    return tracks
+  }
+
+  private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
+    const apiTourIds = await this.fetchCollectionTourIdsFromApi(collectionId)
+
+    if (apiTourIds.length > 0) {
+      return apiTourIds
+    }
+
+    return this.fetchCollectionTourIdsFromHtml(collectionId)
+  }
+
+  private async fetchCollectionTracksFromCompilationLines(collectionId: string): Promise<Track[]> {
+    try {
+      const response = await this.fetchPublicJson(
+        `${KOMOOT_API_BASE}/collections/${collectionId}/compilation_lines_extended/`,
+      )
+      const compilationResponse = response as KomootCompilationLinesResponse
+      const items = Array.isArray(compilationResponse._embedded?.items)
+        ? compilationResponse._embedded.items
+        : []
+
+      return items
+        .map((item) => this.trackFromCompilationLineItem(item))
+        .filter((track): track is Track => track !== null)
+    } catch (error) {
+      if (
+        error instanceof KomootPublicApiError &&
+        (error.status === 403 || error.status === 404)
+      ) {
+        return []
+      }
+
+      throw error
+    }
+  }
+
+  private trackFromCompilationLineItem(item: unknown): Track | null {
+    if (!isRecord(item)) {
+      return null
+    }
+
+    const lineItem: KomootCompilationLineItem = item
+    const remoteId =
+      typeof lineItem.id === 'string' || typeof lineItem.id === 'number'
+        ? String(lineItem.id)
+        : null
+    const geometry = Array.isArray(lineItem.geometry) ? lineItem.geometry : []
+
+    if (remoteId === null || geometry.length === 0) {
+      return null
+    }
+
+    const points = geometry
+      .map((point) => parseCoordinate(point))
+      .filter((point): point is TrackPointInput => point !== null)
+
+    if (points.length === 0) {
+      return null
+    }
+
+    const name =
+      typeof lineItem.name === 'string' && lineItem.name.trim() !== ''
+        ? lineItem.name
+        : `Komoot tour ${remoteId}`
+    const meta = new TrackMeta(
+      this,
+      remoteId,
+      name,
+      this.color,
+      true,
+      null,
+      parseDistanceMeters(lineItem.distance),
+    )
+
+    return new TrackModel(points, meta)
+  }
+
+  private async fetchCollectionTourIdsFromApi(collectionId: string): Promise<string[]> {
+    const candidateUrls = [
+      `${KOMOOT_API_BASE}/collection/${collectionId}`,
+      `${KOMOOT_API_BASE}/collection/${collectionId}/tours`,
+      `${KOMOOT_API_BASE}/collections/${collectionId}`,
+      `${KOMOOT_API_BASE}/collections/${collectionId}/tours`,
+    ]
+
+    for (const url of candidateUrls) {
+      try {
+        const response = await this.fetchPublicJson(url)
+        const ids = this.extractTourIdsFromUnknown(response)
+
+        if (ids.length > 0) {
+          return ids
+        }
+      } catch (error) {
+        if (
+          !(error instanceof KomootPublicApiError) ||
+          (error.status !== 403 && error.status !== 404)
+        ) {
+          throw error
+        }
+      }
+    }
+
+    return []
+  }
+
+  private async fetchCollectionTourIdsFromHtml(collectionId: string): Promise<string[]> {
+    const candidateUrls = [
+      this.url,
+      `${KOMOOT_WEB_BASE}/collection/${collectionId}`,
+    ]
+
+    for (const url of candidateUrls) {
+      try {
+        const html = await this.fetchPublicText(url)
+        const ids = extractTourIdsFromText(html)
+
+        if (ids.length > 0) {
+          return ids
+        }
+      } catch (error) {
+        if (
+          !(error instanceof KomootPublicApiError) ||
+          (error.status !== 403 && error.status !== 404)
+        ) {
+          throw error
+        }
+      }
+    }
+
+    return []
+  }
+
+  private async fetchUserTourIds(
+    userId: string,
+    listType: KomootUserListType,
+  ): Promise<string[]> {
+    const apiTourIds = await this.fetchUserTourIdsFromApi(userId, listType)
+
+    if (apiTourIds.length > 0) {
+      return apiTourIds
+    }
+
+    return this.fetchUserTourIdsFromHtml(userId, listType)
+  }
+
+  private async fetchUserTourIdsFromApi(
+    userId: string,
+    listType: KomootUserListType,
+  ): Promise<string[]> {
+    const tourType = listType === 'planned' ? 'tour_planned' : 'tour_recorded'
+    const ids: string[] = []
+
+    for (const apiBase of [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]) {
+      let page = 0
+
+      while (true) {
+        let response: unknown
+
+        try {
+          response = await this.fetchPublicJson(
+            `${apiBase}/users/${userId}/tours/?type=${tourType}&page=${page}`,
+          )
+        } catch (error) {
+          if (
+            error instanceof KomootPublicApiError &&
+            (error.status === 401 || error.status === 403 || error.status === 404)
+          ) {
+            break
+          }
+
+          throw error
+        }
+
+        const userToursResponse = response as KomootUserToursResponse
+        const tours = Array.isArray(userToursResponse._embedded?.tours)
+          ? userToursResponse._embedded.tours
+          : []
+
+        ids.push(...tours.flatMap((tour) => this.extractUserTourIdsFromItem(tour)))
+
+        const totalPages =
+          typeof userToursResponse.page?.totalPages === 'number'
+            ? userToursResponse.page.totalPages
+            : page + 1
+
+        page += 1
+
+        if (page >= totalPages || tours.length === 0) {
+          break
+        }
+      }
+
+      if (ids.length > 0) {
+        return uniqueValues(ids)
+      }
+    }
+
+    return []
+  }
+
+  private async fetchUserTourIdsFromHtml(
+    userId: string,
+    listType: KomootUserListType,
+  ): Promise<string[]> {
+    const candidateUrls =
+      listType === 'planned'
+        ? [this.url, `${KOMOOT_WEB_BASE}/user/${userId}/tours`]
+        : [
+            this.url,
+            `${KOMOOT_WEB_BASE}/user/${userId}/backfilled-tours`,
+            `${KOMOOT_WEB_BASE}/user/${userId}/tours`,
+          ]
+
+    for (const url of uniqueValues(candidateUrls).filter((candidateUrl) =>
+      /^https?:\/\//i.test(candidateUrl),
+    )) {
+      try {
+        const html = await this.fetchPublicText(url)
+        const ids = extractTourIdsFromText(html)
+
+        if (ids.length > 0) {
+          return ids
+        }
+      } catch (error) {
+        if (
+          !(error instanceof KomootPublicApiError) ||
+          (error.status !== 403 && error.status !== 404)
+        ) {
+          throw error
+        }
+      }
+    }
+
+    return []
+  }
+
+  private extractTourIdsFromUnknown(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return uniqueValues(value.flatMap((item) => this.extractTourIdsFromUnknown(item)))
+    }
+
+    if (!isRecord(value)) {
+      return []
+    }
+
+    const ids: string[] = []
+
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (
+        (key === 'tour_id' || key === 'tourId') &&
+        (typeof nestedValue === 'string' || typeof nestedValue === 'number')
+      ) {
+        ids.push(String(nestedValue))
+        continue
+      }
+
+      if (key === 'href' && typeof nestedValue === 'string') {
+        ids.push(...extractTourIdsFromText(nestedValue))
+        continue
+      }
+
+      ids.push(...this.extractTourIdsFromUnknown(nestedValue))
+    }
+
+    return uniqueValues(ids)
+  }
+
+  private extractUserTourIdsFromItem(item: unknown): string[] {
+    if (!isRecord(item)) {
+      return []
+    }
+
+    const id = item.id
+
+    if (typeof id === 'string' || typeof id === 'number') {
+      return [String(id)]
+    }
+
+    return this.extractTourIdsFromUnknown(item)
   }
 
   private async fetchTour(remoteId: string): Promise<KomootTourResponse> {
@@ -209,36 +661,48 @@ export class KomootTourTrackSource implements TrackSource {
   }
 
   private async fetchPublicJson(url: string): Promise<unknown> {
+    const response = await this.fetchPublic(url, 'application/hal+json')
+
+    return response.json()
+  }
+
+  private async fetchPublicText(url: string): Promise<string> {
+    const response = await this.fetchPublic(url, 'text/html')
+
+    return response.text()
+  }
+
+  private async fetchPublic(url: string, accept: string): Promise<Response> {
     let response: Response
 
     try {
       response = await fetch(url, {
         headers: {
-          accept: 'application/hal+json',
+          accept,
         },
       })
     } catch {
       throw new KomootPublicApiError(
-        'Komoot public API is not reachable from the browser. Use local GPX import.',
+        'Komoot public data is not reachable from the browser. Use local GPX import.',
       )
     }
 
     if (response.status === 401 || response.status === 403) {
       throw new KomootPublicApiError(
-        'Komoot tour is private or not available without authorization.',
+        'Komoot source is private or not available without authorization.',
         response.status,
       )
     }
 
     if (response.status === 404) {
-      throw new KomootPublicApiError('Komoot tour was not found.', response.status)
+      throw new KomootPublicApiError('Komoot source was not found.', response.status)
     }
 
     if (!response.ok) {
-      throw new KomootPublicApiError('Komoot public API request failed.', response.status)
+      throw new KomootPublicApiError('Komoot public request failed.', response.status)
     }
 
-    return response.json()
+    return response
   }
 
   private trimmedFileName(name: string): string {

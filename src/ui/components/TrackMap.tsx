@@ -2,14 +2,19 @@ import { useEffect, useRef } from 'react'
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import {
+  tracksToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
+  type TrackMarkersFeatureCollectionGeoJson,
   type TracksFeatureCollectionGeoJson,
 } from '../map/trackToGeoJson'
 
 type TrackMapProps = {
   tracks: readonly Track[]
   activeTrack: Track | null
-  focusedTrack: Track | null
+  focusedTrack: {
+    track: Track
+    version: number
+  } | null
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
 }
@@ -17,11 +22,22 @@ type TrackMapProps = {
 export type TrackMapPoint = {
   latitude: number
   longitude: number
+  x: number
+  y: number
 }
 
 const TRACKS_SOURCE_ID = 'tracks'
 const TRACKS_LAYER_ID = 'track-lines'
+const ACTIVE_TRACKS_LAYER_ID = 'active-track-lines'
+const TRACK_MARKERS_SOURCE_ID = 'track-markers'
+const TRACK_MARKER_CIRCLES_LAYER_ID = 'track-marker-circles'
+const TRACK_MARKER_LABELS_LAYER_ID = 'track-marker-labels'
+const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
 const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
+  type: 'FeatureCollection',
+  features: [],
+}
+const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
 }
@@ -87,7 +103,6 @@ export default function TrackMap({
   const latestOnTrackClickRef = useRef(onTrackClick)
   const latestOnMapClickRef = useRef(onMapClick)
   const fittedInitialBoundsRef = useRef(false)
-  const focusedTrackRef = useRef<Track | null>(null)
   const isMapReadyRef = useRef(false)
 
   latestTracksRef.current = tracks
@@ -104,6 +119,7 @@ export default function TrackMap({
       container: containerRef.current,
       style: {
         version: 8,
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: {
           osm: {
             type: 'raster',
@@ -150,17 +166,80 @@ export default function TrackMap({
         },
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': ['case', ['==', ['get', 'active'], true], 6, 3],
-          'line-opacity': ['case', ['==', ['get', 'active'], true], 0.95, 0.72],
+          'line-width': 3,
+          'line-opacity': 0.72,
+        },
+      })
+      map.addLayer({
+        id: ACTIVE_TRACKS_LAYER_ID,
+        type: 'line',
+        source: TRACKS_SOURCE_ID,
+        filter: ['==', ['get', 'active'], true],
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': 6,
+          'line-opacity': 0.95,
+        },
+      })
+      map.addSource(TRACK_MARKERS_SOURCE_ID, {
+        type: 'geojson',
+        data:
+          latestTracksRef.current.length === 0
+            ? EMPTY_TRACK_MARKERS_GEOJSON
+            : tracksToMarkerFeatureCollectionGeoJson(latestTracksRef.current),
+      })
+      map.addLayer({
+        id: TRACK_MARKER_CIRCLES_LAYER_ID,
+        type: 'circle',
+        source: TRACK_MARKERS_SOURCE_ID,
+        minzoom: 8,
+        paint: {
+          'circle-color': ['case', ['==', ['get', 'kind'], 'start'], '#16a34a', '#dc2626'],
+          'circle-radius': 9,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      })
+      map.addLayer({
+        id: TRACK_MARKER_LABELS_LAYER_ID,
+        type: 'symbol',
+        source: TRACK_MARKERS_SOURCE_ID,
+        minzoom: 8,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 11,
+          'text-font': ['Open Sans Bold'],
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#ffffff',
         },
       })
 
-      map.on('mouseenter', TRACKS_LAYER_ID, () => setInteractiveCursor(map))
-      map.on('mouseleave', TRACKS_LAYER_ID, () => resetInteractiveCursor(map))
-      map.on('click', TRACKS_LAYER_ID, (event) => {
-        const featureIndex = event.features?.[0]?.properties?.featureIndex
+      map.on('mousemove', (event) => {
+        const features = map.queryRenderedFeatures(event.point, {
+          layers: INTERACTIVE_TRACK_LAYER_IDS,
+        })
+
+        if (features.length > 0) {
+          setInteractiveCursor(map)
+          return
+        }
+
+        resetInteractiveCursor(map)
+      })
+      map.on('click', (event) => {
+        const features = map.queryRenderedFeatures(event.point, {
+          layers: INTERACTIVE_TRACK_LAYER_IDS,
+        })
+        const featureIndex = features[0]?.properties?.featureIndex
 
         if (typeof featureIndex !== 'number') {
+          latestOnMapClickRef.current()
           return
         }
 
@@ -173,14 +252,9 @@ export default function TrackMap({
         latestOnTrackClickRef.current(track, {
           latitude: event.lngLat.lat,
           longitude: event.lngLat.lng,
+          x: event.point.x,
+          y: event.point.y,
         })
-      })
-      map.on('click', (event) => {
-        const features = map.queryRenderedFeatures(event.point, { layers: [TRACKS_LAYER_ID] })
-
-        if (features.length === 0) {
-          latestOnMapClickRef.current()
-        }
       })
 
       const bounds = allTracksBounds(latestTracksRef.current)
@@ -194,7 +268,6 @@ export default function TrackMap({
     return () => {
       map.remove()
       mapRef.current = null
-      focusedTrackRef.current = null
       fittedInitialBoundsRef.current = false
       isMapReadyRef.current = false
     }
@@ -208,11 +281,17 @@ export default function TrackMap({
     }
 
     const source = map.getSource(TRACKS_SOURCE_ID) as GeoJSONSource | undefined
+    const markerSource = map.getSource(TRACK_MARKERS_SOURCE_ID) as GeoJSONSource | undefined
 
     source?.setData(
       tracks.length === 0
         ? EMPTY_TRACKS_GEOJSON
         : tracksToFeatureCollectionGeoJson(tracks, activeTrack),
+    )
+    markerSource?.setData(
+      tracks.length === 0
+        ? EMPTY_TRACK_MARKERS_GEOJSON
+        : tracksToMarkerFeatureCollectionGeoJson(tracks),
     )
 
     if (!fittedInitialBoundsRef.current) {
@@ -231,17 +310,15 @@ export default function TrackMap({
     if (
       map === null ||
       !isMapReadyRef.current ||
-      focusedTrack === null ||
-      focusedTrackRef.current === focusedTrack
+      focusedTrack === null
     ) {
       return
     }
 
-    const bounds = trackBounds(focusedTrack)
+    const bounds = trackBounds(focusedTrack.track)
 
     if (bounds !== null) {
       map.fitBounds(bounds, { padding: 80, duration: 450, maxZoom: 16 })
-      focusedTrackRef.current = focusedTrack
     }
   }, [focusedTrack])
 

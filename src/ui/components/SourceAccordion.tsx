@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, type MouseEvent } from 'react'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
-import { TRACK_COLORS } from '../trackColors'
 import TrackListItem from './TrackListItem'
 
 type SourceAccordionProps = {
@@ -9,17 +9,17 @@ type SourceAccordionProps = {
   tracks: readonly Track[]
   displayedTracks: readonly Track[]
   activeTrack: Track | null
+  canMoveUp: boolean
+  canMoveDown: boolean
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
-  onSourceColorChange: (source: TrackSource, color: string) => void
+  onSourceColorClick: (source: TrackSource, left: number, top: number) => void
   onMoveSource: (source: TrackSource, direction: -1 | 1) => void
   onDeleteSource: (source: TrackSource) => void
   onTrackActivate: (track: Track) => void
   onTrackFocus: (track: Track) => void
   onTrackVisibilityChange: (track: Track, visible: boolean) => void
-  onTrackColorChange: (track: Track, color: string) => void
-  onTrackExport: (track: Track) => void
-  onTrackDelete: (track: Track) => void
+  onTrackColorClick: (track: Track, left: number, top: number) => void
 }
 
 export default function SourceAccordion({
@@ -27,17 +27,17 @@ export default function SourceAccordion({
   tracks,
   displayedTracks,
   activeTrack,
+  canMoveUp,
+  canMoveDown,
   onSourceVisibilityChange,
   onSourceExpandedChange,
-  onSourceColorChange,
+  onSourceColorClick,
   onMoveSource,
   onDeleteSource,
   onTrackActivate,
   onTrackFocus,
   onTrackVisibilityChange,
-  onTrackColorChange,
-  onTrackExport,
-  onTrackDelete,
+  onTrackColorClick,
 }: SourceAccordionProps) {
   const checkboxRef = useRef<HTMLInputElement | null>(null)
   const visibleCount = useMemo(
@@ -53,14 +53,32 @@ export default function SourceAccordion({
     }
   }, [partiallyVisible])
 
+  function handleSourceColorClick(event: MouseEvent<HTMLButtonElement>): void {
+    const rect = event.currentTarget.getBoundingClientRect()
+
+    onSourceColorClick(source, rect.left - 90, rect.bottom + 10)
+  }
+
   return (
     <section className="source-accordion">
       <header className="source-row">
-        <button className="icon-button" type="button" aria-label="Move source up" onClick={() => onMoveSource(source, -1)}>
-          Up
+        <button
+          className="icon-button ghost-button"
+          type="button"
+          aria-label="Move source up"
+          disabled={!canMoveUp}
+          onClick={() => onMoveSource(source, -1)}
+        >
+          <ChevronUp aria-hidden="true" size={16} strokeWidth={2.3} />
         </button>
-        <button className="icon-button" type="button" aria-label="Move source down" onClick={() => onMoveSource(source, 1)}>
-          Down
+        <button
+          className="icon-button ghost-button"
+          type="button"
+          aria-label="Move source down"
+          disabled={!canMoveDown}
+          onClick={() => onMoveSource(source, 1)}
+        >
+          <ChevronDown aria-hidden="true" size={16} strokeWidth={2.3} />
         </button>
         <input
           ref={checkboxRef}
@@ -70,32 +88,13 @@ export default function SourceAccordion({
           onChange={(event) => onSourceVisibilityChange(source, event.target.checked)}
         />
 
-        <div className="track-color-control">
-          <button
-            className="track-color-swatch"
-            type="button"
-            style={{ background: source.color }}
-            aria-label={`${source.name} color`}
-          />
-          <div className="track-color-popover">
-            {TRACK_COLORS.map((color) => (
-              <button
-                key={color}
-                className="track-color-option"
-                type="button"
-                style={{ background: color }}
-                aria-label={`Set source color ${color}`}
-                onClick={() => onSourceColorChange(source, color)}
-              />
-            ))}
-            <input
-              type="color"
-              value={source.color}
-              aria-label="Custom source color"
-              onChange={(event) => onSourceColorChange(source, event.target.value)}
-            />
-          </div>
-        </div>
+        <button
+          className="color-dot"
+          type="button"
+          style={{ background: source.color }}
+          aria-label={`${source.name} color`}
+          onClick={handleSourceColorClick}
+        />
 
         <button
           className="source-title"
@@ -106,16 +105,20 @@ export default function SourceAccordion({
           <small>{tracks.length}</small>
         </button>
 
-        <button className="icon-button danger" type="button" aria-label="Delete source" onClick={() => onDeleteSource(source)}>
-          X
+        <button className="icon-button ghost-button danger source-delete-button" type="button" aria-label="Delete source" onClick={() => onDeleteSource(source)}>
+          <Trash2 aria-hidden="true" size={15} strokeWidth={2.2} />
         </button>
         <button
-          className="icon-button"
+          className="icon-button ghost-button"
           type="button"
           aria-label={source.expanded ? 'Collapse source' : 'Expand source'}
           onClick={() => onSourceExpandedChange(source, !source.expanded)}
         >
-          {source.expanded ? '-' : '+'}
+          {source.expanded ? (
+            <Minus aria-hidden="true" size={15} strokeWidth={2.3} />
+          ) : (
+            <Plus aria-hidden="true" size={15} strokeWidth={2.3} />
+          )}
         </button>
       </header>
 
@@ -132,9 +135,7 @@ export default function SourceAccordion({
                 onActivate={onTrackActivate}
                 onFocus={onTrackFocus}
                 onVisibilityChange={onTrackVisibilityChange}
-                onColorChange={onTrackColorChange}
-                onExport={onTrackExport}
-                onDelete={onTrackDelete}
+                onColorClick={onTrackColorClick}
               />
             ))
           )}

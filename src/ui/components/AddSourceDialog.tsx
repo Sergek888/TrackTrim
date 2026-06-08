@@ -1,6 +1,10 @@
+import { X } from 'lucide-react'
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { LocalFileTrackSource } from '../../application/sources/LocalFileSource'
-import { KomootTourTrackSource } from '../../application/sources/KomootTrackSource'
+import {
+  KomootTrackSource,
+  type KomootUserListType,
+} from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import { defaultTrackColor } from '../trackColors'
 
@@ -22,7 +26,10 @@ export default function AddSourceDialog({
   const [color, setColor] = useState(defaultTrackColor(sourceIndex))
   const [files, setFiles] = useState<File[]>([])
   const [url, setUrl] = useState('')
+  const [komootUserListType, setKomootUserListType] =
+    useState<KomootUserListType>('planned')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const komootTargetType = KomootTrackSource.getTargetType(url)
 
   function handleFilesChange(event: ChangeEvent<HTMLInputElement>): void {
     setFiles(Array.from(event.target.files ?? []))
@@ -50,15 +57,21 @@ export default function AddSourceDialog({
         return
       }
 
-      if (!KomootTourTrackSource.canLoadUrl(url)) {
-        setErrorMessage('Komoot tour URL is invalid.')
+      if (!KomootTrackSource.canLoadUrl(url, komootUserListType)) {
+        setErrorMessage('Komoot tour, collection, profile URL, or user id is invalid.')
         return
       }
 
-      const source = new KomootTourTrackSource(
+      const targetType = KomootTrackSource.getTargetType(url)
+      const fallbackName =
+        targetType === 'user'
+          ? `Komoot ${komootUserListType === 'planned' ? 'planned' : 'completed'}`
+          : 'Komoot source'
+      const source = new KomootTrackSource(
         url,
-        name.trim() === '' ? 'Komoot tour' : name.trim(),
+        name.trim() === '' ? fallbackName : name.trim(),
         color,
+        komootUserListType,
       )
 
       source.order = sourceIndex
@@ -74,7 +87,7 @@ export default function AddSourceDialog({
         <header>
           <h2>Add source</h2>
           <button className="icon-button" type="button" aria-label="Close" onClick={onCancel}>
-            X
+            <X aria-hidden="true" size={15} strokeWidth={2.2} />
           </button>
         </header>
 
@@ -100,7 +113,13 @@ export default function AddSourceDialog({
           <input
             type="text"
             value={name}
-            placeholder={mode === 'files' ? 'GPX import' : 'Komoot tour'}
+            placeholder={
+              mode === 'files'
+                ? 'GPX import'
+                : komootTargetType === 'user'
+                  ? `Komoot ${komootUserListType === 'planned' ? 'planned' : 'completed'}`
+                  : 'Komoot source'
+            }
             onChange={(event) => setName(event.target.value)}
           />
         </label>
@@ -116,18 +135,46 @@ export default function AddSourceDialog({
             <input type="file" multiple accept=".gpx,.xml" onChange={handleFilesChange} />
           </label>
         ) : (
-          <label>
-            <span>Komoot tour URL</span>
-            <input
-              type="url"
-              value={url}
-              placeholder="https://www.komoot.com/tour/..."
-              onChange={(event) => {
-                setUrl(event.target.value)
-                setErrorMessage(null)
-              }}
-            />
-          </label>
+          <>
+            <label>
+              <span>Komoot URL or user id</span>
+              <input
+                type="text"
+                inputMode="url"
+                value={url}
+                placeholder="Tour, collection, profile URL, or numeric user id"
+                onChange={(event) => {
+                  setUrl(event.target.value)
+                  setErrorMessage(null)
+                }}
+              />
+            </label>
+
+            {komootTargetType === 'user' && (
+              <div className="segmented-control" role="group" aria-label="Komoot user source">
+                <button
+                  type="button"
+                  className={komootUserListType === 'planned' ? 'is-selected' : ''}
+                  onClick={() => setKomootUserListType('planned')}
+                >
+                  Planned
+                </button>
+                <button
+                  type="button"
+                  className={komootUserListType === 'recorded' ? 'is-selected' : ''}
+                  onClick={() => setKomootUserListType('recorded')}
+                >
+                  Completed
+                </button>
+              </div>
+            )}
+
+            {komootTargetType === 'user' && (
+              <p className="form-note">
+                Only public user routes are available without authorization.
+              </p>
+            )}
+          </>
         )}
 
         {errorMessage !== null && <p className="error-message">{errorMessage}</p>}

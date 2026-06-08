@@ -1,6 +1,7 @@
+import { Crosshair } from 'lucide-react'
+import type { MouseEvent } from 'react'
 import type { Track } from '../../model/Track'
 import { formatDistance } from '../formatters'
-import { TRACK_COLORS } from '../trackColors'
 
 type TrackListItemProps = {
   track: Track
@@ -8,9 +9,7 @@ type TrackListItemProps = {
   onActivate: (track: Track) => void
   onFocus: (track: Track) => void
   onVisibilityChange: (track: Track, visible: boolean) => void
-  onColorChange: (track: Track, color: string) => void
-  onExport: (track: Track) => void
-  onDelete: (track: Track) => void
+  onColorClick: (track: Track, left: number, top: number) => void
 }
 
 export default function TrackListItem({
@@ -19,14 +18,18 @@ export default function TrackListItem({
   onActivate,
   onFocus,
   onVisibilityChange,
-  onColorChange,
-  onExport,
-  onDelete,
+  onColorClick,
 }: TrackListItemProps) {
   const meta = track.meta
 
   if (meta === null) {
     return null
+  }
+
+  function handleColorClick(event: MouseEvent<HTMLButtonElement>): void {
+    const rect = event.currentTarget.getBoundingClientRect()
+
+    onColorClick(track, rect.left - 90, rect.bottom + 10)
   }
 
   return (
@@ -38,48 +41,28 @@ export default function TrackListItem({
         onChange={(event) => onVisibilityChange(track, event.target.checked)}
       />
 
-      <div className="track-color-control">
-        <button
-          className="track-color-swatch"
-          type="button"
-          style={{ background: meta.color }}
-          aria-label={`${meta.name} color`}
-        />
-        <div className="track-color-popover">
-          {TRACK_COLORS.map((color) => (
-            <button
-              key={color}
-              className="track-color-option"
-              type="button"
-              style={{ background: color }}
-              aria-label={`Set color ${color}`}
-              onClick={() => onColorChange(track, color)}
-            />
-          ))}
-          <input
-            type="color"
-            value={meta.color}
-            aria-label="Custom color"
-            onChange={(event) => onColorChange(track, event.target.value)}
-          />
-        </div>
-      </div>
+      <button
+        className="color-dot"
+        type="button"
+        style={{ background: meta.color }}
+        aria-label={`${meta.name} color`}
+        onClick={handleColorClick}
+      />
 
       <button className="track-main-button" type="button" onClick={() => onActivate(track)}>
         <span>{meta.name}</span>
-        <small>{formatDistance(track.distanceKm())}</small>
+        <small>
+          {formatDistance(track.distanceKm())} | {meta.source.name}
+        </small>
       </button>
 
-      <button className="icon-button" type="button" aria-label="Focus track" onClick={() => onFocus(track)}>
-        Focus
-      </button>
-
-      <button className="icon-button" type="button" aria-label="Export GPX" onClick={() => onExport(track)}>
-        GPX
-      </button>
-
-      <button className="icon-button danger" type="button" aria-label="Delete track" onClick={() => onDelete(track)}>
-        X
+      <button
+        className="focus-button ghost-button"
+        type="button"
+        aria-label="Focus track"
+        onClick={() => onFocus(track)}
+      >
+        <Crosshair aria-hidden="true" size={15} strokeWidth={2.2} />
       </button>
     </article>
   )
