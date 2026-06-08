@@ -43,7 +43,7 @@ function buildKomootUrl(path, query) {
     throw new Error('Komoot path is invalid.')
   }
 
-  const url = new URL(path, KOMOOT_API_BASE)
+  const url = new URL(`${KOMOOT_API_BASE}${path}`)
 
   if (url.pathname.startsWith('/api/v007/') === false) {
     throw new Error('Only Komoot API paths are allowed.')
