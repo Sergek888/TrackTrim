@@ -1,17 +1,13 @@
-import { useMemo, useState } from 'react'
-import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
+import { useEffect, useMemo, useState } from 'react'
+import { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import AddSourceDialog from './AddSourceDialog'
 import ColorPalette from './ColorPalette'
 import TrackMap, { type TrackMapPoint } from './TrackMap'
 import TrackSidebar from './TrackSidebar'
 import TrackTooltip, { type TrackTooltipState } from './TrackTooltip'
-
-type FocusedTrackState = {
-  track: Track
-  version: number
-}
 
 type ColorPaletteState =
   | {
@@ -22,157 +18,69 @@ type ColorPaletteState =
     }
   | {
       kind: 'track'
-      track: Track
+      meta: TrackMeta
       left: number
       top: number
     }
 
 export default function TrackWorkspace() {
-  const [sources, setSources] = useState<TrackSource[]>([])
-  const [tracks, setTracks] = useState<Track[]>([])
-  const [activeTrack, setActiveTrack] = useState<Track | null>(null)
-  const [focusedTrack, setFocusedTrack] = useState<FocusedTrackState | null>(null)
+  const [library] = useState(() => new TrackLibrary())
+  const [libraryVersion, setLibraryVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false)
-  const [isLoadingSource, setIsLoadingSource] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
-  const [renderVersion, setRenderVersion] = useState(0)
 
-  const visibleTracks = useMemo(
-    () =>
-      tracks
-        .filter((track) => track.meta?.visible ?? false)
-        .filter((track) => track.meta?.source.visible ?? true),
-    [tracks, renderVersion],
+  useEffect(
+    () => library.subscribe(() => setLibraryVersion((version) => version + 1)),
+    [library],
   )
 
-  function rerenderWorkspace(): void {
-    setRenderVersion((version) => version + 1)
-  }
+  const visibleTracks = useMemo(
+    () => library.visibleTracks(),
+    [library, libraryVersion],
+  )
+  const activeTrack = library.activeMeta?.track ?? null
 
-  async function handleSourceCreate(source: TrackSource): Promise<void> {
-    const keepEmptySourceOnError = source instanceof KomootTrackSource
-
+  function handleSourceCreate(source: TrackSource): void {
     setIsAddSourceOpen(false)
-    setIsLoadingSource(true)
-    setErrorMessage(null)
-
-    if (keepEmptySourceOnError) {
-      setSources((currentSources) => [...currentSources, source])
-    }
-
-    try {
-      const loadedTracks = await source.loadTracks()
-
-      if (!keepEmptySourceOnError) {
-        setSources((currentSources) => [...currentSources, source])
-      }
-
-      setTracks((currentTracks) => [...currentTracks, ...loadedTracks])
-
-      if (activeTrack === null && loadedTracks[0] !== undefined) {
-        setActiveTrack(loadedTracks[0])
-        setFocusedTrack({ track: loadedTracks[0], version: Date.now() })
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Source could not be loaded.')
-    } finally {
-      setIsLoadingSource(false)
-    }
+    void library.addSource(source)
   }
 
   function handleSourceVisibilityChange(source: TrackSource, visible: boolean): void {
-    source.visible = visible
+    library.setSourceVisible(source, visible)
 
-    for (const track of tracks) {
-      if (track.meta?.source === source) {
-        track.meta.visible = visible
-      }
-    }
-
-    if (!visible && activeTrack?.meta?.source === source) {
-      setActiveTrack(null)
+    if (!visible) {
       setTooltip(null)
     }
-
-    rerenderWorkspace()
   }
 
   function handleSourceExpandedChange(source: TrackSource, expanded: boolean): void {
-    source.expanded = expanded
-    rerenderWorkspace()
+    library.setSourceExpanded(source, expanded)
   }
 
   function handleSourceColorChange(source: TrackSource, color: string): void {
-    source.color = color
-
-    for (const track of tracks) {
-      if (track.meta?.source === source) {
-        track.meta.color = color
-      }
-    }
-
-    rerenderWorkspace()
-  }
-
-  function handleMoveSource(source: TrackSource, direction: -1 | 1): void {
-    const orderedSources = [...sources].sort((left, right) => left.order - right.order)
-    const currentIndex = orderedSources.indexOf(source)
-    const nextIndex = currentIndex + direction
-
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= orderedSources.length) {
-      return
-    }
-
-    const nextSource = orderedSources[nextIndex]
-    const currentOrder = source.order
-
-    source.order = nextSource.order
-    nextSource.order = currentOrder
-    rerenderWorkspace()
+    library.setSourceColor(source, color)
   }
 
   function handleDeleteSource(source: TrackSource): void {
-    const sourceTracks = tracks.filter((track) => track.meta?.source === source)
+    const progress = library.sourceProgress(source)
 
-    if (!window.confirm(`Delete source "${source.name}" and ${sourceTracks.length} tracks?`)) {
+    if (!window.confirm(`Delete source "${source.name}" and ${progress.total} tracks?`)) {
       return
     }
 
-    setSources((currentSources) => currentSources.filter((item) => item !== source))
-    setTracks((currentTracks) => currentTracks.filter((track) => track.meta?.source !== source))
-
-    if (activeTrack?.meta?.source === source) {
-      setActiveTrack(null)
-      setTooltip(null)
-    }
+    library.deleteSource(source)
+    setTooltip(null)
   }
 
-  function handleTrackVisibilityChange(track: Track, visible: boolean): void {
-    if (track.meta === null) {
-      return
-    }
+  function handleTrackVisibilityChange(meta: TrackMeta, visible: boolean): void {
+    library.setTrackVisible(meta, visible)
 
-    track.meta.visible = visible
-
-    if (!visible && activeTrack === track) {
-      setActiveTrack(null)
+    if (!visible && library.activeMeta === null) {
       setTooltip(null)
     }
-
-    rerenderWorkspace()
-  }
-
-  function handleTrackColorChange(track: Track, color: string): void {
-    if (track.meta === null) {
-      return
-    }
-
-    track.meta.color = color
-    rerenderWorkspace()
   }
 
   function handleColorPaletteChange(color: string): void {
@@ -186,25 +94,24 @@ export default function TrackWorkspace() {
       return
     }
 
-    handleTrackColorChange(colorPalette.track, color)
+    library.setTrackColor(colorPalette.meta, color)
     setColorPalette(null)
   }
 
-  function handleTrackActivate(track: Track): void {
-    setActiveTrack(track)
+  function handleTrackActivate(meta: TrackMeta): void {
+    library.activateTrack(meta)
   }
 
-  function handleTrackFocus(track: Track): void {
-    setActiveTrack(track)
-    setFocusedTrack((current) => ({
-      track,
-      version: (current?.version ?? 0) + 1,
-    }))
+  function handleTrackFocus(meta: TrackMeta): void {
+    library.focusTrack(meta)
     setColorPalette(null)
   }
 
   function handleMapTrackClick(track: Track, point: TrackMapPoint): void {
-    setActiveTrack(track)
+    if (track.meta !== null) {
+      library.activateTrack(track.meta)
+    }
+
     setTooltip({ track, point: { x: point.x, y: point.y } })
     setColorPalette(null)
   }
@@ -215,7 +122,7 @@ export default function TrackWorkspace() {
         <TrackMap
           tracks={visibleTracks}
           activeTrack={activeTrack}
-          focusedTrack={focusedTrack}
+          focusedTrack={library.focusedTrack}
           onTrackClick={handleMapTrackClick}
           onMapClick={() => {
             setTooltip(null)
@@ -223,7 +130,7 @@ export default function TrackWorkspace() {
           }}
         />
 
-        {tracks.length === 0 && (
+        {library.sources.length === 0 && (
           <section className="empty-map-state" aria-label="No tracks loaded">
             <h2>Load track sources</h2>
             <p>Add GPX files or a Komoot tour URL to start building the map.</p>
@@ -246,32 +153,18 @@ export default function TrackWorkspace() {
           sidebarOpen={isSidebarOpen}
           onClose={() => setTooltip(null)}
         />
-        {colorPalette !== null && (
-          <ColorPalette
-            left={colorPalette.left}
-            top={colorPalette.top}
-            value={
-              colorPalette.kind === 'source'
-                ? colorPalette.source.color
-                : colorPalette.track.meta?.color ?? '#2563eb'
-            }
-            onChange={handleColorPaletteChange}
-          />
-        )}
 
-        {errorMessage !== null && (
+        {library.lastError !== null && (
           <p className="workspace-error" role="alert">
-            {errorMessage}
+            {library.lastError}
           </p>
         )}
       </div>
 
       <TrackSidebar
-        sources={sources}
-        tracks={tracks}
-        activeTrack={activeTrack}
+        library={library}
         searchQuery={searchQuery}
-        loading={isLoadingSource}
+        loading={library.isLoading()}
         collapsed={!isSidebarOpen}
         onSearchChange={setSearchQuery}
         onAddSourceClick={() => {
@@ -289,23 +182,34 @@ export default function TrackWorkspace() {
         onSourceColorClick={(source, left, top) => {
           setColorPalette({ kind: 'source', source, left, top })
         }}
-        onMoveSource={handleMoveSource}
+        onMoveSource={(source, direction) => library.moveSource(source, direction)}
         onDeleteSource={handleDeleteSource}
         onTrackActivate={handleTrackActivate}
         onTrackFocus={handleTrackFocus}
         onTrackVisibilityChange={handleTrackVisibilityChange}
-        onTrackColorClick={(track, left, top) => {
-          setColorPalette({ kind: 'track', track, left, top })
+        onTrackColorClick={(meta, left, top) => {
+          setColorPalette({ kind: 'track', meta, left, top })
         }}
       />
 
+      {colorPalette !== null && (
+        <ColorPalette
+          left={colorPalette.left}
+          top={colorPalette.top}
+          value={
+            colorPalette.kind === 'source'
+              ? colorPalette.source.color
+              : colorPalette.meta.color
+          }
+          onChange={handleColorPaletteChange}
+        />
+      )}
+
       {isAddSourceOpen && (
         <AddSourceDialog
-          sourceIndex={sources.length}
+          sourceIndex={library.sources.length}
           onCancel={() => setIsAddSourceOpen(false)}
-          onCreate={(source) => {
-            void handleSourceCreate(source)
-          }}
+          onCreate={handleSourceCreate}
         />
       )}
     </section>

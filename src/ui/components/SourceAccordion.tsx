@@ -1,14 +1,17 @@
 import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, type MouseEvent } from 'react'
+import type { SourceProgress } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
-import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import TrackListItem from './TrackListItem'
 
 type SourceAccordionProps = {
   source: TrackSource
-  tracks: readonly Track[]
-  displayedTracks: readonly Track[]
-  activeTrack: Track | null
+  metas: readonly TrackMeta[]
+  displayedMetas: readonly TrackMeta[]
+  activeMeta: TrackMeta | null
+  progress: SourceProgress
+  loadingMetadata: boolean
   canMoveUp: boolean
   canMoveDown: boolean
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
@@ -16,17 +19,19 @@ type SourceAccordionProps = {
   onSourceColorClick: (source: TrackSource, left: number, top: number) => void
   onMoveSource: (source: TrackSource, direction: -1 | 1) => void
   onDeleteSource: (source: TrackSource) => void
-  onTrackActivate: (track: Track) => void
-  onTrackFocus: (track: Track) => void
-  onTrackVisibilityChange: (track: Track, visible: boolean) => void
-  onTrackColorClick: (track: Track, left: number, top: number) => void
+  onTrackActivate: (meta: TrackMeta) => void
+  onTrackFocus: (meta: TrackMeta) => void
+  onTrackVisibilityChange: (meta: TrackMeta, visible: boolean) => void
+  onTrackColorClick: (meta: TrackMeta, left: number, top: number) => void
 }
 
 export default function SourceAccordion({
   source,
-  tracks,
-  displayedTracks,
-  activeTrack,
+  metas,
+  displayedMetas,
+  activeMeta,
+  progress,
+  loadingMetadata,
   canMoveUp,
   canMoveDown,
   onSourceVisibilityChange,
@@ -41,11 +46,11 @@ export default function SourceAccordion({
 }: SourceAccordionProps) {
   const checkboxRef = useRef<HTMLInputElement | null>(null)
   const visibleCount = useMemo(
-    () => tracks.filter((track) => track.meta?.visible ?? false).length,
-    [tracks],
+    () => metas.filter((meta) => meta.visible).length,
+    [metas],
   )
-  const allVisible = tracks.length > 0 && visibleCount === tracks.length
-  const partiallyVisible = visibleCount > 0 && visibleCount < tracks.length
+  const allVisible = metas.length > 0 && visibleCount === metas.length
+  const partiallyVisible = visibleCount > 0 && visibleCount < metas.length
 
   useEffect(() => {
     if (checkboxRef.current !== null) {
@@ -102,7 +107,7 @@ export default function SourceAccordion({
           onClick={() => onSourceExpandedChange(source, !source.expanded)}
         >
           <span>{source.name}</span>
-          <small>{tracks.length}</small>
+          <small>{progress.total}</small>
         </button>
 
         <button className="icon-button ghost-button danger source-delete-button" type="button" aria-label="Delete source" onClick={() => onDeleteSource(source)}>
@@ -124,14 +129,24 @@ export default function SourceAccordion({
 
       {source.expanded && (
         <div className="track-list">
-          {displayedTracks.length === 0 ? (
+          {loadingMetadata && (
+            <p className="source-progress">Loading track list...</p>
+          )}
+          {progress.total > 0 && (
+            <p className="source-progress">
+              {progress.ready}/{progress.total} ready
+              {progress.loading > 0 ? `, ${progress.loading} loading` : ''}
+              {progress.error > 0 ? `, ${progress.error} errors` : ''}
+            </p>
+          )}
+          {displayedMetas.length === 0 ? (
             <p className="empty-source">No tracks yet</p>
           ) : (
-            displayedTracks.map((track) => (
+            displayedMetas.map((meta) => (
               <TrackListItem
-                key={`${track.meta?.source.name ?? 'source'}:${track.meta?.remoteId ?? displayedTracks.indexOf(track)}`}
-                track={track}
-                active={track === activeTrack}
+                key={`${meta.source.name}:${meta.remoteId}`}
+                meta={meta}
+                active={meta === activeMeta}
                 onActivate={onTrackActivate}
                 onFocus={onTrackFocus}
                 onVisibilityChange={onTrackVisibilityChange}

@@ -11,6 +11,12 @@ function isRecord(value) {
 }
 
 async function readBody(request) {
+  if (Buffer.isBuffer(request.body)) {
+    const text = request.body.toString('utf8')
+
+    return text === '' ? {} : JSON.parse(text)
+  }
+
   if (isRecord(request.body)) {
     return request.body
   }
@@ -64,6 +70,10 @@ function buildKomootUrl(path, query) {
   return url
 }
 
+function logKomootProxy(event, details) {
+  console.log(`[komoot:proxy:${event}]`, details)
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     sendJson(response, 405, { error: 'Method not allowed.' })
@@ -71,8 +81,17 @@ export default async function handler(request, response) {
   }
 
   try {
+    const startedAt = Date.now()
     const body = await readBody(request)
     const authorization = authHeader(body.auth)
+
+    logKomootProxy('request', {
+      method: body.method,
+      path: typeof body.path === 'string' ? body.path : null,
+      query: isRecord(body.query) ? body.query : {},
+      accept: typeof body.accept === 'string' ? body.accept : null,
+      hasAuth: authorization !== null,
+    })
 
     if (authorization === null) {
       sendJson(response, 400, { error: 'Komoot authorization is required.' })
@@ -86,7 +105,13 @@ export default async function handler(request, response) {
       return
     }
 
-    const komootResponse = await fetch(buildKomootUrl(body.path, body.query), {
+    const komootUrl = buildKomootUrl(body.path, body.query)
+
+    logKomootProxy('fetch', {
+      url: komootUrl.toString(),
+    })
+
+    const komootResponse = await fetch(komootUrl, {
       method,
       headers: {
         accept: typeof body.accept === 'string' ? body.accept : 'application/hal+json',
@@ -96,10 +121,21 @@ export default async function handler(request, response) {
     const contentType = komootResponse.headers.get('content-type')
     const payload = await komootResponse.text()
 
+    logKomootProxy('response', {
+      status: komootResponse.status,
+      contentType,
+      elapsedMs: Date.now() - startedAt,
+      bytes: payload.length,
+    })
+
     response.statusCode = komootResponse.status
     response.setHeader('Content-Type', contentType ?? 'application/json; charset=utf-8')
     response.end(payload)
   } catch (error) {
+    logKomootProxy('error', {
+      message: error instanceof Error ? error.message : 'Komoot request could not be completed.',
+    })
+
     sendJson(response, 502, {
       error: error instanceof Error ? error.message : 'Komoot request could not be completed.',
     })

@@ -163,6 +163,7 @@ export default function TrackMap({
         layout: {
           'line-join': 'round',
           'line-cap': 'round',
+          'line-sort-key': ['get', 'featureIndex'],
         },
         paint: {
           'line-color': ['get', 'color'],
@@ -178,6 +179,7 @@ export default function TrackMap({
         layout: {
           'line-join': 'round',
           'line-cap': 'round',
+          'line-sort-key': ['get', 'featureIndex'],
         },
         paint: {
           'line-color': ['get', 'color'],

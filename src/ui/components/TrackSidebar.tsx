@@ -1,12 +1,11 @@
 import { Menu, Plus } from 'lucide-react'
+import type { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
-import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import SourceAccordion from './SourceAccordion'
 
 type TrackSidebarProps = {
-  sources: readonly TrackSource[]
-  tracks: readonly Track[]
-  activeTrack: Track | null
+  library: TrackLibrary
   searchQuery: string
   loading: boolean
   collapsed: boolean
@@ -18,32 +17,27 @@ type TrackSidebarProps = {
   onSourceColorClick: (source: TrackSource, left: number, top: number) => void
   onMoveSource: (source: TrackSource, direction: -1 | 1) => void
   onDeleteSource: (source: TrackSource) => void
-  onTrackActivate: (track: Track) => void
-  onTrackFocus: (track: Track) => void
-  onTrackVisibilityChange: (track: Track, visible: boolean) => void
-  onTrackColorClick: (track: Track, left: number, top: number) => void
+  onTrackActivate: (meta: TrackMeta) => void
+  onTrackFocus: (meta: TrackMeta) => void
+  onTrackVisibilityChange: (meta: TrackMeta, visible: boolean) => void
+  onTrackColorClick: (meta: TrackMeta, left: number, top: number) => void
 }
 
-function trackMatchesQuery(track: Track, query: string): boolean {
+function trackMatchesQuery(meta: TrackMeta, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase()
 
   if (normalizedQuery === '') {
     return true
   }
 
-  const meta = track.meta
-
   return (
-    meta?.name.toLowerCase().includes(normalizedQuery) ||
-    meta?.source.name.toLowerCase().includes(normalizedQuery) ||
-    false
+    meta.name.toLowerCase().includes(normalizedQuery) ||
+    meta.source.name.toLowerCase().includes(normalizedQuery)
   )
 }
 
 export default function TrackSidebar({
-  sources,
-  tracks,
-  activeTrack,
+  library,
   searchQuery,
   loading,
   collapsed,
@@ -60,7 +54,7 @@ export default function TrackSidebar({
   onTrackVisibilityChange,
   onTrackColorClick,
 }: TrackSidebarProps) {
-  const orderedSources = [...sources].sort((left, right) => left.order - right.order)
+  const orderedSources = [...library.sources].sort((left, right) => left.order - right.order)
 
   return (
     <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="Track sources">
@@ -75,8 +69,8 @@ export default function TrackSidebar({
 
       <header className="sidebar-header">
         <div className="app-brand">
-          <h1>GPS Track Navigator</h1>
-          <p>Sources to nested tracks. Source order controls map layer order.</p>
+            <h1>GPS Track Navigator</h1>
+            <p>Sources to nested tracks. Source order controls map layer order.</p>
         </div>
       </header>
 
@@ -98,7 +92,7 @@ export default function TrackSidebar({
         </button>
       </div>
 
-      {loading && <p className="status-message">Loading source...</p>}
+      {loading && <p className="status-message">Loading tracks in background...</p>}
 
       <div className="source-list">
         {orderedSources.length === 0 ? (
@@ -108,14 +102,14 @@ export default function TrackSidebar({
           </section>
         ) : (
           orderedSources.map((source, index) => {
-            const sourceTracks = tracks.filter((track) => track.meta?.source === source)
-            const displayedTracks = sourceTracks.filter((track) =>
-              trackMatchesQuery(track, searchQuery),
+            const sourceMetas = library.sourceMetas(source)
+            const displayedMetas = sourceMetas.filter((meta) =>
+              trackMatchesQuery(meta, searchQuery),
             )
 
             if (
               searchQuery.trim() !== '' &&
-              displayedTracks.length === 0 &&
+              displayedMetas.length === 0 &&
               !source.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
             ) {
               return null
@@ -125,15 +119,17 @@ export default function TrackSidebar({
               <SourceAccordion
                 key={`${source.name}:${source.order}`}
                 source={source}
-                tracks={sourceTracks}
+                metas={sourceMetas}
                 canMoveUp={index > 0}
                 canMoveDown={index < orderedSources.length - 1}
-                displayedTracks={
+                displayedMetas={
                   source.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-                    ? sourceTracks
-                    : displayedTracks
+                    ? sourceMetas
+                    : displayedMetas
                 }
-                activeTrack={activeTrack}
+                activeMeta={library.activeMeta}
+                progress={library.sourceProgress(source)}
+                loadingMetadata={library.isSourceLoadingMetadata(source)}
                 onSourceVisibilityChange={onSourceVisibilityChange}
                 onSourceExpandedChange={onSourceExpandedChange}
                 onSourceColorClick={onSourceColorClick}

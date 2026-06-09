@@ -1,35 +1,39 @@
 import { Crosshair } from 'lucide-react'
 import type { MouseEvent } from 'react'
-import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 
 type TrackListItemProps = {
-  track: Track
+  meta: TrackMeta
   active: boolean
-  onActivate: (track: Track) => void
-  onFocus: (track: Track) => void
-  onVisibilityChange: (track: Track, visible: boolean) => void
-  onColorClick: (track: Track, left: number, top: number) => void
+  onActivate: (meta: TrackMeta) => void
+  onFocus: (meta: TrackMeta) => void
+  onVisibilityChange: (meta: TrackMeta, visible: boolean) => void
+  onColorClick: (meta: TrackMeta, left: number, top: number) => void
 }
 
 export default function TrackListItem({
-  track,
+  meta,
   active,
   onActivate,
   onFocus,
   onVisibilityChange,
   onColorClick,
 }: TrackListItemProps) {
-  const meta = track.meta
-
-  if (meta === null) {
-    return null
-  }
+  const track = meta.track
+  const details =
+    meta.loadStatus === 'ready' && track !== null
+      ? `${formatDistance(track.distanceKm())} | ${meta.source.name}`
+      : meta.loadStatus === 'error'
+        ? meta.loadError ?? 'Track could not be loaded'
+        : meta.loadStatus === 'loading'
+          ? 'Loading geometry...'
+          : 'Queued for loading'
 
   function handleColorClick(event: MouseEvent<HTMLButtonElement>): void {
     const rect = event.currentTarget.getBoundingClientRect()
 
-    onColorClick(track, rect.left - 90, rect.bottom + 10)
+    onColorClick(meta, rect.left - 90, rect.bottom + 10)
   }
 
   return (
@@ -38,7 +42,7 @@ export default function TrackListItem({
         type="checkbox"
         checked={meta.visible}
         aria-label={`Toggle ${meta.name}`}
-        onChange={(event) => onVisibilityChange(track, event.target.checked)}
+        onChange={(event) => onVisibilityChange(meta, event.target.checked)}
       />
 
       <button
@@ -49,18 +53,17 @@ export default function TrackListItem({
         onClick={handleColorClick}
       />
 
-      <button className="track-main-button" type="button" onClick={() => onActivate(track)}>
+      <button className="track-main-button" type="button" onClick={() => onActivate(meta)}>
         <span>{meta.name}</span>
-        <small>
-          {formatDistance(track.distanceKm())} | {meta.source.name}
-        </small>
+        <small>{details}</small>
       </button>
 
       <button
         className="focus-button ghost-button"
         type="button"
         aria-label="Focus track"
-        onClick={() => onFocus(track)}
+        disabled={track === null}
+        onClick={() => onFocus(meta)}
       >
         <Crosshair aria-hidden="true" size={15} strokeWidth={2.2} />
       </button>

@@ -38,8 +38,42 @@ export async function komootRequestText(input: KomootRequestInput): Promise<stri
   return response.text()
 }
 
-function komootRequest(input: KomootRequestInput): Promise<Response> {
-  return input.mode === 'server' ? serverRequest(input) : directRequest(input)
+async function komootRequest(input: KomootRequestInput): Promise<Response> {
+  const startedAt = Date.now()
+
+  logKomootTransport('request', {
+    mode: input.mode,
+    target: input.pathOrUrl,
+    query: input.query ?? {},
+    hasCredentials: input.credentials !== null && input.credentials !== undefined,
+  })
+
+  try {
+    const response = input.mode === 'server' ? await serverRequest(input) : await directRequest(input)
+
+    logKomootTransport('response', {
+      mode: input.mode,
+      target: input.pathOrUrl,
+      status: response.status,
+      elapsedMs: Date.now() - startedAt,
+    })
+
+    return response
+  } catch (error) {
+    logKomootTransport('error', {
+      mode: input.mode,
+      target: input.pathOrUrl,
+      elapsedMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : 'Unknown Komoot transport error.',
+      status: error instanceof KomootTransportError ? error.status : null,
+    })
+
+    throw error
+  }
+}
+
+function logKomootTransport(event: string, details: Record<string, unknown>): void {
+  console.debug(`[komoot:transport:${event}]`, details)
 }
 
 async function directRequest(input: KomootRequestInput): Promise<Response> {

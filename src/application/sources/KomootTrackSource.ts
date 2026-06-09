@@ -10,7 +10,7 @@ import {
   type KomootCredentials,
   type KomootRequestMode,
 } from './KomootTransport'
-import type { TrackFormat, TrackSource } from './TrackSource'
+import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
 const KOMOOT_TOUR_URL_PATTERN =
   /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?(?:tour|discover_tours|smart_tours)\/(\d+)/i
@@ -18,7 +18,7 @@ const KOMOOT_COLLECTION_URL_PATTERN =
   /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?collection\/(\d+)/i
 const KOMOOT_USER_URL_PATTERN =
   /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?user\/(\d+)(?:\/(?:tours|backfilled-tours))?/i
-const KOMOOT_USER_ID_PATTERN = /^\d{6,}$/
+const KOMOOT_USER_ID_PATTERN = /^\d{6,16}$/
 const KOMOOT_TOUR_LINK_PATTERN =
   /\/(?:tour|discover_tours|smart_tours)\/(\d+)/gi
 const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
@@ -178,6 +178,7 @@ export class KomootTrackSource implements TrackSource {
   public order = 0
 
   private readonly target: KomootSourceTarget
+  private readonly coordinatesUrls = new WeakMap<TrackMeta, string>()
 
   public constructor(
     public readonly url: string,
@@ -220,13 +221,26 @@ export class KomootTrackSource implements TrackSource {
     return null
   }
 
-  public async loadTracks(): Promise<Track[]> {
+  public async loadTrackMetas(): Promise<TrackMeta[]> {
+    this.log('loadTracks:start', {
+      targetType:
+        this.target.tourId !== undefined
+          ? 'tour'
+          : this.target.userId !== undefined
+            ? 'user'
+            : 'collection',
+      hasCredentials: this.credentials !== null,
+    })
+
     if (this.target.tourId !== undefined) {
-      return [await this.loadTrackByTourId(this.target.tourId)]
+      const mode = this.credentials === null ? 'direct' : 'server'
+      const tour = await this.fetchTour(this.target.tourId, mode)
+
+      return [this.createMetaFromTour(this.target.tourId, tour)]
     }
 
     if (this.target.userId !== undefined) {
-      return this.loadUserTracks(this.target.userId, this.target.listType)
+      return this.loadUserTrackMetas(this.target.userId, this.target.listType)
     }
 
     const collectionTracks = await this.fetchCollectionTracksFromCompilationLines(
@@ -235,6 +249,8 @@ export class KomootTrackSource implements TrackSource {
 
     if (collectionTracks.length > 0) {
       return collectionTracks
+        .map((track) => track.meta)
+        .filter((meta): meta is TrackMeta => meta !== null)
     }
 
     const tourIds = await this.fetchCollectionTourIds(this.target.collectionId)
@@ -243,11 +259,44 @@ export class KomootTrackSource implements TrackSource {
       throw new Error('Komoot collection has no public tours or could not be read.')
     }
 
-    const tracks: Track[] = []
+    const metas: TrackMeta[] = []
 
     for (const tourId of tourIds) {
-      tracks.push(await this.loadTrackByTourId(tourId))
+      metas.push(
+        new TrackMeta(this, tourId, `Komoot tour ${tourId}`, this.color, true, null, null, 'queued'),
+      )
     }
+
+    this.log('loadTracks:metadataDone', { count: metas.length })
+
+    return metas
+  }
+
+  public async loadTrack(meta: TrackMeta): Promise<Track> {
+    if (meta.track !== null) {
+      return meta.track
+    }
+
+    const mode = this.target.userId !== undefined && this.credentials !== null ? 'server' : 'direct'
+    const track = await this.loadTrackByTourId(meta.remoteId, mode, meta)
+
+    meta.track = track
+
+    return track
+  }
+
+  public async loadTracks(onTrackLoaded?: TrackLoadCallback): Promise<Track[]> {
+    const metas = await this.loadTrackMetas()
+    const tracks: Track[] = []
+
+    for (const meta of metas) {
+      const track = await this.loadTrack(meta)
+
+      tracks.push(track)
+      onTrackLoaded?.(track)
+    }
+
+    this.log('loadTracks:done', { count: tracks.length })
 
     return tracks
   }
@@ -312,36 +361,65 @@ export class KomootTrackSource implements TrackSource {
   private async loadTrackByTourId(
     tourId: string,
     mode: KomootRequestMode = 'direct',
+    existingMeta?: TrackMeta,
   ): Promise<Track> {
-    const tour = await this.fetchTour(tourId, mode)
-    const coordinatesUrl = this.coordinatesUrlFromTour(tour, tourId)
-    const points = await this.fetchCoordinates(coordinatesUrl, mode)
+    this.log('loadTrack:start', { tourId, mode })
+
+    const cachedCoordinatesUrl =
+      existingMeta === undefined ? null : this.coordinatesUrls.get(existingMeta) ?? null
+    let tour: KomootTourResponse | null = null
+    let points: TrackPointInput[]
+
+    if (cachedCoordinatesUrl !== null) {
+      try {
+        this.log('loadTrack:directCoordinates', { tourId, mode })
+        points = await this.fetchCoordinates(cachedCoordinatesUrl, mode)
+      } catch (error) {
+        this.log('loadTrack:directCoordinatesFallback', {
+          tourId,
+          mode,
+          message: error instanceof Error ? error.message : String(error),
+        })
+        tour = await this.fetchTour(tourId, mode)
+        points = await this.fetchCoordinates(this.coordinatesUrlFromTour(tour, tourId), mode)
+      }
+    } else {
+      tour = await this.fetchTour(tourId, mode)
+      points = await this.fetchCoordinates(this.coordinatesUrlFromTour(tour, tourId), mode)
+    }
 
     if (points.length === 0) {
       throw new Error(`Komoot tour ${tourId} has no public coordinates.`)
     }
 
-    const trackName =
-      typeof tour.name === 'string' && tour.name.trim() !== ''
-        ? tour.name
-        : `Komoot tour ${tourId}`
-    const meta = new TrackMeta(
-      this,
-      tourId,
-      trackName,
-      this.color,
-      true,
-      parseDate(tour.date),
-      parseDistanceMeters(tour.distance_m ?? tour.distance),
-    )
+    const meta =
+      existingMeta ??
+      this.createMetaFromTour(
+        tourId,
+        tour ?? { id: tourId, name: `Komoot tour ${tourId}` },
+        'ready',
+      )
 
-    return new TrackModel(points, meta)
+    if (tour !== null && typeof tour.name === 'string' && tour.name.trim() !== '') {
+      meta.name = tour.name
+    }
+
+    meta.loadStatus = 'ready'
+    meta.loadError = null
+
+    this.log('loadTrack:done', { tourId, mode, points: points.length })
+
+    const track = new TrackModel(points, meta)
+
+    meta.track = track
+
+    return track
   }
 
-  private async loadUserTracks(
+  private async loadUserTrackMetas(
     userId: string,
     listType: KomootUserListType,
-  ): Promise<Track[]> {
+  ): Promise<TrackMeta[]> {
     const mode: KomootRequestMode = this.credentials === null ? 'direct' : 'server'
     await this.updateUserSourceName(userId, listType, mode)
 
@@ -355,13 +433,17 @@ export class KomootTrackSource implements TrackSource {
       return []
     }
 
-    const tracks: Track[] = []
+    const metas = summaries.map((summary) => this.createMetaFromSummary(summary))
 
-    for (const summary of summaries) {
-      tracks.push(await this.loadUserTrackFromSummary(summary, mode))
-    }
+    this.log('loadUserTracks:metas', {
+      userId,
+      listType,
+      mode,
+      count: metas.length,
+      sample: metas.slice(0, 5).map((meta) => meta.remoteId),
+    })
 
-    return tracks
+    return metas
   }
 
   private async updateUserSourceName(
@@ -460,16 +542,10 @@ export class KomootTrackSource implements TrackSource {
     }
   }
 
-  private async loadUserTrackFromSummary(
+  private createMetaFromSummary(
     summary: KomootTourSummary,
-    mode: KomootRequestMode,
-  ): Promise<Track> {
-    const points = await this.fetchCoordinates(summary.coordinatesUrl, mode)
-
-    if (points.length === 0) {
-      throw new Error(`Komoot tour ${summary.remoteId} has no available coordinates.`)
-    }
-
+    loadStatus: TrackMeta['loadStatus'] = 'queued',
+  ): TrackMeta {
     const meta = new TrackMeta(
       this,
       summary.remoteId,
@@ -478,9 +554,34 @@ export class KomootTrackSource implements TrackSource {
       true,
       summary.date,
       summary.distanceMeters,
+      loadStatus,
     )
 
-    return new TrackModel(points, meta)
+    this.coordinatesUrls.set(meta, summary.coordinatesUrl)
+
+    return meta
+  }
+
+  private createMetaFromTour(
+    remoteId: string,
+    tour: KomootTourResponse,
+    loadStatus: TrackMeta['loadStatus'] = 'queued',
+  ): TrackMeta {
+    const trackName =
+      typeof tour.name === 'string' && tour.name.trim() !== ''
+        ? tour.name
+        : `Komoot tour ${remoteId}`
+
+    return new TrackMeta(
+      this,
+      remoteId,
+      trackName,
+      this.color,
+      true,
+      parseDate(tour.date),
+      parseDistanceMeters(tour.distance_m ?? tour.distance),
+      loadStatus,
+    )
   }
 
   private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
@@ -556,7 +657,11 @@ export class KomootTrackSource implements TrackSource {
       parseDistanceMeters(lineItem.distance),
     )
 
-    return new TrackModel(points, meta)
+    const track = new TrackModel(points, meta)
+
+    meta.track = track
+
+    return track
   }
 
   private async fetchCollectionTourIdsFromApi(collectionId: string): Promise<string[]> {
@@ -836,6 +941,8 @@ export class KomootTrackSource implements TrackSource {
     let response: unknown
 
     try {
+      this.log('fetchTour:request', { remoteId, mode, endpoint: 'tours' })
+
       response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/tours/${remoteId}`, mode)
     } catch (error) {
       if (
@@ -844,6 +951,8 @@ export class KomootTrackSource implements TrackSource {
       ) {
         throw error
       }
+
+      this.log('fetchTour:fallback', { remoteId, mode, endpoint: 'discover_tours' })
 
       response = await this.fetchKomootJson(
         `${KOMOOT_API_BASE}/discover_tours/${remoteId}`,
@@ -872,12 +981,18 @@ export class KomootTrackSource implements TrackSource {
     url: string,
     mode: KomootRequestMode = 'direct',
   ): Promise<TrackPointInput[]> {
+    this.log('fetchCoordinates:request', { mode, url })
+
     const response = await this.fetchKomootJson(url, mode)
     const items = this.coordinateItems(response)
 
-    return items
+    const points = items
       .map((item) => parseCoordinate(item))
       .filter((point): point is TrackPointInput => point !== null)
+
+    this.log('fetchCoordinates:done', { mode, url, points: points.length })
+
+    return points
   }
 
   private coordinateItems(response: unknown): unknown[] {
@@ -934,5 +1049,9 @@ export class KomootTrackSource implements TrackSource {
     link.click()
 
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
+  private log(event: string, details: Record<string, unknown>): void {
+    console.debug(`[komoot:source:${event}]`, details)
   }
 }

@@ -2,7 +2,7 @@ import { gpxConverter } from '../../formats/gpx/GpxConverter'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
-import type { TrackFormat, TrackSource } from './TrackSource'
+import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
 export class LocalFileTrackSource implements TrackSource {
   public visible = true
@@ -17,8 +17,8 @@ export class LocalFileTrackSource implements TrackSource {
     public color: string,
   ) {}
 
-  public async loadTracks(): Promise<Track[]> {
-    const tracks: Track[] = []
+  public async loadTrackMetas(): Promise<TrackMeta[]> {
+    const metas: TrackMeta[] = []
 
     for (const file of this.files) {
       const sourceText = await this.readFileText(file)
@@ -33,7 +33,42 @@ export class LocalFileTrackSource implements TrackSource {
       )
 
       this.sourceTexts.set(remoteId, sourceText)
-      tracks.push(this.createTrackFromText(sourceText, meta))
+      const track = this.createTrackFromText(sourceText, meta)
+
+      meta.track = track
+      metas.push(meta)
+    }
+
+    return metas
+  }
+
+  public async loadTrack(meta: TrackMeta): Promise<Track> {
+    if (meta.track !== null) {
+      return meta.track
+    }
+
+    const sourceText = this.sourceTexts.get(meta.remoteId) ?? null
+
+    if (sourceText === null) {
+      throw new Error(`${meta.name} could not be read.`)
+    }
+
+    const track = this.createTrackFromText(sourceText, meta)
+
+    meta.track = track
+    meta.loadStatus = 'ready'
+
+    return track
+  }
+
+  public async loadTracks(onTrackLoaded?: TrackLoadCallback): Promise<Track[]> {
+    const metas = await this.loadTrackMetas()
+    const tracks = metas
+      .map((meta) => meta.track)
+      .filter((track): track is Track => track !== null)
+
+    for (const track of tracks) {
+      onTrackLoaded?.(track)
     }
 
     return tracks
