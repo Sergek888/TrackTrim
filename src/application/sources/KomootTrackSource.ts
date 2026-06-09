@@ -222,16 +222,6 @@ export class KomootTrackSource implements TrackSource {
   }
 
   public async loadTrackMetas(): Promise<TrackMeta[]> {
-    this.log('loadTracks:start', {
-      targetType:
-        this.target.tourId !== undefined
-          ? 'tour'
-          : this.target.userId !== undefined
-            ? 'user'
-            : 'collection',
-      hasCredentials: this.credentials !== null,
-    })
-
     if (this.target.tourId !== undefined) {
       const mode = this.credentials === null ? 'direct' : 'server'
       const tour = await this.fetchTour(this.target.tourId, mode)
@@ -267,8 +257,6 @@ export class KomootTrackSource implements TrackSource {
       )
     }
 
-    this.log('loadTracks:metadataDone', { count: metas.length })
-
     return metas
   }
 
@@ -295,8 +283,6 @@ export class KomootTrackSource implements TrackSource {
       tracks.push(track)
       onTrackLoaded?.(track)
     }
-
-    this.log('loadTracks:done', { count: tracks.length })
 
     return tracks
   }
@@ -363,8 +349,6 @@ export class KomootTrackSource implements TrackSource {
     mode: KomootRequestMode = 'direct',
     existingMeta?: TrackMeta,
   ): Promise<Track> {
-    this.log('loadTrack:start', { tourId, mode })
-
     const cachedCoordinatesUrl =
       existingMeta === undefined ? null : this.coordinatesUrls.get(existingMeta) ?? null
     let tour: KomootTourResponse | null = null
@@ -372,14 +356,8 @@ export class KomootTrackSource implements TrackSource {
 
     if (cachedCoordinatesUrl !== null) {
       try {
-        this.log('loadTrack:directCoordinates', { tourId, mode })
         points = await this.fetchCoordinates(cachedCoordinatesUrl, mode)
-      } catch (error) {
-        this.log('loadTrack:directCoordinatesFallback', {
-          tourId,
-          mode,
-          message: error instanceof Error ? error.message : String(error),
-        })
+      } catch {
         tour = await this.fetchTour(tourId, mode)
         points = await this.fetchCoordinates(this.coordinatesUrlFromTour(tour, tourId), mode)
       }
@@ -407,8 +385,6 @@ export class KomootTrackSource implements TrackSource {
     meta.loadStatus = 'ready'
     meta.loadError = null
 
-    this.log('loadTrack:done', { tourId, mode, points: points.length })
-
     const track = new TrackModel(points, meta)
 
     meta.track = track
@@ -434,14 +410,6 @@ export class KomootTrackSource implements TrackSource {
     }
 
     const metas = summaries.map((summary) => this.createMetaFromSummary(summary))
-
-    this.log('loadUserTracks:metas', {
-      userId,
-      listType,
-      mode,
-      count: metas.length,
-      sample: metas.slice(0, 5).map((meta) => meta.remoteId),
-    })
 
     return metas
   }
@@ -941,8 +909,6 @@ export class KomootTrackSource implements TrackSource {
     let response: unknown
 
     try {
-      this.log('fetchTour:request', { remoteId, mode, endpoint: 'tours' })
-
       response = await this.fetchKomootJson(`${KOMOOT_API_BASE}/tours/${remoteId}`, mode)
     } catch (error) {
       if (
@@ -951,8 +917,6 @@ export class KomootTrackSource implements TrackSource {
       ) {
         throw error
       }
-
-      this.log('fetchTour:fallback', { remoteId, mode, endpoint: 'discover_tours' })
 
       response = await this.fetchKomootJson(
         `${KOMOOT_API_BASE}/discover_tours/${remoteId}`,
@@ -981,18 +945,12 @@ export class KomootTrackSource implements TrackSource {
     url: string,
     mode: KomootRequestMode = 'direct',
   ): Promise<TrackPointInput[]> {
-    this.log('fetchCoordinates:request', { mode, url })
-
     const response = await this.fetchKomootJson(url, mode)
     const items = this.coordinateItems(response)
 
-    const points = items
+    return items
       .map((item) => parseCoordinate(item))
       .filter((point): point is TrackPointInput => point !== null)
-
-    this.log('fetchCoordinates:done', { mode, url, points: points.length })
-
-    return points
   }
 
   private coordinateItems(response: unknown): unknown[] {
@@ -1049,9 +1007,5 @@ export class KomootTrackSource implements TrackSource {
     link.click()
 
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
-  }
-
-  private log(event: string, details: Record<string, unknown>): void {
-    console.debug(`[komoot:source:${event}]`, details)
   }
 }
