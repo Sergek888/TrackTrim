@@ -3,3 +3,5 @@ dist/
 vite.log
 vercel*.log
 vite.restart*.log
+
+.vercel

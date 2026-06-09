@@ -97,7 +97,12 @@ export default function AddSourceDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form className="add-source-dialog" aria-label="Add source" onSubmit={handleSubmit}>
+      <form
+        className="add-source-dialog"
+        aria-label="Add source"
+        autoComplete="on"
+        onSubmit={handleSubmit}
+      >
         <header>
           <h2>Add source</h2>
           <button className="icon-button" type="button" aria-label="Close" onClick={onCancel}>
@@ -126,6 +131,8 @@ export default function AddSourceDialog({
           <span>Name</span>
           <input
             type="text"
+            name="source-display-name"
+            autoComplete="off"
             value={name}
             placeholder={
               mode === 'files'
@@ -154,6 +161,8 @@ export default function AddSourceDialog({
               <span>Komoot URL or user id</span>
               <input
                 type="text"
+                name="komoot-source-url"
+                autoComplete="section-komoot-source off"
                 inputMode="url"
                 value={url}
                 placeholder="Tour, collection, profile URL, or numeric user id"
@@ -189,6 +198,7 @@ export default function AddSourceDialog({
                   <span>Komoot email</span>
                   <input
                     type="email"
+                    name="username"
                     autoComplete="username"
                     value={komootEmail}
                     onChange={(event) => {
@@ -202,6 +212,7 @@ export default function AddSourceDialog({
                   <span>Komoot password</span>
                   <input
                     type="password"
+                    name="password"
                     autoComplete="current-password"
                     value={komootPassword}
                     onChange={(event) => {

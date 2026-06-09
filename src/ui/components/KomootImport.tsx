@@ -46,6 +46,8 @@ export default function KomootImport({ onSourceSelected }: KomootImportProps) {
     <div className="komoot-import">
       <input
         type="text"
+        name="komoot-source-url"
+        autoComplete="section-komoot-source off"
         inputMode="url"
         value={url}
         placeholder="Komoot URL or user id"

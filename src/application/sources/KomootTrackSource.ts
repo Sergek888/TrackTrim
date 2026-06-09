@@ -59,6 +59,7 @@ type KomootCompilationLinesResponse = {
 
 type KomootUserToursResponse = {
   _embedded?: {
+    items?: unknown
     tours?: unknown
   }
   page?: {
@@ -461,8 +462,7 @@ export class KomootTrackSource implements TrackSource {
     userId: string,
     mode: KomootRequestMode,
   ): Promise<unknown> {
-    const apiBases =
-      mode === 'server' ? [KOMOOT_API_BASE] : [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
+    const apiBases = [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
 
     for (const apiBase of apiBases) {
       try {
@@ -724,8 +724,7 @@ export class KomootTrackSource implements TrackSource {
   ): Promise<KomootTourSummary[]> {
     const tourType = listType === 'planned' ? 'tour_planned' : 'tour_recorded'
     const summaries: KomootTourSummary[] = []
-    const apiBases =
-      mode === 'server' ? [KOMOOT_API_BASE] : [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
+    const apiBases = [KOMOOT_API_BASE, KOMOOT_API_FALLBACK_BASE]
 
     for (const apiBase of apiBases) {
       let page = 0
@@ -744,7 +743,6 @@ export class KomootTrackSource implements TrackSource {
           )
         } catch (error) {
           if (
-            mode === 'direct' &&
             error instanceof KomootTransportError &&
             (error.status === 401 || error.status === 403 || error.status === 404)
           ) {
@@ -755,9 +753,7 @@ export class KomootTrackSource implements TrackSource {
         }
 
         const userToursResponse = response as KomootUserToursResponse
-        const tours = Array.isArray(userToursResponse._embedded?.tours)
-          ? userToursResponse._embedded.tours
-          : []
+        const tours = this.userTourItems(userToursResponse)
 
         summaries.push(
           ...tours
@@ -827,8 +823,7 @@ export class KomootTrackSource implements TrackSource {
       return null
     }
 
-    const id = item.id
-    const remoteId = typeof id === 'string' || typeof id === 'number' ? String(id) : null
+    const remoteId = this.remoteIdFromUserTourItem(item)
 
     if (remoteId === null) {
       return null
@@ -841,6 +836,30 @@ export class KomootTrackSource implements TrackSource {
       distanceMeters: parseDistanceMeters(item.distance_m ?? item.distance),
       coordinatesUrl: linkHref(item, 'coordinates') ?? this.defaultCoordinatesUrl(remoteId),
     }
+  }
+
+  private userTourItems(response: KomootUserToursResponse): unknown[] {
+    if (Array.isArray(response._embedded?.tours)) {
+      return response._embedded.tours
+    }
+
+    if (Array.isArray(response._embedded?.items)) {
+      return response._embedded.items
+    }
+
+    return []
+  }
+
+  private remoteIdFromUserTourItem(item: Record<string, unknown>): string | null {
+    const id = item.id
+
+    if (typeof id === 'string' || typeof id === 'number') {
+      return String(id)
+    }
+
+    const nestedIds = this.extractTourIdsFromUnknown(item)
+
+    return nestedIds[0] ?? null
   }
 
   private tourSummaryFromRemoteId(remoteId: string): KomootTourSummary {

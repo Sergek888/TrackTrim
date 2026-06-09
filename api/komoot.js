@@ -1,4 +1,6 @@
 const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
+const KOMOOT_FALLBACK_API_BASE = 'https://api.komoot.de/v007'
+const ALLOWED_KOMOOT_API_BASES = new Set([KOMOOT_API_BASE, KOMOOT_FALLBACK_API_BASE])
 
 function sendJson(response, statusCode, payload) {
   response.statusCode = statusCode
@@ -44,14 +46,24 @@ function authHeader(auth) {
   return `Basic ${Buffer.from(`${auth.email}:${auth.password}`, 'utf8').toString('base64')}`
 }
 
-function buildKomootUrl(path, query) {
+function komootApiBase(value) {
+  return typeof value === 'string' && ALLOWED_KOMOOT_API_BASES.has(value)
+    ? value
+    : KOMOOT_API_BASE
+}
+
+function buildKomootUrl(path, query, apiBase = KOMOOT_API_BASE) {
   if (typeof path !== 'string' || !path.startsWith('/') || path.includes('://')) {
     throw new Error('Komoot path is invalid.')
   }
 
-  const url = new URL(`${KOMOOT_API_BASE}${path}`)
+  const base = komootApiBase(apiBase)
+  const url = new URL(`${base}${path}`)
 
-  if (url.pathname.startsWith('/api/v007/') === false) {
+  if (
+    (base === KOMOOT_API_BASE && url.pathname.startsWith('/api/v007/') === false) ||
+    (base === KOMOOT_FALLBACK_API_BASE && url.pathname.startsWith('/v007/') === false)
+  ) {
     throw new Error('Only Komoot API paths are allowed.')
   }
 
@@ -92,7 +104,7 @@ export default async function handler(request, response) {
       return
     }
 
-    const komootUrl = buildKomootUrl(body.path, body.query)
+    const komootUrl = buildKomootUrl(body.path, body.query, body.apiBase)
 
     const komootResponse = await fetch(komootUrl, {
       method,

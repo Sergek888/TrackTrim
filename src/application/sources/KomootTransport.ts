@@ -17,6 +17,11 @@ type KomootRequestInput = {
   readonly query?: Readonly<Record<string, string | number | boolean | null | undefined>>
 }
 
+type KomootServerTarget = {
+  readonly apiBase: string
+  readonly path: string
+}
+
 export class KomootTransportError extends Error {
   public constructor(
     message: string,
@@ -64,7 +69,7 @@ async function serverRequest(input: KomootRequestInput): Promise<Response> {
     },
     body: JSON.stringify({
       method: 'GET',
-      path: pathFromPathOrUrl(input.pathOrUrl),
+      ...serverTargetFromPathOrUrl(input.pathOrUrl),
       query: input.query ?? {},
       accept: input.accept,
       auth: input.credentials,
@@ -116,7 +121,7 @@ function urlFromPathOrUrl(
   return url.toString()
 }
 
-function pathFromPathOrUrl(pathOrUrl: string): string {
+function serverTargetFromPathOrUrl(pathOrUrl: string): KomootServerTarget {
   const url = /^https?:\/\//i.test(pathOrUrl)
     ? new URL(pathOrUrl)
     : new URL(pathOrUrl, KOMOOT_API_BASE)
@@ -126,14 +131,20 @@ function pathFromPathOrUrl(pathOrUrl: string): string {
   }
 
   if (url.origin === KOMOOT_FALLBACK_WEB_BASE && url.pathname.startsWith('/v007/')) {
-    return `${url.pathname.slice('/v007'.length)}${url.search}`
+    return {
+      apiBase: `${KOMOOT_FALLBACK_WEB_BASE}/v007`,
+      path: `${url.pathname.slice('/v007'.length)}${url.search}`,
+    }
   }
 
   if (!url.pathname.startsWith('/api/v007/')) {
     throw new KomootTransportError('Only Komoot API requests can use the server transport.')
   }
 
-  return `${url.pathname.slice('/api/v007'.length)}${url.search}`
+  return {
+    apiBase: KOMOOT_API_BASE,
+    path: `${url.pathname.slice('/api/v007'.length)}${url.search}`,
+  }
 }
 
 function appendQuery(url: URL, query?: KomootRequestInput['query']): void {
