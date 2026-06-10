@@ -40,14 +40,14 @@ export default function KomootConnectDialog({
       if (!response.ok || !payload.connected) {
         setErrorMessage(
           payload.error ??
-            'Komoot requires captcha. For stable connection use an official API or manual GPX/session import in dev mode.',
+            'Komoot требует captcha. Для стабильного подключения нужен официальный API или ручной импорт GPX/session в dev mode.',
         )
         return
       }
 
       onConnected(payload)
     } catch {
-      setErrorMessage('Komoot connection could not be completed.')
+      setErrorMessage('Не удалось подключить Komoot.')
     } finally {
       setSubmitting(false)
     }
@@ -55,16 +55,16 @@ export default function KomootConnectDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form className="add-source-dialog" aria-label="Connect Komoot" onSubmit={handleSubmit}>
+      <form className="add-source-dialog" aria-label="Подключить Komoot" onSubmit={handleSubmit}>
         <header>
-          <h2>Connect Komoot</h2>
+          <h2>Подключить Komoot</h2>
           <button className="icon-button" type="button" aria-label="Close" onClick={onCancel}>
             <X aria-hidden="true" size={15} strokeWidth={2.2} />
           </button>
         </header>
 
         <p className="form-note">
-          Password is not saved. TrackTrim stores only Komoot session cookies on the backend.
+          Пароль не сохраняется. TrackTrim хранит на backend только cookies сессии Komoot.
         </p>
 
         <label>
@@ -79,7 +79,7 @@ export default function KomootConnectDialog({
         </label>
 
         <label>
-          <span>Password</span>
+          <span>Пароль</span>
           <input
             type="password"
             name="password"
@@ -96,7 +96,7 @@ export default function KomootConnectDialog({
             name="captcha"
             autoComplete="off"
             value={captcha}
-            placeholder="Manual token for MVP"
+            placeholder="Ручной token для MVP"
             onChange={(event) => setCaptcha(event.target.value)}
           />
         </label>
@@ -105,14 +105,13 @@ export default function KomootConnectDialog({
 
         <footer>
           <button className="secondary-button" type="button" onClick={onCancel}>
-            Cancel
+            Отмена
           </button>
           <button className="save-button" type="submit" disabled={submitting}>
-            {submitting ? 'Connecting...' : 'Connect'}
+            {submitting ? 'Подключение...' : 'Подключить'}
           </button>
         </footer>
       </form>
     </div>
   )
 }
-

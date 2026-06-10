@@ -33,9 +33,8 @@ export default function KomootUrlImportForm({
         />
       </label>
       <button className="save-button" type="submit" disabled={url.trim() === ''}>
-        Import
+        Импортировать
       </button>
     </form>
   )
 }
-

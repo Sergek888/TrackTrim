@@ -8,6 +8,7 @@ import { defaultTrackColor } from '../../trackColors'
 import KomootUrlImportForm from './KomootUrlImportForm'
 
 type KomootImportDialogProps = {
+  mode: 'all' | 'tour-url' | 'collection-url'
   sourceIndex: number
   userId: string
   displayName: string | null
@@ -16,6 +17,7 @@ type KomootImportDialogProps = {
 }
 
 export default function KomootImportDialog({
+  mode,
   sourceIndex,
   userId,
   displayName,
@@ -25,8 +27,8 @@ export default function KomootImportDialog({
   function createUserSource(listType: KomootUserListType): void {
     const sourceName =
       displayName === null
-        ? `Komoot ${listType === 'planned' ? 'planned' : 'completed'}`
-        : `${displayName} ${listType === 'planned' ? 'planned' : 'completed'}`
+        ? `Komoot ${listType === 'planned' ? 'запланированные' : 'пройденные'}`
+        : `${displayName} ${listType === 'planned' ? 'запланированные' : 'пройденные'}`
     const source = new KomootTrackSource(
       userId,
       sourceName,
@@ -54,35 +56,40 @@ export default function KomootImportDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <section className="add-source-dialog" aria-label="Import from Komoot">
+      <section className="add-source-dialog" aria-label="Импорт из Komoot">
         <header>
-          <h2>Import from Komoot</h2>
+          <h2>Импорт из Komoot</h2>
           <button className="icon-button" type="button" aria-label="Close" onClick={onCancel}>
             <X aria-hidden="true" size={15} strokeWidth={2.2} />
           </button>
         </header>
 
-        <div className="komoot-import-actions">
-          <button className="secondary-button" type="button" onClick={() => createUserSource('recorded')}>
-            Import completed
-          </button>
-          <button className="secondary-button" type="button" onClick={() => createUserSource('planned')}>
-            Import planned
-          </button>
-        </div>
+        {mode === 'all' && (
+          <div className="komoot-import-actions">
+            <button className="secondary-button" type="button" onClick={() => createUserSource('recorded')}>
+              Импортировать пройденные
+            </button>
+            <button className="secondary-button" type="button" onClick={() => createUserSource('planned')}>
+              Импортировать запланированные
+            </button>
+          </div>
+        )}
 
-        <KomootUrlImportForm
-          label="Tour URL"
-          placeholder="https://www.komoot.com/tour/123456"
-          onImport={createUrlSource}
-        />
-        <KomootUrlImportForm
-          label="Collection URL"
-          placeholder="https://www.komoot.com/collection/123456"
-          onImport={createUrlSource}
-        />
+        {(mode === 'all' || mode === 'tour-url') && (
+          <KomootUrlImportForm
+            label="Ссылка на трек"
+            placeholder="https://www.komoot.com/tour/123456"
+            onImport={createUrlSource}
+          />
+        )}
+        {(mode === 'all' || mode === 'collection-url') && (
+          <KomootUrlImportForm
+            label="Ссылка на коллекцию"
+            placeholder="https://www.komoot.com/collection/123456"
+            onImport={createUrlSource}
+          />
+        )}
       </section>
     </div>
   )
 }
-

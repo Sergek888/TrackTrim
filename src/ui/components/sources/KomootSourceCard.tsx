@@ -16,6 +16,8 @@ type KomootSourceCardProps = {
   onCreateSource: (source: TrackSource) => void
 }
 
+type KomootImportMode = 'all' | 'tour-url' | 'collection-url'
+
 export default function KomootSourceCard({
   sourceIndex,
   onCreateSource,
@@ -24,7 +26,7 @@ export default function KomootSourceCard({
   const [connection, setConnection] = useState<KomootConnection | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
-  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importMode, setImportMode] = useState<KomootImportMode | null>(null)
 
   useEffect(() => {
     void checkStatus(false)
@@ -55,8 +57,8 @@ export default function KomootSourceCard({
       setState('not_connected')
       setConnection(null)
     } catch {
-      setState('error')
-      setErrorMessage('Komoot status could not be checked.')
+      setState(connection?.connected === true ? 'connected' : 'not_connected')
+      setErrorMessage('Не удалось проверить статус Komoot. Подключение можно запустить вручную.')
     }
   }
 
@@ -79,7 +81,7 @@ export default function KomootSourceCard({
       return
     }
 
-    const label = listType === 'planned' ? 'planned' : 'completed'
+    const label = listType === 'planned' ? 'запланированные' : 'пройденные'
     const source = new KomootTrackSource(
       userId,
       `${connection?.displayName ?? 'Komoot'} ${label}`,
@@ -109,13 +111,14 @@ export default function KomootSourceCard({
         )}
       </header>
 
-      {state === 'not_connected' && (
+      {(state === 'not_connected' || state === 'error') && (
         <>
           <p className="form-note">
-            You need to sign in to Komoot. Password is not saved, only the backend session is stored.
+            Нужно войти в Komoot. Пароль не сохраняется, на backend хранится только сессия.
           </p>
+          {errorMessage !== null && <p className="error-message">{errorMessage}</p>}
           <button className="save-button" type="button" onClick={() => setConnectDialogOpen(true)}>
-            Connect Komoot
+            Подключить Komoot
           </button>
         </>
       )}
@@ -124,44 +127,38 @@ export default function KomootSourceCard({
         <div className="komoot-source-actions">
           <button className="secondary-button" type="button" onClick={() => void checkStatus(true)}>
             <Wifi aria-hidden="true" size={15} strokeWidth={2.2} />
-            Check
+            Проверить подключение
           </button>
-          <button className="secondary-button" type="button" onClick={() => setImportDialogOpen(true)}>
+          <button className="secondary-button" type="button" onClick={() => setImportMode('all')}>
             <RefreshCw aria-hidden="true" size={15} strokeWidth={2.2} />
-            Refresh
+            Обновить список
           </button>
           <button className="secondary-button" type="button" onClick={() => createUserSource('recorded')}>
-            Import completed
+            Импортировать пройденные
           </button>
           <button className="secondary-button" type="button" onClick={() => createUserSource('planned')}>
-            Import planned
+            Импортировать запланированные
           </button>
-          <button className="secondary-button" type="button" onClick={() => setImportDialogOpen(true)}>
-            Import tour URL
+          <button className="secondary-button" type="button" onClick={() => setImportMode('tour-url')}>
+            Импортировать трек по ссылке
           </button>
-          <button className="secondary-button" type="button" onClick={() => setImportDialogOpen(true)}>
-            Import collection URL
+          <button className="secondary-button" type="button" onClick={() => setImportMode('collection-url')}>
+            Импортировать коллекцию по ссылке
           </button>
           <button className="secondary-button" type="button" onClick={() => void handleLogout()}>
             <Unplug aria-hidden="true" size={15} strokeWidth={2.2} />
-            Disconnect
+            Отключить
           </button>
         </div>
       )}
 
       {state === 'expired' && (
         <>
-          <p className="error-message">Komoot session expired, reconnect required.</p>
+          <p className="error-message">Сессия Komoot истекла</p>
           <button className="save-button" type="button" onClick={() => setConnectDialogOpen(true)}>
-            Reconnect
+            Подключить заново
           </button>
         </>
-      )}
-
-      {state === 'error' && (
-        <button className="secondary-button" type="button" onClick={() => void checkStatus(true)}>
-          Retry
-        </button>
       )}
 
       {connectDialogOpen && (
@@ -171,14 +168,15 @@ export default function KomootSourceCard({
         />
       )}
 
-      {importDialogOpen && connection?.userId !== undefined && (
+      {importMode !== null && connection?.userId !== undefined && (
         <KomootImportDialog
+          mode={importMode}
           sourceIndex={sourceIndex}
           userId={connection.userId}
           displayName={connection.displayName ?? null}
-          onCancel={() => setImportDialogOpen(false)}
+          onCancel={() => setImportMode(null)}
           onCreateSource={(source) => {
-            setImportDialogOpen(false)
+            setImportMode(null)
             onCreateSource(source)
           }}
         />
@@ -197,16 +195,16 @@ function labelForState(
   }
 
   if (state === 'connecting') {
-    return 'Checking connection...'
+    return 'Проверка подключения...'
   }
 
   if (state === 'expired') {
-    return 'Komoot session expired'
+    return 'Сессия Komoot истекла'
   }
 
   if (state === 'error') {
-    return errorMessage ?? 'Komoot connection error'
+    return errorMessage ?? 'Ошибка подключения Komoot'
   }
 
-  return 'Not connected'
+  return 'Не подключен'
 }
