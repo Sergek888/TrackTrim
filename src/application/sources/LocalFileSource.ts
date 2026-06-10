@@ -2,6 +2,8 @@ import { gpxConverter } from '../../formats/gpx/GpxConverter'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
+import { downloadTextFile } from '../download/downloadTextFile'
+import { readTextFile } from '../files/readTextFile'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
 export class LocalFileTrackSource implements TrackSource {
@@ -21,7 +23,7 @@ export class LocalFileTrackSource implements TrackSource {
     const metas: TrackMeta[] = []
 
     for (const file of this.files) {
-      const sourceText = await this.readFileText(file)
+      const sourceText = await readTextFile(file)
       const remoteId = this.createRemoteId(file)
       const meta = new TrackMeta(
         this,
@@ -102,7 +104,7 @@ export class LocalFileTrackSource implements TrackSource {
         throw new Error('GPX payload must be text.')
       }
 
-      this.downloadText(
+      downloadTextFile(
         payload.data,
         this.trimmedFileName(meta.name),
         payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
@@ -112,19 +114,11 @@ export class LocalFileTrackSource implements TrackSource {
 
     const gpxText = gpxConverter.trimSourceToPointsCount(sourceText, track.pointsCount())
 
-    this.downloadText(
+    downloadTextFile(
       gpxText,
       this.trimmedFileName(meta.name),
       'application/gpx+xml;charset=utf-8',
     )
-  }
-
-  private async readFileText(file: File): Promise<string> {
-    try {
-      return await file.text()
-    } catch {
-      throw new Error(`${file.name} could not be read.`)
-    }
   }
 
   private createRemoteId(file: File): string {
@@ -142,17 +136,5 @@ export class LocalFileTrackSource implements TrackSource {
 
   private trimmedFileName(fileName: string): string {
     return fileName.replace(/\.(gpx|xml)$/i, '') + '-trimmed.gpx'
-  }
-
-  private downloadText(text: string, fileName: string, type: string): void {
-    const blob = new Blob([text], { type })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-
-    link.href = url
-    link.download = fileName
-    link.click()
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 }

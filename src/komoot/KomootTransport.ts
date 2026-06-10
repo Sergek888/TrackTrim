@@ -2,12 +2,7 @@ const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
 const KOMOOT_FALLBACK_WEB_BASE = 'https://api.komoot.de'
 
-export type KomootRequestMode = 'direct' | 'server'
-
-export type KomootCredentials = {
-  readonly email: string
-  readonly password: string
-}
+import type { KomootCredentials, KomootRequestMode } from './KomootApi'
 
 type KomootRequestInput = {
   readonly mode: KomootRequestMode
