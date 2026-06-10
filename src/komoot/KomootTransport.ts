@@ -57,7 +57,7 @@ async function serverRequest(input: KomootRequestInput): Promise<Response> {
     throw new KomootTransportError('Komoot credentials are required for server requests.')
   }
 
-  const response = await safeFetch('/api/komoot', {
+  const response = await safeFetch('/api/komoot/proxy', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -67,7 +67,6 @@ async function serverRequest(input: KomootRequestInput): Promise<Response> {
       ...serverTargetFromPathOrUrl(input.pathOrUrl),
       query: input.query ?? {},
       accept: input.accept,
-      auth: input.credentials,
     }),
   })
 

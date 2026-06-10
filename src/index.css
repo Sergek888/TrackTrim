@@ -181,6 +181,8 @@ a:focus-visible {
 .select-control,
 .add-source-dialog input[type="text"],
 .add-source-dialog input[type="url"],
+.add-source-dialog input[type="email"],
+.add-source-dialog input[type="password"],
 .add-source-dialog input[type="file"] {
   min-height: 38px;
   min-width: 0;
@@ -195,7 +197,9 @@ a:focus-visible {
 .search-control input:focus,
 .select-control:focus,
 .add-source-dialog input[type="text"]:focus,
-.add-source-dialog input[type="url"]:focus {
+.add-source-dialog input[type="url"]:focus,
+.add-source-dialog input[type="email"]:focus,
+.add-source-dialog input[type="password"]:focus {
   border-color: #93c5fd;
   background: var(--color-panel);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
@@ -621,6 +625,75 @@ a:focus-visible {
   line-height: 1.35;
 }
 
+.sources-settings {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-panel);
+  padding: 10px;
+}
+
+.sources-settings h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.komoot-source-card {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-panel-soft);
+  padding: 10px;
+}
+
+.komoot-source-card header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.komoot-source-card h2,
+.komoot-source-card p {
+  margin: 0;
+}
+
+.komoot-source-card h2 {
+  font-size: 14px;
+}
+
+.komoot-source-card header p {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.komoot-source-actions,
+.komoot-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.komoot-source-actions .secondary-button {
+  min-width: 0;
+}
+
+.komoot-url-import-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.komoot-url-import-form label {
+  min-width: 0;
+}
+
 @media (max-width: 720px) {
   .sidebar {
     top: 8px;
@@ -635,5 +708,9 @@ a:focus-visible {
 
   .sidebar.is-collapsed {
     transform: translateX(calc(100% + 14px));
+  }
+
+  .komoot-url-import-form {
+    grid-template-columns: 1fr;
   }
 }

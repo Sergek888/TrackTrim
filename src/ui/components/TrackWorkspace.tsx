@@ -172,6 +172,7 @@ export default function TrackWorkspace() {
           setColorPalette(null)
           setIsAddSourceOpen(true)
         }}
+        onCreateSource={handleSourceCreate}
         onToggleCollapsed={() => {
           setIsSidebarOpen((open) => !open)
           setTooltip(null)
