@@ -41,12 +41,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     })
 
     if (!komootResponse.ok) {
+      const upstreamText = await komootResponse.text().catch(() => '')
+
       sendJson(response, komootResponse.status === 403 ? 403 : 401, {
         ok: false,
-        error:
-          komootResponse.status === 403
-            ? 'Komoot requires captcha. For stable connection use an official API or manual GPX/session import in dev mode.'
-            : 'Komoot login failed.',
+        error: loginErrorMessage(komootResponse.status, upstreamText),
+        upstreamStatus: komootResponse.status,
       })
       return
     }
@@ -107,4 +107,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       error: error instanceof Error ? error.message : 'Komoot login could not be completed.',
     })
   }
+}
+
+function loginErrorMessage(status: number, upstreamText: string): string {
+  const normalizedText = upstreamText.toLowerCase()
+
+  if (status === 403 || normalizedText.includes('captcha')) {
+    return 'Komoot requires captcha. Use a valid captcha token, an official API, or manual session connection in dev mode.'
+  }
+
+  if (status === 401 || status === 400) {
+    return 'Komoot rejected the login. Check email/password; if they are correct, Komoot likely requires captcha or blocks password login for this request.'
+  }
+
+  return `Komoot login failed with upstream status ${status}.`
 }
