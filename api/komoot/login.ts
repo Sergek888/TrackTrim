@@ -10,9 +10,9 @@ import { displayNameFromProfile, KomootClient, KomootHttpError } from './_Komoot
 import { getKomootSessionStore } from './_sessionStore'
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(1),
-  captcha: z.string().min(1),
+  captcha: z.string().optional().default(''),
   referrer: z.string().optional(),
 })
 
@@ -86,7 +86,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      sendJson(response, 400, { ok: false, error: 'Komoot login payload is invalid.' })
+      const invalidFields = error.issues.map((issue) => issue.path.join('.')).join(', ')
+
+      sendJson(response, 400, {
+        ok: false,
+        error: invalidFields === ''
+          ? 'Komoot login payload is invalid.'
+          : `Komoot login payload is invalid: ${invalidFields}.`,
+      })
       return
     }
 
@@ -101,4 +108,3 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     })
   }
 }
-

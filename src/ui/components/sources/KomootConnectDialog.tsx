@@ -33,7 +33,11 @@ export default function KomootConnectDialog({
       const response = await fetch('/api/komoot/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, captcha }),
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          captcha: captcha.trim(),
+        }),
       })
       const payload = (await response.json()) as KomootConnection
 
