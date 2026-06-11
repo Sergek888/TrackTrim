@@ -32,6 +32,49 @@ class MemoryKomootSessionStore implements KomootSessionStore {
   }
 }
 
+class FileKomootSessionStore implements KomootSessionStore {
+  private readonly directory = join(tmpdir(), 'tracktrim-komoot-sessions')
+
+  public async get(sessionId: string): Promise<StoredKomootSession | null> {
+    try {
+      const payload = await readFile(this.sessionPath(sessionId), 'utf8')
+
+      return JSON.parse(payload) as StoredKomootSession
+    } catch (error) {
+      if (isFileNotFoundError(error)) {
+        return null
+      }
+
+      throw error
+    }
+  }
+
+  public async set(session: StoredKomootSession): Promise<void> {
+    await mkdir(this.directory, { recursive: true })
+
+    const targetPath = this.sessionPath(session.sessionId)
+    const temporaryPath = `${targetPath}.${process.pid}.tmp`
+
+    await writeFile(temporaryPath, JSON.stringify(session), {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
+    await rename(temporaryPath, targetPath)
+  }
+
+  public async delete(sessionId: string): Promise<void> {
+    await rm(this.sessionPath(sessionId), { force: true })
+  }
+
+  private sessionPath(sessionId: string): string {
+    if (!/^[a-f0-9-]{36}$/i.test(sessionId)) {
+      throw new Error('TrackTrim session id is invalid.')
+    }
+
+    return join(this.directory, `${sessionId}.json`)
+  }
+}
+
 class UpstashRestSessionStore implements KomootSessionStore {
   public constructor(
     private readonly baseUrl: string,
@@ -111,6 +154,14 @@ class UnsupportedPersistentStore implements KomootSessionStore {
 export function getKomootSessionStore(): KomootSessionStore {
   const provider = process.env.KOMOOT_SESSION_STORE ?? defaultProvider()
 
+  if (provider === 'file') {
+    return new FileKomootSessionStore()
+  }
+
+  if (provider === 'memory') {
+    return new MemoryKomootSessionStore()
+  }
+
   if (provider === 'vercel-kv') {
     const url = process.env.KV_REST_API_URL
     const token = process.env.KV_REST_API_TOKEN
@@ -141,9 +192,21 @@ export function getKomootSessionStore(): KomootSessionStore {
 }
 
 function defaultProvider(): string {
-  return process.env.VERCEL === '1' ? 'vercel-kv' : 'memory'
+  return process.env.NODE_ENV === 'production' ? 'vercel-kv' : 'file'
 }
 
 function keyForSession(sessionId: string): string {
   return `tracktrim:komoot-session:${sessionId}`
 }
+
+function isFileNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  )
+}
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'

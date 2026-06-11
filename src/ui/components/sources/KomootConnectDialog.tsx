@@ -29,12 +29,15 @@ export default function KomootConnectDialog({
     setErrorMessage(null)
 
     try {
+      const formData = new FormData(event.currentTarget)
+      const submittedEmail = String(formData.get('username') ?? '').trim()
+      const submittedPassword = String(formData.get('password') ?? '')
       const response = await fetch('/api/komoot/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          email: email.trim(),
-          password,
+          email: submittedEmail,
+          password: submittedPassword,
         }),
       })
       const payload = (await response.json()) as KomootConnection
@@ -102,4 +105,3 @@ export default function KomootConnectDialog({
     </div>
   )
 }
-
