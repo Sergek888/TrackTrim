@@ -21,8 +21,8 @@ const KOMOOT_COLLECTION_URL_PATTERN =
 const KOMOOT_USER_URL_PATTERN =
   /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?user\/(\d+)(?:\/(?:tours|backfilled-tours))?/i
 const KOMOOT_USER_ID_PATTERN = /^\d{6,16}$/
-const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
-const KOMOOT_API_FALLBACK_BASE = 'https://api.komoot.de/v007'
+const KOMOOT_API_BASE = 'https://api.komoot.de/v007'
+const KOMOOT_API_FALLBACK_BASE = 'https://www.komoot.com/api/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
 
 type KomootCoordinatesResponse = {
@@ -377,6 +377,10 @@ export class KomootApiClient implements KomootApi {
   }
 
   private async fetchCollectionTourIds(collectionId: string): Promise<string[]> {
+    if (this.requestMode() === 'server') {
+      return this.fetchCollectionTourIdsFromApi(collectionId)
+    }
+
     const htmlTourIds = await this.fetchCollectionTourIdsFromHtml(collectionId)
 
     if (htmlTourIds.length > 0) {
@@ -787,7 +791,7 @@ export class KomootApiClient implements KomootApi {
   }
 
   private async fetchPublicJson(url: string): Promise<unknown> {
-    return this.fetchKomootJson(url)
+    return this.fetchKomootJson(url, this.requestMode())
   }
 
   private async fetchPublicText(url: string): Promise<string> {

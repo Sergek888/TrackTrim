@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { authorizeKomootRequest } from './_auth'
+import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
 import { KomootClient, KomootHttpError, komootBasicAuthHeader } from './_KomootClient'
+import { getKomootSessionStore } from './_sessionStore'
 
 const proxySchema = z.object({
   method: z.literal('GET'),
@@ -24,6 +26,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const auth = await authorizeKomootRequest(request)
 
     if (!auth.ok) {
+      if (auth.statusCode === 401) {
+        clearTrackTrimSessionCookie(response)
+      }
+
       sendJson(response, auth.statusCode, auth.payload)
       return
     }
@@ -37,8 +43,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     const client = new KomootClient({
       authorizationHeader: komootBasicAuthHeader(
-        auth.session.auth.email,
-        auth.session.auth.password,
+        auth.session.userId,
+        auth.session.apiToken,
       ),
       apiBaseUrl: apiBase,
     })
@@ -52,6 +58,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     if (error instanceof KomootHttpError && (error.status === 401 || error.status === 403)) {
+      const sessionId = getTrackTrimSessionId(request)
+
+      if (sessionId !== null) {
+        await getKomootSessionStore().delete(sessionId)
+      }
+
+      clearTrackTrimSessionCookie(response)
       sendJson(response, 401, { connected: false, expired: true })
       return
     }

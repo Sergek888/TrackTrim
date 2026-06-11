@@ -5,6 +5,7 @@ import {
 } from './_cookies'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
 import {
+  loginKomoot,
   KomootHttpError,
 } from './_KomootClient'
 import { getKomootSessionStore } from './_sessionStore'
@@ -22,17 +23,16 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const body = loginSchema.parse(await readJsonBody(request))
+    const account = await loginKomoot(body.email, body.password)
     const now = new Date().toISOString()
     const sessionId = createSessionId()
 
     await getKomootSessionStore().set({
       sessionId,
-      auth: {
-        email: body.email,
-        password: body.password,
-      },
-      userId: null,
-      displayName: body.email,
+      email: body.email,
+      userId: account.userId,
+      apiToken: account.apiToken,
+      displayName: account.displayName,
       createdAt: now,
       updatedAt: now,
     })
@@ -41,7 +41,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     sendJson(response, 200, {
       ok: true,
       connected: true,
-      displayName: body.email,
+      userId: account.userId,
+      displayName: account.displayName,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -56,10 +57,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    if (error instanceof KomootHttpError) {
+    if (
+      error instanceof KomootHttpError &&
+      (error.status === 401 || error.status === 403 || error.status === 404)
+    ) {
       sendJson(response, 401, {
         ok: false,
-        error: 'Komoot authorization failed. Check email and password.',
+        error: 'Komoot did not accept the email or password.',
         upstreamStatus: error.status,
       })
       return

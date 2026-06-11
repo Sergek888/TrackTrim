@@ -16,13 +16,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    if (auth.session.userId === null) {
-      sendJson(response, 400, {
-        error: 'Komoot user id is not known for this connection.',
-      })
-      return
-    }
-
     sendJson(response, 200, await auth.client.getUser(auth.session.userId))
   } catch (error) {
     if (error instanceof KomootHttpError && (error.status === 401 || error.status === 403)) {

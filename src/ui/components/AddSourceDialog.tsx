@@ -7,17 +7,23 @@ import {
 } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import { defaultTrackColor } from '../trackColors'
+import type { KomootConnection } from './sources/KomootConnectDialog'
 
 type AddSourceDialogProps = {
   sourceIndex: number
+  komootConnection: KomootConnection
+  onOpenSettings: () => void
   onCancel: () => void
   onCreate: (source: TrackSource) => void
 }
 
 type SourceMode = 'files' | 'komoot'
+type KomootImportMode = KomootUserListType | 'url'
 
 export default function AddSourceDialog({
   sourceIndex,
+  komootConnection,
+  onOpenSettings,
   onCancel,
   onCreate,
 }: AddSourceDialogProps) {
@@ -26,10 +32,9 @@ export default function AddSourceDialog({
   const [color, setColor] = useState(defaultTrackColor(sourceIndex))
   const [files, setFiles] = useState<File[]>([])
   const [url, setUrl] = useState('')
-  const [komootUserListType, setKomootUserListType] =
-    useState<KomootUserListType>('planned')
+  const [komootImportMode, setKomootImportMode] =
+    useState<KomootImportMode>('planned')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const komootTargetType = KomootTrackSource.getTargetType(url)
 
   function handleFilesChange(event: ChangeEvent<HTMLInputElement>): void {
     setFiles(Array.from(event.target.files ?? []))
@@ -57,23 +62,37 @@ export default function AddSourceDialog({
         return
       }
 
-      if (!KomootTrackSource.canLoadUrl(url, komootUserListType)) {
-        setErrorMessage('Komoot tour, collection, profile URL, or user id is invalid.')
+      if (!komootConnection.connected || komootConnection.userId === undefined) {
+        setErrorMessage('Connect Komoot in settings before adding a Komoot source.')
         return
       }
 
-      const targetType = KomootTrackSource.getTargetType(url)
+      const sourceTarget =
+        komootImportMode === 'url'
+          ? url
+          : komootConnection.userId
 
-      const fallbackName =
-        targetType === 'user'
-          ? `Komoot ${komootUserListType === 'planned' ? 'planned' : 'completed'}`
-          : 'Komoot source'
+      if (komootImportMode === 'url') {
+        const targetType = KomootTrackSource.getTargetType(url)
+
+        if (targetType !== 'tour' && targetType !== 'collection') {
+          setErrorMessage('Enter a Komoot tour or collection URL.')
+          return
+        }
+      }
+
+      const listType = komootImportMode === 'recorded' ? 'recorded' : 'planned'
+      const fallbackName = komootImportMode === 'url'
+        ? 'Komoot source'
+        : `${komootConnection.displayName ?? 'Komoot'} ${
+            listType === 'planned' ? 'planned' : 'completed'
+          }`
       const source = new KomootTrackSource(
-        url,
+        sourceTarget,
         name.trim() === '' ? fallbackName : name.trim(),
         color,
-        komootUserListType,
-        targetType === 'user' ? { kind: 'tracktrim-session' } : null,
+        listType,
+        { kind: 'tracktrim-session' },
       )
 
       source.order = sourceIndex
@@ -111,7 +130,7 @@ export default function AddSourceDialog({
             className={mode === 'komoot' ? 'is-selected' : ''}
             onClick={() => setMode('komoot')}
           >
-            Komoot URL
+            Komoot
           </button>
         </div>
 
@@ -125,9 +144,11 @@ export default function AddSourceDialog({
             placeholder={
               mode === 'files'
                 ? 'GPX import'
-                : komootTargetType === 'user'
-                  ? `Komoot ${komootUserListType === 'planned' ? 'planned' : 'completed'}`
-                  : 'Komoot source'
+                : komootImportMode === 'url'
+                  ? 'Komoot source'
+                  : `${komootConnection.displayName ?? 'Komoot'} ${
+                      komootImportMode === 'planned' ? 'planned' : 'completed'
+                    }`
             }
             onChange={(event) => setName(event.target.value)}
           />
@@ -143,47 +164,58 @@ export default function AddSourceDialog({
             <span>GPX files</span>
             <input type="file" multiple accept=".gpx,.xml" onChange={handleFilesChange} />
           </label>
+        ) : !komootConnection.connected ? (
+          <p className="form-note">
+            Komoot is not connected.{' '}
+            <button className="text-button" type="button" onClick={onOpenSettings}>
+              Open settings
+            </button>
+          </p>
         ) : (
           <>
-            <label>
-              <span>Komoot URL or user id</span>
-              <input
-                type="text"
-                name="komoot-source-url"
-                autoComplete="section-komoot-source off"
-                inputMode="url"
-                value={url}
-                placeholder="Tour, collection, profile URL, or numeric user id"
-                onChange={(event) => {
-                  setUrl(event.target.value)
-                  setErrorMessage(null)
-                }}
-              />
-            </label>
+            <div
+              className="segmented-control komoot-import-mode"
+              role="group"
+              aria-label="Komoot source"
+            >
+              <button
+                type="button"
+                className={komootImportMode === 'planned' ? 'is-selected' : ''}
+                onClick={() => setKomootImportMode('planned')}
+              >
+                Planned
+              </button>
+              <button
+                type="button"
+                className={komootImportMode === 'recorded' ? 'is-selected' : ''}
+                onClick={() => setKomootImportMode('recorded')}
+              >
+                Completed
+              </button>
+              <button
+                type="button"
+                className={komootImportMode === 'url' ? 'is-selected' : ''}
+                onClick={() => setKomootImportMode('url')}
+              >
+                Link
+              </button>
+            </div>
 
-            {komootTargetType === 'user' && (
-              <div className="segmented-control" role="group" aria-label="Komoot user source">
-                <button
-                  type="button"
-                  className={komootUserListType === 'planned' ? 'is-selected' : ''}
-                  onClick={() => setKomootUserListType('planned')}
-                >
-                  Planned
-                </button>
-                <button
-                  type="button"
-                  className={komootUserListType === 'recorded' ? 'is-selected' : ''}
-                  onClick={() => setKomootUserListType('recorded')}
-                >
-                  Completed
-                </button>
-              </div>
-            )}
-
-            {komootTargetType === 'user' && (
-              <p className="form-note">
-                User imports use the connected Komoot session from Track sources.
-              </p>
+            {komootImportMode === 'url' && (
+              <label>
+                <span>Komoot tour or collection URL</span>
+                <input
+                  type="url"
+                  name="komoot-source-url"
+                  autoComplete="off"
+                  value={url}
+                  placeholder="https://www.komoot.com/tour/123456"
+                  onChange={(event) => {
+                    setUrl(event.target.value)
+                    setErrorMessage(null)
+                  }}
+                />
+              </label>
             )}
           </>
         )}
@@ -194,7 +226,11 @@ export default function AddSourceDialog({
           <button className="secondary-button" type="button" onClick={onCancel}>
             Cancel
           </button>
-          <button className="save-button" type="submit">
+          <button
+            className="save-button"
+            type="submit"
+            disabled={mode === 'komoot' && !komootConnection.connected}
+          >
             Add
           </button>
         </footer>

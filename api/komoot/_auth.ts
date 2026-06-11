@@ -30,11 +30,27 @@ export async function authorizeKomootRequest(
     return { ok: false, statusCode: 401, payload: { connected: false } }
   }
 
+  if (
+    typeof session.userId !== 'string' ||
+    session.userId === '' ||
+    typeof session.apiToken !== 'string' ||
+    session.apiToken === ''
+  ) {
+    await getKomootSessionStore().delete(sessionId)
+
+    return {
+      ok: false,
+      statusCode: 401,
+      payload: { connected: false, expired: true },
+    }
+  }
+
   return {
     ok: true,
     session,
     client: new KomootClient({
-      authorizationHeader: komootBasicAuthHeader(session.auth.email, session.auth.password),
+      authorizationHeader: komootBasicAuthHeader(session.userId, session.apiToken),
+      apiBaseUrl: 'https://api.komoot.de/v007',
     }),
   }
 }

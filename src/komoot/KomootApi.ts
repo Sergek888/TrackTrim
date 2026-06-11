@@ -3,13 +3,9 @@ export type KomootUserListType = 'planned' | 'recorded'
 export type KomootRequestMode = 'direct' | 'server'
 
 export type KomootCredentials =
-  | {
-      readonly kind: 'tracktrim-session'
-    }
-  | {
-      readonly email: string
-      readonly password: string
-    }
+  {
+    readonly kind: 'tracktrim-session'
+  }
 
 export type KomootTarget =
   | { readonly kind: 'tour'; readonly id: string }

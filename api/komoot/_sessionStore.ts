@@ -1,10 +1,8 @@
 export type StoredKomootSession = {
   sessionId: string
-  auth: {
-    email: string
-    password: string
-  }
-  userId: string | null
+  email: string
+  userId: string
+  apiToken: string
   displayName: string | null
   createdAt: string
   updatedAt: string

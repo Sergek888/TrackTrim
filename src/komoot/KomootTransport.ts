@@ -1,4 +1,4 @@
-const KOMOOT_API_BASE = 'https://www.komoot.com/api/v007'
+const KOMOOT_API_BASE = 'https://api.komoot.de/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
 const KOMOOT_FALLBACK_WEB_BASE = 'https://api.komoot.de'
 
@@ -70,6 +70,10 @@ async function serverRequest(input: KomootRequestInput): Promise<Response> {
     }),
   })
 
+  if (response.status === 401 || response.status === 403) {
+    window.dispatchEvent(new Event('tracktrim:komoot-expired'))
+  }
+
   return assertKomootResponse(response)
 }
 
@@ -86,7 +90,7 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
 function assertKomootResponse(response: Response): Response {
   if (response.status === 401 || response.status === 403) {
     throw new KomootTransportError(
-      'Komoot source is private or not available without authorization.',
+      'Komoot connection expired. Reconnect Komoot in settings.',
       response.status,
     )
   }
@@ -131,13 +135,17 @@ function serverTargetFromPathOrUrl(pathOrUrl: string): KomootServerTarget {
     }
   }
 
-  if (!url.pathname.startsWith('/api/v007/')) {
+  if (url.origin === KOMOOT_WEB_BASE && !url.pathname.startsWith('/api/v007/')) {
     throw new KomootTransportError('Only Komoot API requests can use the server transport.')
   }
 
   return {
-    apiBase: KOMOOT_API_BASE,
-    path: `${url.pathname.slice('/api/v007'.length)}${url.search}`,
+    apiBase: `${url.origin}${url.pathname.startsWith('/api/v007/') ? '/api/v007' : '/v007'}`,
+    path: `${
+      url.pathname.slice(
+        url.pathname.startsWith('/api/v007/') ? '/api/v007'.length : '/v007'.length,
+      )
+    }${url.search}`,
   }
 }
 

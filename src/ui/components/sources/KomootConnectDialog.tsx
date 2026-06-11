@@ -66,7 +66,8 @@ export default function KomootConnectDialog({
         </header>
 
         <p className="form-note">
-          Sign in with Komoot email and password. TrackTrim uses them only on the backend to request Komoot data.
+          TrackTrim exchanges your Komoot email and password for an API session on the backend.
+          The password is not stored after the connection is created.
         </p>
 
         <label>

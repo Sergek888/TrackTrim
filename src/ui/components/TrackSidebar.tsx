@@ -1,8 +1,7 @@
-import { Menu, Plus } from 'lucide-react'
+import { Menu, Plus, Settings } from 'lucide-react'
 import type { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
-import KomootSourceCard from './sources/KomootSourceCard'
 import SourceAccordion from './SourceAccordion'
 
 type TrackSidebarProps = {
@@ -12,7 +11,7 @@ type TrackSidebarProps = {
   collapsed: boolean
   onSearchChange: (value: string) => void
   onAddSourceClick: () => void
-  onCreateSource: (source: TrackSource) => void
+  onSettingsClick: () => void
   onToggleCollapsed: () => void
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
@@ -45,7 +44,7 @@ export default function TrackSidebar({
   collapsed,
   onSearchChange,
   onAddSourceClick,
-  onCreateSource,
+  onSettingsClick,
   onToggleCollapsed,
   onSourceVisibilityChange,
   onSourceExpandedChange,
@@ -72,9 +71,18 @@ export default function TrackSidebar({
 
       <header className="sidebar-header">
         <div className="app-brand">
-            <h1>GPS Track Navigator</h1>
-            <p>Sources to nested tracks. Source order controls map layer order.</p>
+          <h1>GPS Track Navigator</h1>
+          <p>Sources to nested tracks. Source order controls map layer order.</p>
         </div>
+        <button
+          className="icon-button ghost-button sidebar-settings-button"
+          type="button"
+          aria-label="Settings"
+          title="Settings"
+          onClick={onSettingsClick}
+        >
+          <Settings aria-hidden="true" size={18} strokeWidth={2.2} />
+        </button>
       </header>
 
       <label className="search-control">
@@ -98,14 +106,6 @@ export default function TrackSidebar({
       {loading && <p className="status-message">Loading tracks in background...</p>}
 
       <div className="source-list">
-        <section className="sources-settings" aria-label="Track sources settings">
-          <h2>Track sources</h2>
-          <KomootSourceCard
-            sourceIndex={orderedSources.length}
-            onCreateSource={onCreateSource}
-          />
-        </section>
-
         {orderedSources.length === 0 ? (
           <section className="sidebar-empty">
             <h2>No sources</h2>
