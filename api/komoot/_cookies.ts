@@ -48,61 +48,6 @@ export function clearTrackTrimSessionCookie(response: ApiResponse): void {
   ])
 }
 
-export function komootCookieHeader(cookies: KomootSessionCookies): string {
-  return `kmt_sess=${cookies.kmtSess}; kmt_sess.sig=${cookies.kmtSessSig}`
-}
-
-export type KomootSessionCookies = {
-  kmtSess: string
-  kmtSessSig: string
-}
-
-export function extractKomootSessionCookies(headers: Headers): KomootSessionCookies | null {
-  const setCookies = getSetCookieHeaders(headers)
-  const kmtSess = findCookieValue(setCookies, 'kmt_sess')
-  const kmtSessSig = findCookieValue(setCookies, 'kmt_sess.sig')
-
-  if (kmtSess === null || kmtSessSig === null) {
-    return null
-  }
-
-  return { kmtSess, kmtSessSig }
-}
-
-function getSetCookieHeaders(headers: Headers): string[] {
-  const withGetSetCookie = headers as Headers & { getSetCookie?: () => string[] }
-  const values = withGetSetCookie.getSetCookie?.()
-
-  if (values !== undefined) {
-    return values
-  }
-
-  const rawHeader = headers.get('set-cookie')
-
-  return rawHeader === null ? [] : splitCombinedSetCookie(rawHeader)
-}
-
-function splitCombinedSetCookie(header: string): string[] {
-  return header.split(/,(?=\s*[^;,=\s]+(?:\.[^;,=\s]+)?=)/g).map((value) => value.trim())
-}
-
-function findCookieValue(setCookies: readonly string[], name: string): string | null {
-  for (const cookie of setCookies) {
-    const [cookiePair] = cookie.split(';', 1)
-    const separatorIndex = cookiePair.indexOf('=')
-
-    if (separatorIndex < 0) {
-      continue
-    }
-
-    if (cookiePair.slice(0, separatorIndex).trim() === name) {
-      return cookiePair.slice(separatorIndex + 1)
-    }
-  }
-
-  return null
-}
-
 function secureCookiePart(): string {
   return process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' ? '; Secure' : ''
 }

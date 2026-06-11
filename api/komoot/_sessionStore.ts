@@ -1,8 +1,9 @@
-import type { KomootSessionCookies } from './_cookies'
-
 export type StoredKomootSession = {
   sessionId: string
-  cookies: KomootSessionCookies
+  auth: {
+    email: string
+    password: string
+  }
   userId: string
   displayName: string | null
   createdAt: string

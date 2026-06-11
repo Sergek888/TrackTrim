@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { authorizeKomootRequest } from './_auth'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
-import { KomootClient, KomootHttpError } from './_KomootClient'
-import { komootCookieHeader } from './_cookies'
+import { KomootClient, KomootHttpError, komootBasicAuthHeader } from './_KomootClient'
 
 const proxySchema = z.object({
   method: z.literal('GET'),
@@ -37,7 +36,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     const client = new KomootClient({
-      cookieHeader: komootCookieHeader(auth.session.cookies),
+      authorizationHeader: komootBasicAuthHeader(
+        auth.session.auth.email,
+        auth.session.auth.password,
+      ),
       apiBaseUrl: apiBase,
     })
     const payload = await client.apiGet(body.path, body.query)

@@ -3,7 +3,8 @@ export type Logger = {
 }
 
 export type KomootClientOptions = {
-  cookieHeader: string
+  cookieHeader?: string
+  authorizationHeader?: string
   apiBaseUrl?: string
   webBaseUrl?: string
   logger?: Logger
@@ -78,6 +79,13 @@ export class KomootClient {
       } catch (error) {
         if (error instanceof KomootHttpError && error.status === 404) {
           continue
+        }
+
+        if (
+          error instanceof KomootHttpError &&
+          (error.status === 401 || error.status === 403)
+        ) {
+          throw error
         }
 
         this.logger?.warn?.('Komoot current-user candidate failed.', { path, error })
@@ -176,11 +184,12 @@ export class KomootClient {
 
   private async request(url: URL, accept: string): Promise<Response> {
     const response = await fetch(url, {
-      headers: {
+      headers: removeUndefinedHeaders({
         accept,
         cookie: this.options.cookieHeader,
+        authorization: this.options.authorizationHeader,
         'user-agent': 'TrackTrim/1.0',
-      },
+      }),
     })
 
     if (!response.ok) {
@@ -197,6 +206,10 @@ export class KomootClient {
   private webUrl(path: string, query?: Record<string, unknown>): URL {
     return buildUrl(this.webBaseUrl, path, query)
   }
+}
+
+export function komootBasicAuthHeader(email: string, password: string): string {
+  return `Basic ${Buffer.from(`${email}:${password}`, 'utf8').toString('base64')}`
 }
 
 export class KomootHttpError extends Error {
@@ -314,3 +327,8 @@ function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function removeUndefinedHeaders(headers: Record<string, string | undefined>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).filter((entry): entry is [string, string] => entry[1] !== undefined),
+  )
+}

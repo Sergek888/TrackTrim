@@ -1,6 +1,6 @@
-import { getTrackTrimSessionId, komootCookieHeader } from './_cookies'
+import { getTrackTrimSessionId } from './_cookies'
 import type { ApiRequest } from './_http'
-import { KomootClient } from './_KomootClient'
+import { KomootClient, komootBasicAuthHeader } from './_KomootClient'
 import { getKomootSessionStore, type StoredKomootSession } from './_sessionStore'
 
 export type AuthorizedKomootContext =
@@ -34,8 +34,7 @@ export async function authorizeKomootRequest(
     ok: true,
     session,
     client: new KomootClient({
-      cookieHeader: komootCookieHeader(session.cookies),
+      authorizationHeader: komootBasicAuthHeader(session.auth.email, session.auth.password),
     }),
   }
 }
-
