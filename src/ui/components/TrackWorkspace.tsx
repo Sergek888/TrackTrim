@@ -166,24 +166,6 @@ export default function TrackWorkspace() {
           }}
         />
 
-        {library.sources.length === 0 && (
-          <section className="empty-map-state" aria-label="No tracks loaded">
-            <h2>Load track sources</h2>
-            <p>Add GPX files or a Komoot tour URL to start building the map.</p>
-            <button
-              className="save-button"
-              type="button"
-              onClick={() => {
-                setTooltip(null)
-                setColorPalette(null)
-                setIsAddSourceOpen(true)
-              }}
-            >
-              Add source
-            </button>
-          </section>
-        )}
-
         <TrackTooltip
           tooltip={tooltip}
           sidebarOpen={isSidebarOpen}
