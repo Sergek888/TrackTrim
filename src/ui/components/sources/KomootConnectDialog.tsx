@@ -25,6 +25,7 @@ export default function KomootConnectDialog({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
+    if (submitting) return
     setSubmitting(true)
     setErrorMessage(null)
 

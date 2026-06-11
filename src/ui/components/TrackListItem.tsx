@@ -1,5 +1,4 @@
-import { Crosshair } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import { Crosshair, Route, TriangleAlert } from 'lucide-react'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 
@@ -9,63 +8,38 @@ type TrackListItemProps = {
   onActivate: (meta: TrackMeta) => void
   onFocus: (meta: TrackMeta) => void
   onVisibilityChange: (meta: TrackMeta, visible: boolean) => void
-  onColorClick: (meta: TrackMeta, left: number, top: number) => void
 }
 
-export default function TrackListItem({
-  meta,
-  active,
-  onActivate,
-  onFocus,
-  onVisibilityChange,
-  onColorClick,
-}: TrackListItemProps) {
+export default function TrackListItem({ meta, active, onActivate, onFocus, onVisibilityChange }: TrackListItemProps) {
   const track = meta.track
-  const details =
-    meta.loadStatus === 'ready' && track !== null
-      ? `${formatDistance(track.distanceKm())} | ${meta.source.name}`
-      : meta.loadStatus === 'error'
-        ? meta.loadError ?? 'Track could not be loaded'
-        : meta.loadStatus === 'loading'
-          ? 'Loading geometry...'
-          : 'Queued for loading'
-
-  function handleColorClick(event: MouseEvent<HTMLButtonElement>): void {
-    const rect = event.currentTarget.getBoundingClientRect()
-
-    onColorClick(meta, rect.left - 90, rect.bottom + 10)
-  }
+  const loading = meta.loadStatus === 'queued' || meta.loadStatus === 'loading'
 
   return (
     <article className={`track-list-item${active ? ' is-active' : ''}`}>
       <input
+        className="track-visibility"
         type="checkbox"
         checked={meta.visible}
-        aria-label={`Toggle ${meta.name}`}
+        style={{ accentColor: meta.color }}
+        aria-label={meta.visible ? `Hide ${meta.name}` : `Show ${meta.name}`}
+        title={meta.visible ? 'Hide track' : 'Show track'}
         onChange={(event) => onVisibilityChange(meta, event.target.checked)}
       />
-
-      <button
-        className="color-dot"
-        type="button"
-        style={{ background: meta.color }}
-        aria-label={`${meta.name} color`}
-        onClick={handleColorClick}
-      />
-
+      <Route className="track-type-icon" aria-label="Track" size={16} style={{ color: meta.color }} />
       <button className="track-main-button" type="button" onClick={() => onActivate(meta)}>
         <span>{meta.name}</span>
-        <small>{details}</small>
       </button>
-
-      <button
-        className="focus-button ghost-button"
-        type="button"
-        aria-label="Focus track"
-        disabled={track === null}
-        onClick={() => onFocus(meta)}
-      >
-        <Crosshair aria-hidden="true" size={15} strokeWidth={2.2} />
+      <span className="track-metric">
+        {loading ? (
+          <span className="loading-spinner" role="status" aria-label={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'} title={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'} />
+        ) : meta.loadStatus === 'error' ? (
+          <span title={meta.loadError ?? 'Track could not be loaded'}>
+            <TriangleAlert className="track-error-icon" aria-label="Track loading failed" size={17} />
+          </span>
+        ) : track !== null ? formatDistance(track.distanceKm()) : null}
+      </span>
+      <button className="icon-button ghost-button track-focus-button" type="button" aria-label="Zoom to track" title="Zoom to track" disabled={track === null} onClick={() => onFocus(meta)}>
+        <Crosshair aria-hidden="true" size={15} />
       </button>
     </article>
   )

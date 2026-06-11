@@ -143,6 +143,25 @@ export class Track {
     return this.distanceKm() / (durationSec / 3600)
   }
 
+  public elevationGainM(): number | null {
+    let elevationGainM = 0
+    let measuredSegments = 0
+
+    for (let index = 1; index < this.trackPoints.length; index += 1) {
+      const previousElevation = this.trackPoints[index - 1].ele
+      const currentElevation = this.trackPoints[index].ele
+
+      if (previousElevation === null || currentElevation === null) {
+        continue
+      }
+
+      measuredSegments += 1
+      elevationGainM += Math.max(0, currentElevation - previousElevation)
+    }
+
+    return measuredSegments === 0 ? null : elevationGainM
+  }
+
   public segmentUntilTimeFromStart(cutFromEndSec: number): Track {
     const durationSec = this.durationSec()
 

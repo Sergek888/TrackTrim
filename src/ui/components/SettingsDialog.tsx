@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { useEffect } from 'react'
 import KomootSourceCard from './sources/KomootSourceCard'
 import type { KomootConnection } from './sources/KomootConnectDialog'
 
@@ -15,12 +16,22 @@ export default function SettingsDialog({
   onKomootConnected,
   onKomootDisconnected,
 }: SettingsDialogProps) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   return (
-    <div className="dialog-backdrop" role="presentation">
-      <section className="add-source-dialog settings-dialog" aria-label="Settings">
+    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose()
+    }}>
+      <section className="add-source-dialog settings-dialog" role="dialog" aria-modal="true" aria-label="Settings">
         <header>
           <h2>Settings</h2>
-          <button className="icon-button" type="button" aria-label="Close" onClick={onClose}>
+          <button className="icon-button" type="button" aria-label="Close settings" title="Close" onClick={onClose}>
             <X aria-hidden="true" size={15} strokeWidth={2.2} />
           </button>
         </header>

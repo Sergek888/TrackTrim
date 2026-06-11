@@ -6,7 +6,7 @@ import type { TrackMeta } from '../../model/TrackMeta'
 import AddSourceDialog from './AddSourceDialog'
 import ColorPalette from './ColorPalette'
 import SettingsDialog from './SettingsDialog'
-import TrackMap, { type TrackMapPoint } from './TrackMap'
+import TrackMap from './TrackMap'
 import TrackSidebar from './TrackSidebar'
 import TrackTooltip, { type TrackTooltipState } from './TrackTooltip'
 import type { KomootConnection } from './sources/KomootConnectDialog'
@@ -136,19 +136,21 @@ export default function TrackWorkspace() {
 
   function handleTrackActivate(meta: TrackMeta): void {
     library.activateTrack(meta)
+    if (meta.track !== null) setTooltip({ track: meta.track })
   }
 
   function handleTrackFocus(meta: TrackMeta): void {
     library.focusTrack(meta)
+    if (meta.track !== null) setTooltip({ track: meta.track })
     setColorPalette(null)
   }
 
-  function handleMapTrackClick(track: Track, point: TrackMapPoint): void {
+  function handleMapTrackClick(track: Track): void {
     if (track.meta !== null) {
       library.activateTrack(track.meta)
     }
 
-    setTooltip({ track, point: { x: point.x, y: point.y } })
+    setTooltip({ track })
     setColorPalette(null)
   }
 
@@ -166,11 +168,7 @@ export default function TrackWorkspace() {
           }}
         />
 
-        <TrackTooltip
-          tooltip={tooltip}
-          sidebarOpen={isSidebarOpen}
-          onClose={() => setTooltip(null)}
-        />
+        <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
 
         {library.lastError !== null && (
           <p className="workspace-error" role="alert">
@@ -204,14 +202,12 @@ export default function TrackWorkspace() {
         onSourceColorClick={(source, left, top) => {
           setColorPalette({ kind: 'source', source, left, top })
         }}
-        onMoveSource={(source, direction) => library.moveSource(source, direction)}
+        onSourceMove={(source, targetIndex) => library.moveSourceToIndex(source, targetIndex)}
+        onSourceRename={(source, name) => library.renameSource(source, name)}
         onDeleteSource={handleDeleteSource}
         onTrackActivate={handleTrackActivate}
         onTrackFocus={handleTrackFocus}
         onTrackVisibilityChange={handleTrackVisibilityChange}
-        onTrackColorClick={(meta, left, top) => {
-          setColorPalette({ kind: 'track', meta, left, top })
-        }}
       />
 
       {colorPalette !== null && (

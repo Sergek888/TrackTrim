@@ -137,6 +137,35 @@ export class TrackLibrary {
     this.notify()
   }
 
+  public moveSourceToIndex(source: TrackSource, targetIndex: number): void {
+    const orderedSources = [...this.sources].sort((left, right) => left.order - right.order)
+    const currentIndex = orderedSources.indexOf(source)
+
+    if (currentIndex < 0) {
+      return
+    }
+
+    const clampedIndex = Math.max(0, Math.min(targetIndex, orderedSources.length - 1))
+
+    orderedSources.splice(currentIndex, 1)
+    orderedSources.splice(clampedIndex, 0, source)
+    orderedSources.forEach((orderedSource, index) => {
+      orderedSource.order = index
+    })
+    this.notify()
+  }
+
+  public renameSource(source: TrackSource, name: string): void {
+    const normalizedName = name.trim()
+
+    if (normalizedName === '') {
+      return
+    }
+
+    source.name = normalizedName
+    this.notify()
+  }
+
   public setTrackVisible(meta: TrackMeta, visible: boolean): void {
     meta.visible = visible
 
