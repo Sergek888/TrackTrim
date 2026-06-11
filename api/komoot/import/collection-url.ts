@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { authorizeKomootRequest } from '../_auth'
-import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../_http'
-import { KomootHttpError, normalizeKomootTours } from '../_KomootClient'
-import { parseKomootCollectionUrl } from '../_urlParsing'
+import { authorizeKomootRequest } from '../_auth.js'
+import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../_http.js'
+import { KomootHttpError, normalizeKomootTours } from '../_KomootClient.js'
+import { parseKomootCollectionUrl } from '../_urlParsing.js'
 
 const importSchema = z.object({
   url: z.string().url(),
@@ -57,4 +57,3 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     })
   }
 }
-

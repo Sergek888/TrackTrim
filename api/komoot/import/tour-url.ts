@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { authorizeKomootRequest } from '../_auth'
-import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../_http'
-import { KomootHttpError } from '../_KomootClient'
-import { parseKomootTourUrl } from '../_urlParsing'
+import { authorizeKomootRequest } from '../_auth.js'
+import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../_http.js'
+import { KomootHttpError } from '../_KomootClient.js'
+import { parseKomootTourUrl } from '../_urlParsing.js'
 
 const importSchema = z.object({
   url: z.string().url(),
@@ -70,4 +70,3 @@ async function optionalLoad<T>(loader: () => Promise<T>): Promise<T | null> {
     return null
   }
 }
-

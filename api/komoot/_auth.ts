@@ -1,7 +1,7 @@
-import { getTrackTrimSessionId } from './_cookies'
-import type { ApiRequest } from './_http'
-import { KomootClient, komootBasicAuthHeader } from './_KomootClient'
-import { getKomootSessionStore, type StoredKomootSession } from './_sessionStore'
+import { getTrackTrimSessionId } from './_cookies.js'
+import type { ApiRequest } from './_http.js'
+import { KomootClient, komootBasicAuthHeader } from './_KomootClient.js'
+import { getKomootSessionStore, type StoredKomootSession } from './_sessionStore.js'
 
 export type AuthorizedKomootContext =
   | {

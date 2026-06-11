@@ -2,13 +2,13 @@ import { z } from 'zod'
 import {
   createSessionId,
   setTrackTrimSessionCookie,
-} from './_cookies'
-import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
+} from './_cookies.js'
+import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
 import {
   loginKomoot,
   KomootHttpError,
-} from './_KomootClient'
-import { getKomootSessionStore } from './_sessionStore'
+} from './_KomootClient.js'
+import { getKomootSessionStore } from './_sessionStore.js'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),

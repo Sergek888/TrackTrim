@@ -1,6 +1,6 @@
-import { authorizeKomootRequest } from './_auth'
-import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
-import { KomootHttpError } from './_KomootClient'
+import { authorizeKomootRequest } from './_auth.js'
+import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
+import { KomootHttpError } from './_KomootClient.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'GET') {

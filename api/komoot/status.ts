@@ -1,8 +1,8 @@
-import { authorizeKomootRequest } from './_auth'
-import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies'
-import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
-import { KomootHttpError } from './_KomootClient'
-import { getKomootSessionStore } from './_sessionStore'
+import { authorizeKomootRequest } from './_auth.js'
+import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies.js'
+import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
+import { KomootHttpError } from './_KomootClient.js'
+import { getKomootSessionStore } from './_sessionStore.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'GET') {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ApiRequest, ApiResponse } from './_http'
+import type { ApiRequest, ApiResponse } from './_http.js'
 
 export const TRACKTRIM_SESSION_COOKIE = 'tracktrim_session_id'
 

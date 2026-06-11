@@ -1,6 +1,6 @@
-import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies'
-import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
-import { getKomootSessionStore } from './_sessionStore'
+import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies.js'
+import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
+import { getKomootSessionStore } from './_sessionStore.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'POST') {
@@ -17,4 +17,3 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   clearTrackTrimSessionCookie(response)
   sendJson(response, 200, { ok: true })
 }
-

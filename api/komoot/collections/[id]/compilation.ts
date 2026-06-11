@@ -1,6 +1,6 @@
-import { authorizeKomootRequest } from '../../_auth'
-import { firstQueryValue, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../../_http'
-import { KomootHttpError, normalizeKomootTours } from '../../_KomootClient'
+import { authorizeKomootRequest } from '../../_auth.js'
+import { firstQueryValue, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from '../../_http.js'
+import { KomootHttpError, normalizeKomootTours } from '../../_KomootClient.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'GET') {
@@ -40,4 +40,3 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     })
   }
 }
-
