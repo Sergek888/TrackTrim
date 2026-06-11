@@ -348,7 +348,8 @@ function buildUrl(baseUrl: string, path: string, query?: Record<string, unknown>
     throw new Error('Komoot path is invalid.')
   }
 
-  const url = new URL(path, baseUrl)
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const url = new URL(path.replace(/^\/+/, ''), normalizedBaseUrl)
 
   if (query !== undefined) {
     for (const [key, value] of Object.entries(query)) {
