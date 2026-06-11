@@ -78,6 +78,7 @@ export default function KomootSourceCard({
     const userId = connection?.userId
 
     if (userId === undefined) {
+      setErrorMessage('Komoot user id is not known. Import a tour or collection by URL, or add a Komoot user source by profile URL.')
       return
     }
 
@@ -168,12 +169,12 @@ export default function KomootSourceCard({
         />
       )}
 
-      {importMode !== null && connection?.userId !== undefined && (
+      {importMode !== null && (
         <KomootImportDialog
           mode={importMode}
           sourceIndex={sourceIndex}
-          userId={connection.userId}
-          displayName={connection.displayName ?? null}
+          userId={connection?.userId ?? null}
+          displayName={connection?.displayName ?? null}
           onCancel={() => setImportMode(null)}
           onCreateSource={(source) => {
             setImportMode(null)

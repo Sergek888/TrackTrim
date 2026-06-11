@@ -5,10 +5,7 @@ import {
 } from './_cookies'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http'
 import {
-  displayNameFromProfile,
-  KomootClient,
   KomootHttpError,
-  komootBasicAuthHeader,
 } from './_KomootClient'
 import { getKomootSessionStore } from './_sessionStore'
 
@@ -25,12 +22,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const body = loginSchema.parse(await readJsonBody(request))
-    const client = new KomootClient({
-      authorizationHeader: komootBasicAuthHeader(body.email, body.password),
-    })
-    const userId = await client.detectUserId()
-    const profile = await client.getUser(userId)
-    const displayName = displayNameFromProfile(profile)
     const now = new Date().toISOString()
     const sessionId = createSessionId()
 
@@ -40,8 +31,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         email: body.email,
         password: body.password,
       },
-      userId,
-      displayName,
+      userId: null,
+      displayName: body.email,
       createdAt: now,
       updatedAt: now,
     })
@@ -50,8 +41,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     sendJson(response, 200, {
       ok: true,
       connected: true,
-      userId,
-      displayName,
+      displayName: body.email,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

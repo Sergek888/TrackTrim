@@ -10,7 +10,7 @@ import KomootUrlImportForm from './KomootUrlImportForm'
 type KomootImportDialogProps = {
   mode: 'all' | 'tour-url' | 'collection-url'
   sourceIndex: number
-  userId: string
+  userId: string | null
   displayName: string | null
   onCancel: () => void
   onCreateSource: (source: TrackSource) => void
@@ -25,6 +25,10 @@ export default function KomootImportDialog({
   onCreateSource,
 }: KomootImportDialogProps) {
   function createUserSource(listType: KomootUserListType): void {
+    if (userId === null) {
+      return
+    }
+
     const sourceName =
       displayName === null
         ? `Komoot ${listType === 'planned' ? 'запланированные' : 'пройденные'}`
@@ -64,7 +68,13 @@ export default function KomootImportDialog({
           </button>
         </header>
 
-        {mode === 'all' && (
+        {mode === 'all' && userId === null && (
+          <p className="form-note">
+            Komoot user id is not known for this connection. Import a tour or collection by URL.
+          </p>
+        )}
+
+        {mode === 'all' && userId !== null && (
           <div className="komoot-import-actions">
             <button className="secondary-button" type="button" onClick={() => createUserSource('recorded')}>
               Импортировать пройденные

@@ -16,6 +16,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
+    if (auth.session.userId === null) {
+      sendJson(response, 400, {
+        error: 'Komoot user id is required to load completed tracks.',
+      })
+      return
+    }
+
     const payload = await auth.client.getCompletedTours(auth.session.userId, {
       limit: parsePositiveInt(firstQueryValue(request.query?.limit)),
       page: parsePositiveInt(firstQueryValue(request.query?.page)),
@@ -44,4 +51,3 @@ function parsePositiveInt(value: string | undefined): number | undefined {
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
 }
-

@@ -4,7 +4,7 @@ export type StoredKomootSession = {
     email: string
     password: string
   }
-  userId: string
+  userId: string | null
   displayName: string | null
   createdAt: string
   updatedAt: string
