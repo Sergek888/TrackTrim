@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
+import type { MapStyleSettings } from '../map/mapStyleSettings'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
@@ -15,6 +16,7 @@ type TrackMapProps = {
     track: Track
     version: number
   } | null
+  mapStyleSettings: MapStyleSettings
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
 }
@@ -156,10 +158,15 @@ function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point) {
   )
 }
 
+export function applyMapStyleSettings(settings: MapStyleSettings): void {
+  console.info('Map style settings changed', settings)
+}
+
 export default function TrackMap({
   tracks,
   activeTrack,
   focusedTrack,
+  mapStyleSettings,
   onTrackClick,
   onMapClick,
 }: TrackMapProps) {
@@ -324,6 +331,10 @@ export default function TrackMap({
       isMapReadyRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    applyMapStyleSettings(mapStyleSettings)
+  }, [mapStyleSettings])
 
   useEffect(() => {
     const map = mapRef.current

@@ -3,6 +3,8 @@ import { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
+import { DEFAULT_MAP_STYLE_SETTINGS } from '../map/mapStyleSettings'
+import MapStyleControl from './MapStyleControl'
 import AddSourceDialog from './AddSourceDialog'
 import ColorPalette from './ColorPalette'
 import SettingsDialog from './SettingsDialog'
@@ -33,6 +35,9 @@ export default function TrackWorkspace() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [mapStyleSettings, setMapStyleSettings] = useState(
+    DEFAULT_MAP_STYLE_SETTINGS,
+  )
   const [komootConnection, setKomootConnection] = useState<KomootConnection>({
     connected: false,
   })
@@ -161,11 +166,17 @@ export default function TrackWorkspace() {
           tracks={visibleTracks}
           activeTrack={activeTrack}
           focusedTrack={library.focusedTrack}
+          mapStyleSettings={mapStyleSettings}
           onTrackClick={handleMapTrackClick}
           onMapClick={() => {
             setTooltip(null)
             setColorPalette(null)
           }}
+        />
+
+        <MapStyleControl
+          settings={mapStyleSettings}
+          onChange={setMapStyleSettings}
         />
 
         <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
