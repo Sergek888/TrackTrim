@@ -34,9 +34,7 @@ export type TrackMarkersFeatureCollectionGeoJson = {
       coordinates: number[]
     }
     properties: {
-      featureIndex: number
       kind: 'start' | 'finish'
-      label: 'S' | 'F'
     }
   }>
 }
@@ -52,48 +50,49 @@ export function trackToLineGeoJson(track: Track): TrackLineGeoJson {
   }
 }
 
-export function tracksToMarkerFeatureCollectionGeoJson(
-  tracks: readonly Track[],
+export function activeTrackToMarkerFeatureCollectionGeoJson(
+  activeTrack: Track | null,
 ): TrackMarkersFeatureCollectionGeoJson {
+  if (activeTrack === null) {
+    return {
+      type: 'FeatureCollection',
+      features: [],
+    }
+  }
+
+  const firstPoint = activeTrack.firstPoint()
+  const lastPoint = activeTrack.lastPoint()
+  const markers: TrackMarkersFeatureCollectionGeoJson['features'] = []
+
+  if (firstPoint !== null) {
+    markers.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [firstPoint.lon, firstPoint.lat],
+      },
+      properties: {
+        kind: 'start',
+      },
+    })
+  }
+
+  if (lastPoint !== null) {
+    markers.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [lastPoint.lon, lastPoint.lat],
+      },
+      properties: {
+        kind: 'finish',
+      },
+    })
+  }
+
   return {
     type: 'FeatureCollection',
-    features: tracks.flatMap((track, featureIndex) => {
-      const firstPoint = track.firstPoint()
-      const lastPoint = track.lastPoint()
-      const markers: TrackMarkersFeatureCollectionGeoJson['features'] = []
-
-      if (firstPoint !== null) {
-        markers.push({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [firstPoint.lon, firstPoint.lat],
-          },
-          properties: {
-            featureIndex,
-            kind: 'start',
-            label: 'S',
-          },
-        })
-      }
-
-      if (lastPoint !== null) {
-        markers.push({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [lastPoint.lon, lastPoint.lat],
-          },
-          properties: {
-            featureIndex,
-            kind: 'finish',
-            label: 'F',
-          },
-        })
-      }
-
-      return markers
-    }),
+    features: markers,
   }
 }
 

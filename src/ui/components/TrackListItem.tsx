@@ -1,4 +1,4 @@
-import { Crosshair, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 
@@ -15,7 +15,13 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
   const loading = meta.loadStatus === 'queued' || meta.loadStatus === 'loading'
 
   return (
-    <article className={`track-list-item${active ? ' is-active' : ''}`}>
+    <article
+      className={`track-list-item${active ? ' is-active' : ''}`}
+      title={track === null ? undefined : 'Double-click to zoom to track'}
+      onDoubleClick={() => {
+        if (track !== null) onFocus(meta)
+      }}
+    >
       <input
         className="track-visibility"
         type="checkbox"
@@ -24,6 +30,7 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
         aria-label={meta.visible ? `Hide ${meta.name}` : `Show ${meta.name}`}
         title={meta.visible ? 'Hide track' : 'Show track'}
         onChange={(event) => onVisibilityChange(meta, event.target.checked)}
+        onDoubleClick={(event) => event.stopPropagation()}
       />
       <button className="track-main-button" type="button" onClick={() => onActivate(meta)}>
         <span>{meta.name}</span>
@@ -37,9 +44,6 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
           </span>
         ) : track !== null ? formatDistance(track.distanceKm()) : null}
       </span>
-      <button className="icon-button ghost-button track-focus-button" type="button" aria-label="Zoom to track" title="Zoom to track" disabled={track === null} onClick={() => onFocus(meta)}>
-        <Crosshair aria-hidden="true" size={15} />
-      </button>
     </article>
   )
 }

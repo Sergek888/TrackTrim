@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import {
-  tracksToMarkerFeatureCollectionGeoJson,
+  activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
   type TrackMarkersFeatureCollectionGeoJson,
   type TracksFeatureCollectionGeoJson,
@@ -30,9 +30,11 @@ const TRACKS_SOURCE_ID = 'tracks'
 const TRACKS_LAYER_ID = 'track-lines'
 const ACTIVE_TRACKS_LAYER_ID = 'active-track-lines'
 const TRACK_MARKERS_SOURCE_ID = 'track-markers'
-const TRACK_MARKER_CIRCLES_LAYER_ID = 'track-marker-circles'
-const TRACK_MARKER_LABELS_LAYER_ID = 'track-marker-labels'
+const TRACK_MARKERS_LAYER_ID = 'track-markers-symbols'
+const TRACK_START_IMAGE_ID = 'track-start'
+const TRACK_FINISH_IMAGE_ID = 'track-finish'
 const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
+const TRACK_MARKER_SIZE = 20
 const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
@@ -40,6 +42,50 @@ const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
 const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
+}
+
+function createTrackMarkerImage(kind: 'start' | 'finish'): ImageData {
+  const canvas = document.createElement('canvas')
+  const scale = 2
+  const size = TRACK_MARKER_SIZE * scale
+  const center = size / 2
+  const radius = center - scale
+  const context = canvas.getContext('2d')
+
+  canvas.width = size
+  canvas.height = size
+
+  if (context === null) {
+    return new ImageData(size, size)
+  }
+
+  context.save()
+  context.beginPath()
+  context.arc(center, center, radius, 0, Math.PI * 2)
+  context.clip()
+
+  if (kind === 'start') {
+    context.fillStyle = '#16a34a'
+    context.fillRect(0, 0, size, size)
+  } else {
+    const squareSize = 5 * scale
+
+    for (let row = 0; row < size / squareSize; row += 1) {
+      for (let column = 0; column < size / squareSize; column += 1) {
+        context.fillStyle = (row + column) % 2 === 0 ? '#111827' : '#ffffff'
+        context.fillRect(column * squareSize, row * squareSize, squareSize, squareSize)
+      }
+    }
+  }
+
+  context.restore()
+  context.beginPath()
+  context.arc(center, center, radius, 0, Math.PI * 2)
+  context.strokeStyle = '#ffffff'
+  context.lineWidth = 2 * scale
+  context.stroke()
+
+  return context.getImageData(0, 0, size, size)
 }
 
 function trackBounds(track: Track): LngLatBoundsLike | null {
@@ -189,36 +235,23 @@ export default function TrackMap({
       })
       map.addSource(TRACK_MARKERS_SOURCE_ID, {
         type: 'geojson',
-        data:
-          latestTracksRef.current.length === 0
-            ? EMPTY_TRACK_MARKERS_GEOJSON
-            : tracksToMarkerFeatureCollectionGeoJson(latestTracksRef.current),
+        data: activeTrackToMarkerFeatureCollectionGeoJson(latestActiveTrackRef.current),
       })
+      map.addImage(TRACK_START_IMAGE_ID, createTrackMarkerImage('start'), { pixelRatio: 2 })
+      map.addImage(TRACK_FINISH_IMAGE_ID, createTrackMarkerImage('finish'), { pixelRatio: 2 })
       map.addLayer({
-        id: TRACK_MARKER_CIRCLES_LAYER_ID,
-        type: 'circle',
-        source: TRACK_MARKERS_SOURCE_ID,
-        minzoom: 8,
-        paint: {
-          'circle-color': ['case', ['==', ['get', 'kind'], 'start'], '#16a34a', '#dc2626'],
-          'circle-radius': 9,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-        },
-      })
-      map.addLayer({
-        id: TRACK_MARKER_LABELS_LAYER_ID,
+        id: TRACK_MARKERS_LAYER_ID,
         type: 'symbol',
         source: TRACK_MARKERS_SOURCE_ID,
         minzoom: 8,
         layout: {
-          'text-field': ['get', 'label'],
-          'text-size': 11,
-          'text-font': ['Open Sans Bold'],
-          'text-allow-overlap': true,
-        },
-        paint: {
-          'text-color': '#ffffff',
+          'icon-image': [
+            'case',
+            ['==', ['get', 'kind'], 'start'],
+            TRACK_START_IMAGE_ID,
+            TRACK_FINISH_IMAGE_ID,
+          ],
+          'icon-allow-overlap': true,
         },
       })
 
@@ -291,9 +324,9 @@ export default function TrackMap({
         : tracksToFeatureCollectionGeoJson(tracks, activeTrack),
     )
     markerSource?.setData(
-      tracks.length === 0
+      activeTrack === null
         ? EMPTY_TRACK_MARKERS_GEOJSON
-        : tracksToMarkerFeatureCollectionGeoJson(tracks),
+        : activeTrackToMarkerFeatureCollectionGeoJson(activeTrack),
     )
 
     if (!fittedInitialBoundsRef.current) {
