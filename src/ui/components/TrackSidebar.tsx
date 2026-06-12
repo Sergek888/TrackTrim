@@ -89,15 +89,6 @@ export default function TrackSidebar({
                 <Settings aria-hidden="true" />
               </button>
               <button
-                className="icon-button sidebar-action-button add-source-button"
-                type="button"
-                aria-label="Add source"
-                title="Add source"
-                onClick={onAddSourceClick}
-              >
-                <Plus aria-hidden="true" />
-              </button>
-              <button
                 className="icon-button sidebar-action-button"
                 type="button"
                 aria-label="Close navigation panel"
@@ -105,6 +96,15 @@ export default function TrackSidebar({
                 onClick={onToggleCollapsed}
               >
                 <PanelRightClose aria-hidden="true" />
+              </button>
+              <button
+                className="icon-button sidebar-action-button add-source-button"
+                type="button"
+                aria-label="Add source"
+                title="Add source"
+                onClick={onAddSourceClick}
+              >
+                <Plus aria-hidden="true" />
               </button>
             </div>
           )}
