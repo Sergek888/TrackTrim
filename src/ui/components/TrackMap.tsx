@@ -34,6 +34,7 @@ const TRACK_MARKERS_LAYER_ID = 'track-markers-symbols'
 const TRACK_START_IMAGE_ID = 'track-start'
 const TRACK_FINISH_IMAGE_ID = 'track-finish'
 const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
+const TRACK_HIT_TOLERANCE = 5
 const TRACK_MARKER_SIZE = 20
 const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
@@ -133,6 +134,26 @@ function setInteractiveCursor(map: maplibregl.Map): void {
 
 function resetInteractiveCursor(map: maplibregl.Map): void {
   map.getCanvas().style.cursor = ''
+}
+
+function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point) {
+  const directFeatures = map.queryRenderedFeatures(point, {
+    layers: INTERACTIVE_TRACK_LAYER_IDS,
+  })
+
+  if (directFeatures.length > 0) {
+    return directFeatures
+  }
+
+  return map.queryRenderedFeatures(
+    [
+      [point.x - TRACK_HIT_TOLERANCE, point.y - TRACK_HIT_TOLERANCE],
+      [point.x + TRACK_HIT_TOLERANCE, point.y + TRACK_HIT_TOLERANCE],
+    ],
+    {
+      layers: INTERACTIVE_TRACK_LAYER_IDS,
+    },
+  )
 }
 
 export default function TrackMap({
@@ -256,9 +277,7 @@ export default function TrackMap({
       })
 
       map.on('mousemove', (event) => {
-        const features = map.queryRenderedFeatures(event.point, {
-          layers: INTERACTIVE_TRACK_LAYER_IDS,
-        })
+        const features = queryTrackFeatures(map, event.point)
 
         if (features.length > 0) {
           setInteractiveCursor(map)
@@ -268,9 +287,7 @@ export default function TrackMap({
         resetInteractiveCursor(map)
       })
       map.on('click', (event) => {
-        const features = map.queryRenderedFeatures(event.point, {
-          layers: INTERACTIVE_TRACK_LAYER_IDS,
-        })
+        const features = queryTrackFeatures(map, event.point)
         const featureIndex = features[0]?.properties?.featureIndex
 
         if (typeof featureIndex !== 'number') {
