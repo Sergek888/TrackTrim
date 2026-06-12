@@ -136,12 +136,12 @@ export default function TrackWorkspace() {
 
   function handleTrackActivate(meta: TrackMeta): void {
     library.activateTrack(meta)
-    if (meta.track !== null) setTooltip({ track: meta.track })
+    setTooltip(null)
   }
 
   function handleTrackFocus(meta: TrackMeta): void {
     library.focusTrack(meta)
-    if (meta.track !== null) setTooltip({ track: meta.track })
+    setTooltip(null)
     setColorPalette(null)
   }
 

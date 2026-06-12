@@ -1,4 +1,4 @@
-import { Crosshair, Route, TriangleAlert } from 'lucide-react'
+import { Crosshair, TriangleAlert } from 'lucide-react'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 
@@ -25,7 +25,6 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
         title={meta.visible ? 'Hide track' : 'Show track'}
         onChange={(event) => onVisibilityChange(meta, event.target.checked)}
       />
-      <Route className="track-type-icon" aria-label="Track" size={16} style={{ color: meta.color }} />
       <button className="track-main-button" type="button" onClick={() => onActivate(meta)}>
         <span>{meta.name}</span>
       </button>

@@ -103,9 +103,14 @@ export default function TrackSidebar({
               </button>
             )}
           </label>
-          <button className="save-button add-source-button" type="button" onClick={onAddSourceClick}>
+          <button
+            className="icon-button add-source-button"
+            type="button"
+            aria-label="Add source"
+            title="Add source"
+            onClick={onAddSourceClick}
+          >
             <Plus aria-hidden="true" size={16} />
-            Add Source
           </button>
         </div>
 

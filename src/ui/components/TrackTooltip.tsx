@@ -1,4 +1,4 @@
-import { Clock, ExternalLink, Folder, Mountain, Route, Ruler, X } from 'lucide-react'
+import { Clock, ExternalLink, Folder, Mountain, Ruler, X } from 'lucide-react'
 import type { Track } from '../../model/Track'
 import { formatDistance, formatDuration } from '../formatters'
 
@@ -23,7 +23,6 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
     <aside className="track-tooltip" aria-label="Track details">
       <header>
         <div className="tooltip-title">
-          <Route aria-hidden="true" size={17} />
           <h2>{meta?.name ?? 'Track'}</h2>
         </div>
         <button className="icon-button ghost-button" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
@@ -42,9 +41,15 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
       </div>
 
       {originalUrl !== null && (
-        <a className="details-button" href={originalUrl} target="_blank" rel="noreferrer" title="Open original track">
+        <a
+          className="icon-button details-button"
+          href={originalUrl}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open original track"
+          title="Open original track"
+        >
           <ExternalLink aria-hidden="true" size={14} />
-          Open Original
         </a>
       )}
     </aside>
