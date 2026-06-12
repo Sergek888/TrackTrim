@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import type { MapStyleSettings } from '../map/mapStyleSettings'
+import MapStyleControl from './MapStyleControl'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
@@ -17,6 +18,7 @@ type TrackMapProps = {
     version: number
   } | null
   mapStyleSettings: MapStyleSettings
+  onMapStyleSettingsChange: (settings: MapStyleSettings) => void
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
 }
@@ -50,6 +52,45 @@ const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
 const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
+}
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+
+function createLayersIcon(): SVGSVGElement {
+  const icon = document.createElementNS(SVG_NAMESPACE, 'svg')
+
+  icon.setAttribute('aria-hidden', 'true')
+  icon.setAttribute('fill', 'none')
+  icon.setAttribute('stroke', 'currentColor')
+  icon.setAttribute('stroke-linecap', 'round')
+  icon.setAttribute('stroke-linejoin', 'round')
+  icon.setAttribute('viewBox', '0 0 24 24')
+
+  for (const pathData of [
+    'm12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z',
+    'm22 12.5-9.17 4.17a2 2 0 0 1-1.66 0L2 12.5',
+    'm22 17.5-9.17 4.17a2 2 0 0 1-1.66 0L2 17.5',
+  ]) {
+    const path = document.createElementNS(SVG_NAMESPACE, 'path')
+    path.setAttribute('d', pathData)
+    icon.append(path)
+  }
+
+  return icon
+}
+
+function createMapStyleButton(onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button')
+
+  button.className = 'maplibregl-ctrl-icon map-style-toggle'
+  button.type = 'button'
+  button.title = 'Стили карты'
+  button.setAttribute('aria-label', 'Стили карты')
+  button.setAttribute('aria-controls', 'map-style-panel')
+  button.setAttribute('aria-expanded', 'false')
+  button.append(createLayersIcon())
+  button.addEventListener('click', onClick)
+
+  return button
 }
 
 function createTrackMarkerImage(kind: 'start' | 'finish'): ImageData {
@@ -208,11 +249,14 @@ export default function TrackMap({
   activeTrack,
   focusedTrack,
   mapStyleSettings,
+  onMapStyleSettingsChange,
   onTrackClick,
   onMapClick,
 }: TrackMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const mapStyleButtonRef = useRef<HTMLButtonElement | null>(null)
+  const [isMapStylePanelOpen, setIsMapStylePanelOpen] = useState(false)
   const latestTracksRef = useRef(tracks)
   const latestActiveTrackRef = useRef(activeTrack)
   const latestOnTrackClickRef = useRef(onTrackClick)
@@ -325,6 +369,18 @@ export default function TrackMap({
 
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl(), 'top-left')
+    const navigationControlGroup = containerRef.current.querySelector<HTMLElement>(
+      '.maplibregl-ctrl-top-left .maplibregl-ctrl-group',
+    )
+    const handleMapStyleClick = () => {
+      setIsMapStylePanelOpen((open) => !open)
+    }
+
+    if (navigationControlGroup !== null) {
+      const mapStyleButton = createMapStyleButton(handleMapStyleClick)
+      navigationControlGroup.append(mapStyleButton)
+      mapStyleButtonRef.current = mapStyleButton
+    }
 
     map.on('load', () => {
       isMapReadyRef.current = true
@@ -435,12 +491,25 @@ export default function TrackMap({
     })
 
     return () => {
+      mapStyleButtonRef.current?.removeEventListener(
+        'click',
+        handleMapStyleClick,
+      )
+      mapStyleButtonRef.current?.remove()
+      mapStyleButtonRef.current = null
       map.remove()
       mapRef.current = null
       fittedInitialBoundsRef.current = false
       isMapReadyRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    mapStyleButtonRef.current?.setAttribute(
+      'aria-expanded',
+      String(isMapStylePanelOpen),
+    )
+  }, [isMapStylePanelOpen])
 
   useEffect(() => {
     const map = mapRef.current
@@ -501,5 +570,14 @@ export default function TrackMap({
     }
   }, [focusedTrack])
 
-  return <div className="track-map" ref={containerRef} aria-label="Track map" />
+  return (
+    <>
+      <div className="track-map" ref={containerRef} aria-label="Track map" />
+      <MapStyleControl
+        isOpen={isMapStylePanelOpen}
+        settings={mapStyleSettings}
+        onChange={onMapStyleSettingsChange}
+      />
+    </>
+  )
 }

@@ -86,39 +86,28 @@ a:focus-visible {
   background: #dfe7eb;
 }
 
-.map-style-control {
+.map-style-toggle {
+  display: grid !important;
+  place-items: center;
+}
+
+.map-style-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.map-style-panel {
   position: absolute;
   top: 10px;
   left: 50px;
   z-index: 25;
-}
-
-.map-style-toggle {
-  min-height: 30px;
-  border: 0;
-  border-radius: 4px;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  color: var(--color-text);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 750;
-  padding: 0 10px;
-}
-
-.map-style-toggle:hover,
-.map-style-toggle[aria-expanded="true"] {
-  background: #f3f4f6;
-}
-
-.map-style-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: min(340px, calc(100vw - 68px));
   max-height: calc(100vh - 58px);
   gap: 12px;
   overflow-y: auto;
-  margin-top: 6px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.97);
@@ -1380,12 +1369,9 @@ a:focus-visible {
     overflow-x: auto;
   }
 
-  .map-style-control {
+  .map-style-panel {
     top: 8px;
     left: 48px;
-  }
-
-  .map-style-panel {
     grid-template-columns: 1fr;
     width: min(260px, calc(100vw - 64px));
     max-height: calc(100vh - 54px);

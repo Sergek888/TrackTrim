@@ -4,7 +4,6 @@ import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { DEFAULT_MAP_STYLE_SETTINGS } from '../map/mapStyleSettings'
-import MapStyleControl from './MapStyleControl'
 import AddSourceDialog from './AddSourceDialog'
 import ColorPalette from './ColorPalette'
 import SettingsDialog from './SettingsDialog'
@@ -167,16 +166,12 @@ export default function TrackWorkspace() {
           activeTrack={activeTrack}
           focusedTrack={library.focusedTrack}
           mapStyleSettings={mapStyleSettings}
+          onMapStyleSettingsChange={setMapStyleSettings}
           onTrackClick={handleMapTrackClick}
           onMapClick={() => {
             setTooltip(null)
             setColorPalette(null)
           }}
-        />
-
-        <MapStyleControl
-          settings={mapStyleSettings}
-          onChange={setMapStyleSettings}
         />
 
         <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
