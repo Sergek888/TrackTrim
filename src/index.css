@@ -56,6 +56,10 @@ a:focus-visible {
 }
 
 .workspace {
+  --sidebar-action-right: 35px;
+  --sidebar-action-top: 35px;
+  --sidebar-border-width: 1px;
+  --sidebar-header-inset: 16px;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -109,8 +113,16 @@ a:focus-visible {
 
 .sidebar {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: calc(
+    var(--sidebar-action-top) -
+    var(--sidebar-header-inset) -
+    var(--sidebar-border-width)
+  );
+  right: calc(
+    var(--sidebar-action-right) -
+    var(--sidebar-header-inset) -
+    var(--sidebar-border-width)
+  );
   bottom: 18px;
   z-index: 40;
   display: grid;
@@ -746,18 +758,28 @@ a:focus-visible {
 
 .sidebar-toggle {
   position: fixed;
-  top: 28px;
-  right: 28px;
+  top: var(--sidebar-action-top);
+  right: var(--sidebar-action-right);
   left: auto;
   z-index: 70;
   box-shadow: none;
 }
 
 .sidebar-action-button {
+  display: grid;
+  place-items: center;
   border-color: var(--color-border);
   border-radius: 10px;
   background: var(--color-panel);
   color: var(--color-text);
+  line-height: 0;
+}
+
+.sidebar-action-button > svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 .sidebar-action-button:hover:not(:disabled) {
@@ -1206,24 +1228,36 @@ a:focus-visible {
 }
 
 @media (max-width: 767px) {
+  .workspace {
+    --mobile-sidebar-bottom: 8px;
+    --mobile-sidebar-height: min(78vh, 680px);
+    --sidebar-action-right: calc(
+      var(--mobile-sidebar-bottom) +
+      var(--sidebar-header-inset) +
+      var(--sidebar-border-width)
+    );
+    --sidebar-action-top: calc(
+      100vh -
+      var(--mobile-sidebar-bottom) -
+      var(--mobile-sidebar-height) +
+      var(--sidebar-header-inset) +
+      var(--sidebar-border-width)
+    );
+  }
+
   .sidebar {
     top: auto;
     right: 8px;
     bottom: 8px;
     left: 8px;
     width: auto;
-    height: min(78vh, 680px);
+    height: var(--mobile-sidebar-height);
     border-radius: 18px;
     transform: translateY(0);
   }
 
   .sidebar.is-collapsed {
     transform: translateY(calc(100% + 16px));
-  }
-
-  .sidebar-toggle {
-    top: 12px;
-    right: 12px;
   }
 
   .sidebar-header {
