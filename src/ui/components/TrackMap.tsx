@@ -35,6 +35,11 @@ const TRACK_MARKERS_SOURCE_ID = 'track-markers'
 const TRACK_MARKERS_LAYER_ID = 'track-markers-symbols'
 const TRACK_START_IMAGE_ID = 'track-start'
 const TRACK_FINISH_IMAGE_ID = 'track-finish'
+const OSM_LAYER_ID = 'osm'
+const TOPOGRAPHIC_LAYER_ID = 'topographic'
+const SATELLITE_LAYER_ID = 'satellite'
+const HILLSHADE_LAYER_ID = 'hillshade'
+const HYBRID_LABELS_LAYER_ID = 'hybrid-labels'
 const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
 const TRACK_HIT_TOLERANCE = 5
 const TRACK_MARKER_SIZE = 20
@@ -158,8 +163,44 @@ function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point) {
   )
 }
 
-export function applyMapStyleSettings(settings: MapStyleSettings): void {
-  console.info('Map style settings changed', settings)
+function setLayerVisibility(
+  map: maplibregl.Map,
+  layerId: string,
+  visible: boolean,
+): void {
+  if (map.getLayer(layerId) !== undefined) {
+    map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
+  }
+}
+
+export function applyMapStyleSettings(
+  map: maplibregl.Map,
+  settings: MapStyleSettings,
+): void {
+  const satelliteVisible =
+    settings.baseStyle === 'satellite' || settings.baseStyle === 'hybrid'
+
+  setLayerVisibility(map, OSM_LAYER_ID, settings.baseStyle === 'osm')
+  setLayerVisibility(
+    map,
+    TOPOGRAPHIC_LAYER_ID,
+    settings.baseStyle === 'topographic',
+  )
+  setLayerVisibility(map, SATELLITE_LAYER_ID, satelliteVisible)
+  setLayerVisibility(
+    map,
+    HYBRID_LABELS_LAYER_ID,
+    settings.baseStyle === 'hybrid',
+  )
+  setLayerVisibility(map, HILLSHADE_LAYER_ID, settings.showHillshade)
+
+  if (map.getLayer(SATELLITE_LAYER_ID) !== undefined) {
+    map.setPaintProperty(
+      SATELLITE_LAYER_ID,
+      'raster-opacity',
+      settings.satelliteOpacity / 100,
+    )
+  }
 }
 
 export default function TrackMap({
@@ -176,6 +217,7 @@ export default function TrackMap({
   const latestActiveTrackRef = useRef(activeTrack)
   const latestOnTrackClickRef = useRef(onTrackClick)
   const latestOnMapClickRef = useRef(onMapClick)
+  const latestMapStyleSettingsRef = useRef(mapStyleSettings)
   const fittedInitialBoundsRef = useRef(false)
   const isMapReadyRef = useRef(false)
 
@@ -183,6 +225,7 @@ export default function TrackMap({
   latestActiveTrackRef.current = activeTrack
   latestOnTrackClickRef.current = onTrackClick
   latestOnMapClickRef.current = onMapClick
+  latestMapStyleSettingsRef.current = mapStyleSettings
 
   useEffect(() => {
     if (containerRef.current === null || mapRef.current !== null) {
@@ -199,14 +242,80 @@ export default function TrackMap({
             type: 'raster',
             tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
             tileSize: 256,
-            attribution: 'OpenStreetMap',
+            attribution: '© OpenStreetMap contributors',
+          },
+          topographic: {
+            type: 'raster',
+            tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            maxzoom: 17,
+            attribution: '© OpenStreetMap contributors, SRTM | OpenTopoMap',
+          },
+          satellite: {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            attribution: 'Esri World Imagery',
+          },
+          hillshade: {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            attribution: 'Esri World Hillshade',
+          },
+          hybridLabels: {
+            type: 'raster',
+            tiles: [
+              'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            attribution: 'Esri World Boundaries and Places',
           },
         },
         layers: [
           {
-            id: 'osm',
+            id: OSM_LAYER_ID,
             type: 'raster',
             source: 'osm',
+          },
+          {
+            id: TOPOGRAPHIC_LAYER_ID,
+            type: 'raster',
+            source: 'topographic',
+            layout: {
+              visibility: 'none',
+            },
+          },
+          {
+            id: SATELLITE_LAYER_ID,
+            type: 'raster',
+            source: 'satellite',
+            layout: {
+              visibility: 'none',
+            },
+          },
+          {
+            id: HILLSHADE_LAYER_ID,
+            type: 'raster',
+            source: 'hillshade',
+            layout: {
+              visibility: 'none',
+            },
+            paint: {
+              'raster-opacity': 0.35,
+            },
+          },
+          {
+            id: HYBRID_LABELS_LAYER_ID,
+            type: 'raster',
+            source: 'hybridLabels',
+            layout: {
+              visibility: 'none',
+            },
           },
         ],
       },
@@ -219,6 +328,7 @@ export default function TrackMap({
 
     map.on('load', () => {
       isMapReadyRef.current = true
+      applyMapStyleSettings(map, latestMapStyleSettingsRef.current)
 
       map.addSource(TRACKS_SOURCE_ID, {
         type: 'geojson',
@@ -333,7 +443,13 @@ export default function TrackMap({
   }, [])
 
   useEffect(() => {
-    applyMapStyleSettings(mapStyleSettings)
+    const map = mapRef.current
+
+    if (map === null || !isMapReadyRef.current) {
+      return
+    }
+
+    applyMapStyleSettings(map, mapStyleSettings)
   }, [mapStyleSettings])
 
   useEffect(() => {
