@@ -124,7 +124,12 @@ export default function SourceAccordion(props: SourceAccordionProps) {
             }}
           />
         ) : (
-          <button className="source-title" type="button" onClick={() => onSourceExpandedChange(source, !source.expanded)}>
+          <button
+            className="source-title"
+            type="button"
+            title={source.name}
+            onClick={() => onSourceExpandedChange(source, !source.expanded)}
+          >
             <span>{source.name}</span>
           </button>
         )}

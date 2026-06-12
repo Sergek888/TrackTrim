@@ -7,7 +7,6 @@ import SourceAccordion from './SourceAccordion'
 type TrackSidebarProps = {
   library: TrackLibrary
   searchQuery: string
-  loading: boolean
   collapsed: boolean
   onSearchChange: (value: string) => void
   onAddSourceClick: () => void
@@ -35,7 +34,6 @@ function trackMatchesQuery(meta: TrackMeta, query: string): boolean {
 export default function TrackSidebar({
   library,
   searchQuery,
-  loading,
   collapsed,
   onSearchChange,
   onAddSourceClick,
@@ -133,8 +131,6 @@ export default function TrackSidebar({
             )}
           </label>
         </div>
-
-        {loading && <p className="status-message">Loading tracks in background...</p>}
 
         <div className="source-list">
           {orderedSources.length === 0 ? (

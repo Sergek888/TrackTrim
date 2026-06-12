@@ -23,14 +23,17 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
     <aside className="track-tooltip" aria-label="Track details">
       <header>
         <div className="tooltip-title">
-          <h2>{meta?.name ?? 'Track'}</h2>
+          <h2 title={meta?.name ?? 'Track'}>{meta?.name ?? 'Track'}</h2>
         </div>
         <button className="icon-button ghost-button" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
           <X aria-hidden="true" size={16} />
         </button>
       </header>
 
-      <p className="tooltip-source"><Folder aria-hidden="true" size={14} />{meta?.source.name ?? 'Unknown source'}</p>
+      <p className="tooltip-source" title={meta?.source.name ?? 'Unknown source'}>
+        <Folder aria-hidden="true" size={14} />
+        {meta?.source.name ?? 'Unknown source'}
+      </p>
 
       <div className="tooltip-metrics">
         <span title="Distance"><Ruler aria-hidden="true" size={15} />{formatDistance(track.distanceKm())}</span>

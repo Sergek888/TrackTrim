@@ -180,7 +180,6 @@ export default function TrackWorkspace() {
       <TrackSidebar
         library={library}
         searchQuery={searchQuery}
-        loading={library.isLoading()}
         collapsed={!isSidebarOpen}
         onSearchChange={setSearchQuery}
         onAddSourceClick={() => {

@@ -32,7 +32,12 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
         onChange={(event) => onVisibilityChange(meta, event.target.checked)}
         onDoubleClick={(event) => event.stopPropagation()}
       />
-      <button className="track-main-button" type="button" onClick={() => onActivate(meta)}>
+      <button
+        className="track-main-button"
+        type="button"
+        title={meta.name}
+        onClick={() => onActivate(meta)}
+      >
         <span>{meta.name}</span>
       </button>
       <span className="track-metric">

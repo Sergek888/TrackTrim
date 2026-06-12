@@ -100,7 +100,6 @@ a:focus-visible {
 }
 
 .app-brand p,
-.status-message,
 .source-progress,
 .empty-source,
 .sidebar-empty p,
@@ -862,10 +861,6 @@ a:focus-visible {
   flex: 0 0 auto;
 }
 
-.status-message {
-  padding: 5px var(--sidebar-header-inset) 0;
-}
-
 .source-list {
   gap: 7px;
   padding: 8px 0 10px var(--sidebar-header-inset);
@@ -880,8 +875,8 @@ a:focus-visible {
   position: relative;
   grid-template-columns: 18px 29px minmax(0, 1fr) auto 29px 29px;
   gap: 5px;
-  min-height: 42px;
-  padding: 6px 7px;
+  min-height: 38px;
+  padding: 4px 5px;
 }
 
 .source-drag-handle {
@@ -1001,15 +996,15 @@ a:focus-visible {
 
 .track-list {
   gap: 1px;
-  padding: 4px 5px 7px 16px;
+  padding: 3px 5px 6px 8px;
 }
 
 .track-list-item {
   grid-template-columns: 18px minmax(0, 1fr) auto;
-  gap: 6px;
-  min-height: 36px;
+  gap: 5px;
+  min-height: 32px;
   border-radius: 9px;
-  padding: 4px 4px 4px 6px;
+  padding: 3px 4px 3px 2px;
 }
 
 .track-list-item.is-active {
@@ -1018,6 +1013,12 @@ a:focus-visible {
 
 .track-main-button {
   display: block;
+}
+
+.track-main-button span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .track-metric {

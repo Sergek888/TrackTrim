@@ -27,6 +27,11 @@ export default function KomootSourceCard({
   }
 
   const userLabel = connection.displayName ?? connection.userId ?? 'Connected'
+  const connectionLabel = connection.connected
+    ? userLabel
+    : connection.expired
+      ? 'Connection expired'
+      : connection.error ?? 'Not connected'
 
   return (
     <section className="komoot-connection-row">
@@ -38,13 +43,7 @@ export default function KomootSourceCard({
         )}
         <div>
           <h2>Komoot</h2>
-          <p>
-            {connection.connected
-              ? userLabel
-              : connection.expired
-                ? 'Connection expired'
-                : connection.error ?? 'Not connected'}
-          </p>
+          <p title={connectionLabel}>{connectionLabel}</p>
         </div>
       </div>
 
