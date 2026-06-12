@@ -169,6 +169,10 @@ export class TrackLibrary {
   public setTrackVisible(meta: TrackMeta, visible: boolean): void {
     meta.visible = visible
 
+    if (visible) {
+      meta.source.visible = true
+    }
+
     if (!visible && this.activeMeta === meta) {
       this.activeMeta = null
       this.focusedTrack = null
