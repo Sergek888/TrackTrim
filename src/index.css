@@ -873,7 +873,7 @@ a:focus-visible {
 
 .source-row {
   position: relative;
-  grid-template-columns: 18px 29px minmax(0, 1fr) auto 29px 29px;
+  grid-template-columns: 18px 18px minmax(0, 1fr) auto 29px 29px;
   gap: 5px;
   min-height: 38px;
   padding: 4px 5px;
@@ -893,10 +893,10 @@ a:focus-visible {
 
 .source-visibility {
   display: grid;
-  width: 29px;
-  height: 29px;
+  width: 18px;
+  height: 18px;
   place-items: center;
-  border: 2px solid var(--source-color);
+  border: 1px solid var(--source-color);
   border-radius: 50%;
   background: var(--color-panel);
   color: var(--color-text);
@@ -919,6 +919,12 @@ a:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.source-title span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .source-counter {
