@@ -55,30 +55,59 @@ export default function TrackSidebar({
 
   return (
     <>
-      <button
-        className="sidebar-toggle"
-        type="button"
-        aria-label={collapsed ? 'Open navigation panel' : 'Close navigation panel'}
-        title={collapsed ? 'Open navigation panel' : 'Close navigation panel'}
-        onClick={onToggleCollapsed}
-      >
-        {collapsed ? <PanelRightOpen aria-hidden="true" /> : <PanelRightClose aria-hidden="true" />}
-      </button>
+      {collapsed && (
+        <button
+          className="icon-button sidebar-action-button sidebar-toggle"
+          type="button"
+          aria-label="Open navigation panel"
+          title="Open navigation panel"
+          onClick={onToggleCollapsed}
+        >
+          <PanelRightOpen aria-hidden="true" />
+        </button>
+      )}
 
-      <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="Track sources">
+      <aside
+        className={`sidebar${collapsed ? ' is-collapsed' : ''}`}
+        aria-label="Track sources"
+        aria-hidden={collapsed}
+        inert={collapsed}
+      >
         <header className="sidebar-header">
           <div className="app-brand">
             <h1>GPS Track Navigator</h1>
           </div>
-          <button
-            className="icon-button ghost-button sidebar-settings-button"
-            type="button"
-            aria-label="Settings"
-            title="Settings"
-            onClick={onSettingsClick}
-          >
-            <Settings aria-hidden="true" size={18} />
-          </button>
+          {!collapsed && (
+            <div className="sidebar-header-actions">
+              <button
+                className="icon-button sidebar-action-button sidebar-settings-button"
+                type="button"
+                aria-label="Settings"
+                title="Settings"
+                onClick={onSettingsClick}
+              >
+                <Settings aria-hidden="true" />
+              </button>
+              <button
+                className="icon-button sidebar-action-button add-source-button"
+                type="button"
+                aria-label="Add source"
+                title="Add source"
+                onClick={onAddSourceClick}
+              >
+                <Plus aria-hidden="true" />
+              </button>
+              <button
+                className="icon-button sidebar-action-button"
+                type="button"
+                aria-label="Close navigation panel"
+                title="Close navigation panel"
+                onClick={onToggleCollapsed}
+              >
+                <PanelRightClose aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="sidebar-controls">
@@ -103,15 +132,6 @@ export default function TrackSidebar({
               </button>
             )}
           </label>
-          <button
-            className="icon-button add-source-button"
-            type="button"
-            aria-label="Add source"
-            title="Add source"
-            onClick={onAddSourceClick}
-          >
-            <Plus aria-hidden="true" size={16} />
-          </button>
         </div>
 
         {loading && <p className="status-message">Loading tracks in background...</p>}

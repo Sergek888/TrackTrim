@@ -158,11 +158,6 @@ a:focus-visible {
   flex: 0 0 auto;
 }
 
-.sidebar.is-collapsed .sidebar-toggle {
-  background: var(--color-panel);
-  color: var(--color-text);
-}
-
 .sidebar-header {
   display: flex;
   align-items: start;
@@ -755,21 +750,24 @@ a:focus-visible {
   right: 28px;
   left: auto;
   z-index: 70;
-  width: 29px;
-  height: 29px;
+  box-shadow: none;
+}
+
+.sidebar-action-button {
   border-color: var(--color-border);
-  background: rgba(255, 255, 255, 0.96);
+  border-radius: 10px;
+  background: var(--color-panel);
   color: var(--color-text);
 }
 
-.sidebar-toggle svg {
-  width: 18px;
-  height: 18px;
+.sidebar-action-button:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: var(--color-panel-soft);
 }
 
 .sidebar-header {
   align-items: center;
-  padding: 16px 58px 12px 16px;
+  padding: 16px 16px 12px;
 }
 
 .app-brand h1 {
@@ -777,7 +775,10 @@ a:focus-visible {
   font-weight: 600;
 }
 
-.sidebar-settings-button {
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
 }
 
@@ -836,14 +837,7 @@ a:focus-visible {
 }
 
 .add-source-button {
-  justify-self: end;
-  width: 29px;
-  min-width: 29px;
-  height: 29px;
-  min-height: 29px;
-  border-color: var(--color-border);
-  background: var(--color-panel);
-  color: var(--color-text);
+  flex: 0 0 auto;
 }
 
 .status-message {
