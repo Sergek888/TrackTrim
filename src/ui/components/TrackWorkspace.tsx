@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TrackLibrary } from '../../application/TrackLibrary'
+import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { DEFAULT_MAP_STYLE_SETTINGS } from '../map/mapStyleSettings'
+import { defaultTrackColor } from '../trackColors'
 import AddSourceDialog from './AddSourceDialog'
 import ColorPalette from './ColorPalette'
 import SettingsDialog from './SettingsDialog'
@@ -41,6 +43,8 @@ export default function TrackWorkspace() {
     connected: false,
   })
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
+  const [sourceLinkError, setSourceLinkError] = useState<string | null>(null)
+  const sourceLinkHandled = useRef(false)
 
   useEffect(
     () => library.subscribe(() => setLibraryVersion((version) => version + 1)),
@@ -48,7 +52,7 @@ export default function TrackWorkspace() {
   )
 
   useEffect(() => {
-    void refreshKomootConnection()
+    void initializeKomoot()
 
     const handleExpired = () => {
       setKomootConnection({ connected: false, expired: true })
@@ -65,21 +69,69 @@ export default function TrackWorkspace() {
   )
   const activeTrack = library.activeMeta?.track ?? null
 
-  async function refreshKomootConnection(): Promise<void> {
+  async function initializeKomoot(): Promise<void> {
+    const connection = await refreshKomootConnection()
+
+    if (sourceLinkHandled.current) {
+      return
+    }
+
+    const sourceUrl = new URLSearchParams(window.location.search).get('source')
+
+    if (sourceUrl === null) {
+      return
+    }
+
+    sourceLinkHandled.current = true
+
+    try {
+      const targetType = KomootTrackSource.getTargetType(sourceUrl)
+
+      if (targetType === null) {
+        throw new Error('The source link is not a supported Komoot URL.')
+      }
+
+      const source = new KomootTrackSource(
+        sourceUrl,
+        targetType === 'tour'
+          ? 'Komoot tour'
+          : targetType === 'collection'
+            ? 'Komoot collection'
+            : 'Komoot profile',
+        defaultTrackColor(library.sources.length),
+        'planned',
+        connection.connected ? { kind: 'tracktrim-session' } : null,
+      )
+
+      source.order = library.sources.length
+      void library.addSource(source)
+    } catch (error) {
+      setSourceLinkError(
+        error instanceof Error ? error.message : 'The source link could not be opened.',
+      )
+    }
+  }
+
+  async function refreshKomootConnection(): Promise<KomootConnection> {
     try {
       const response = await fetch('/api/komoot/status')
       const payload = (await response.json()) as KomootConnection
+      const connection = response.ok
+        ? payload
+        : { connected: false, error: payload.error ?? 'Komoot status could not be checked.' }
 
-      setKomootConnection(
-        response.ok
-          ? payload
-          : { connected: false, error: payload.error ?? 'Komoot status could not be checked.' },
-      )
+      setKomootConnection(connection)
+
+      return connection
     } catch {
-      setKomootConnection({
+      const connection: KomootConnection = {
         connected: false,
         error: 'Komoot status could not be checked.',
-      })
+      }
+
+      setKomootConnection(connection)
+
+      return connection
     }
   }
 
@@ -176,9 +228,9 @@ export default function TrackWorkspace() {
 
         <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
 
-        {library.lastError !== null && (
+        {(sourceLinkError ?? library.lastError) !== null && (
           <p className="workspace-error" role="alert">
-            {library.lastError}
+            {sourceLinkError ?? library.lastError}
           </p>
         )}
       </div>
