@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TrackLibrary } from '../../application/TrackLibrary'
-import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
+import { createTrackSourceFromAppUrl } from '../../application/createTrackSourceFromAppUrl'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
@@ -76,35 +76,18 @@ export default function TrackWorkspace() {
       return
     }
 
-    const sourceUrl = new URLSearchParams(window.location.search).get('source')
-
-    if (sourceUrl === null) {
-      return
-    }
-
     sourceLinkHandled.current = true
 
     try {
-      const targetType = KomootTrackSource.getTargetType(sourceUrl)
+      const source = createTrackSourceFromAppUrl(window.location.href, {
+        color: defaultTrackColor(library.sources.length),
+        order: library.sources.length,
+        komootCredentials: connection.connected ? { kind: 'tracktrim-session' } : null,
+      })
 
-      if (targetType === null) {
-        throw new Error('The source link is not a supported Komoot URL.')
+      if (source !== null) {
+        void library.addSource(source)
       }
-
-      const source = new KomootTrackSource(
-        sourceUrl,
-        targetType === 'tour'
-          ? 'Komoot tour'
-          : targetType === 'collection'
-            ? 'Komoot collection'
-            : 'Komoot profile',
-        defaultTrackColor(library.sources.length),
-        'planned',
-        connection.connected ? { kind: 'tracktrim-session' } : null,
-      )
-
-      source.order = library.sources.length
-      void library.addSource(source)
     } catch (error) {
       setSourceLinkError(
         error instanceof Error ? error.message : 'The source link could not be opened.',
