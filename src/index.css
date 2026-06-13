@@ -1397,7 +1397,12 @@ a:focus-visible {
     left: 48px;
     grid-template-columns: 1fr;
     width: min(260px, calc(100vw - 64px));
-    max-height: calc(100vh - 54px);
+    max-height: calc(
+      100vh -
+      var(--mobile-sidebar-height) -
+      var(--mobile-sidebar-bottom) -
+      18px
+    );
   }
 }
 

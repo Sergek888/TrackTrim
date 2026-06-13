@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl'
+import maplibregl, {
+  type ExpressionSpecification,
+  type GeoJSONSource,
+  type LngLatBoundsLike,
+} from 'maplibre-gl'
+import mlcontour from 'maplibre-contour'
 import type { Track } from '../../model/Track'
-import type { MapStyleSettings } from '../map/mapStyleSettings'
+import type {
+  MapLabelMode,
+  MapStyleSettings,
+} from '../map/mapStyleSettings'
 import MapStyleControl from './MapStyleControl'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
@@ -41,7 +49,8 @@ const OSM_LAYER_ID = 'osm'
 const TOPOGRAPHIC_LAYER_ID = 'topographic'
 const SATELLITE_LAYER_ID = 'satellite'
 const HILLSHADE_LAYER_ID = 'hillshade'
-const HYBRID_LABELS_LAYER_ID = 'hybrid-labels'
+const MAP_LABELS_LAYER_ID = 'map-labels'
+const CONTOURS_LAYER_ID = 'contours'
 const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
 const TRACK_HIT_TOLERANCE = 5
 const TRACK_MARKER_SIZE = 20
@@ -54,6 +63,14 @@ const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   features: [],
 }
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+const contourDemSource = new mlcontour.DemSource({
+  url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+  encoding: 'terrarium',
+  maxzoom: 12,
+  worker: false,
+})
+
+contourDemSource.setupMaplibre(maplibregl)
 
 function createLayersIcon(): SVGSVGElement {
   const icon = document.createElementNS(SVG_NAMESPACE, 'svg')
@@ -214,6 +231,42 @@ function setLayerVisibility(
   }
 }
 
+function mapLabelTextField(labelMode: MapLabelMode): ExpressionSpecification {
+  const localName: ExpressionSpecification = ['coalesce', ['get', 'name'], '']
+  const russianName: ExpressionSpecification = [
+    'coalesce',
+    ['get', 'name:ru'],
+    ['get', 'name_ru'],
+    localName,
+  ]
+  const englishName: ExpressionSpecification = [
+    'coalesce',
+    ['get', 'name:en'],
+    ['get', 'name_en'],
+    ['get', 'name:latin'],
+    localName,
+  ]
+
+  if (labelMode === 'ru') {
+    return russianName
+  }
+
+  if (labelMode === 'en') {
+    return englishName
+  }
+
+  if (labelMode === 'dual') {
+    return [
+      'case',
+      ['==', localName, englishName],
+      localName,
+      ['concat', localName, '\n', englishName],
+    ]
+  }
+
+  return localName
+}
+
 export function applyMapStyleSettings(
   map: maplibregl.Map,
   settings: MapStyleSettings,
@@ -230,10 +283,19 @@ export function applyMapStyleSettings(
   setLayerVisibility(map, SATELLITE_LAYER_ID, satelliteVisible)
   setLayerVisibility(
     map,
-    HYBRID_LABELS_LAYER_ID,
+    MAP_LABELS_LAYER_ID,
     settings.baseStyle === 'hybrid',
   )
+  setLayerVisibility(map, CONTOURS_LAYER_ID, settings.showContours)
   setLayerVisibility(map, HILLSHADE_LAYER_ID, settings.showHillshade)
+
+  if (map.getLayer(MAP_LABELS_LAYER_ID) !== undefined) {
+    map.setLayoutProperty(
+      MAP_LABELS_LAYER_ID,
+      'text-field',
+      mapLabelTextField(settings.labelMode),
+    )
+  }
 
   if (map.getLayer(SATELLITE_LAYER_ID) !== undefined) {
     map.setPaintProperty(
@@ -280,7 +342,7 @@ export default function TrackMap({
       container: containerRef.current,
       style: {
         version: 8,
-        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
         sources: {
           osm: {
             type: 'raster',
@@ -311,13 +373,24 @@ export default function TrackMap({
             tileSize: 256,
             attribution: 'Esri World Hillshade',
           },
-          hybridLabels: {
-            type: 'raster',
+          mapLabels: {
+            type: 'vector',
+            url: 'https://tiles.openfreemap.org/planet',
+            attribution: '© OpenStreetMap contributors | OpenFreeMap',
+          },
+          contours: {
+            type: 'vector',
             tiles: [
-              'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+              contourDemSource.contourProtocolUrl({
+                thresholds: {
+                  9: [500, 2500],
+                  11: [200, 1000],
+                  13: [100, 500],
+                  15: [50, 250],
+                },
+              }),
             ],
-            tileSize: 256,
-            attribution: 'Esri World Boundaries and Places',
+            maxzoom: 15,
           },
         },
         layers: [
@@ -354,11 +427,49 @@ export default function TrackMap({
             },
           },
           {
-            id: HYBRID_LABELS_LAYER_ID,
-            type: 'raster',
-            source: 'hybridLabels',
+            id: CONTOURS_LAYER_ID,
+            type: 'line',
+            source: 'contours',
+            'source-layer': 'contours',
             layout: {
               visibility: 'none',
+            },
+            paint: {
+              'line-color': 'rgba(71, 85, 105, 0.72)',
+              'line-width': ['match', ['get', 'level'], 1, 1.15, 0.55],
+            },
+          },
+          {
+            id: MAP_LABELS_LAYER_ID,
+            type: 'symbol',
+            source: 'mapLabels',
+            'source-layer': 'place',
+            minzoom: 2,
+            layout: {
+              visibility: 'none',
+              'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
+              'text-field': mapLabelTextField(
+                latestMapStyleSettingsRef.current.labelMode,
+              ),
+              'text-font': ['Noto Sans Regular'],
+              'text-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                2,
+                10,
+                8,
+                13,
+                14,
+                15,
+              ],
+              'text-max-width': 9,
+              'text-padding': 3,
+            },
+            paint: {
+              'text-color': '#1f2937',
+              'text-halo-color': 'rgba(255, 255, 255, 0.92)',
+              'text-halo-width': 1.5,
             },
           },
         ],
