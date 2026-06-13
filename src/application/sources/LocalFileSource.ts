@@ -106,7 +106,7 @@ export class LocalFileTrackSource implements TrackSource {
 
       downloadTextFile(
         payload.data,
-        this.trimmedFileName(meta.name),
+        this.gpxFileName(meta.name),
         payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
       )
       return
@@ -116,7 +116,7 @@ export class LocalFileTrackSource implements TrackSource {
 
     downloadTextFile(
       gpxText,
-      this.trimmedFileName(meta.name),
+      this.gpxFileName(meta.name),
       'application/gpx+xml;charset=utf-8',
     )
   }
@@ -134,7 +134,9 @@ export class LocalFileTrackSource implements TrackSource {
     return new TrackModel(geometry.points, meta)
   }
 
-  private trimmedFileName(fileName: string): string {
-    return fileName.replace(/\.(gpx|xml)$/i, '') + '-trimmed.gpx'
+  private gpxFileName(fileName: string): string {
+    const baseName = fileName.trim().replace(/\.(gpx|xml)$/i, '').replace(/[<>:"/\\|?*]+/g, '-')
+
+    return `${baseName || 'track'}.gpx`
   }
 }

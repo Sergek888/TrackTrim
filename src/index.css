@@ -1200,8 +1200,13 @@ a:focus-visible {
   background: var(--color-border);
 }
 
+.tooltip-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .details-button {
-  justify-self: end;
   min-width: 29px;
   width: 29px;
   min-height: 29px;
@@ -1216,6 +1221,24 @@ a:focus-visible {
   border-color: #94a3b8;
   background: var(--color-panel-soft);
   color: var(--color-text);
+}
+
+.tooltip-notice {
+  margin: 0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tooltip-notice.is-success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.tooltip-notice.is-error {
+  background: #fff1f2;
+  color: var(--color-danger);
 }
 
 .color-picker-field {

@@ -134,7 +134,7 @@ export class KomootTrackSource implements TrackSource {
 
     downloadTextFile(
       payload.data,
-      this.trimmedFileName(meta?.name ?? 'komoot-tour'),
+      this.gpxFileName(meta?.name ?? 'komoot-tour'),
       payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
     )
   }
@@ -181,7 +181,9 @@ export class KomootTrackSource implements TrackSource {
     }
   }
 
-  private trimmedFileName(name: string): string {
-    return name.trim().replace(/[^\w.-]+/g, '-').replace(/-+$/g, '') + '-trimmed.gpx'
+  private gpxFileName(name: string): string {
+    const baseName = name.trim().replace(/\.gpx$/i, '').replace(/[<>:"/\\|?*]+/g, '-')
+
+    return `${baseName || 'komoot-tour'}.gpx`
   }
 }
