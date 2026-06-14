@@ -359,3 +359,24 @@ UI не должен:
 * секреты внешних систем не попадают в клиентский код;
 * серверные proxy ограничиваются поддерживаемыми API;
 * исходные пользовательские данные не изменяются без явного действия пользователя.
+---
+
+# Komoot module structure
+
+The implemented Komoot integration is isolated under `src/komoot` and split
+into `auth`, `users`, `tours`, `collections`, `mutations`, `import`, `url`,
+`normalize`, `transport`, and `shared` responsibilities.
+
+`KomootApiClient` is a composition root exposing `auth`, `users`, `tours`,
+`collections`, `mutations`, `import`, and `urls`. It does not normalize
+TrackTrim models. `KomootTrackSource` is the only adapter that converts Komoot
+DTOs into `TrackMeta` and `Track`.
+
+`api/komoot` contains only server runtime adapters: TrackTrim session cookies,
+encrypted session persistence, a read-only allowlisted proxy, and dedicated
+POST routes for upload, edit, and delete. Mutations never pass through the
+general proxy.
+
+Komoot API tokens are encrypted with AES-256-GCM before persistence. The key is
+derived from the required `KOMOOT_SESSION_SECRET`, which must contain at least
+32 characters. Legacy plaintext session records are invalidated.

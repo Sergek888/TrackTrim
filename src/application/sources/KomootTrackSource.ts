@@ -4,14 +4,13 @@ import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
 import type { TrackPointInput } from '../../model/TrackPoint'
 import {
-  getKomootTargetType,
-  parseKomootTarget,
   type KomootApi,
   type KomootCoordinate,
   type KomootTarget,
   type KomootTourSummary,
   type KomootUserListType,
 } from '../../komoot/KomootApi'
+import { DefaultKomootUrlApi } from '../../komoot/url/KomootUrlApi'
 import { downloadTextFile } from '../download/downloadTextFile'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
@@ -33,7 +32,7 @@ export class KomootTrackSource implements TrackSource {
     userListType: KomootUserListType = 'planned',
     komootApi: KomootApi,
   ) {
-    const target = parseKomootTarget(url, userListType)
+    const target = komootApi.urls.parse(url, { userListType })
 
     if (target === null) {
       throw new Error('Komoot tour, collection, profile URL, or user id is invalid.')
@@ -47,26 +46,29 @@ export class KomootTrackSource implements TrackSource {
     url: string,
     userListType: KomootUserListType = 'planned',
   ): boolean {
-    return parseKomootTarget(url, userListType) !== null
+    return new DefaultKomootUrlApi().parse(url, { userListType }) !== null
   }
 
-  public static getTargetType(url: string): 'tour' | 'collection' | 'user' | null {
-    return getKomootTargetType(url)
+  public static getTargetType(
+    url: string,
+    komootApi: KomootApi,
+  ): 'tour' | 'collection' | 'user' | null {
+    return komootApi.urls.getTargetType(url)
   }
 
   public async loadTrackMetas(): Promise<TrackMeta[]> {
     if (this.target.kind === 'user') {
-      const sourceName = await this.komootApi.loadUserDisplayName(
-        this.target.id,
-        this.target.listType,
-      )
+      const displayName = await this.komootApi.users.getDisplayName(this.target.id)
+      const sourceName = displayName === null
+        ? null
+        : `${displayName} ${this.target.listType === 'planned' ? 'planned' : 'completed'}`
 
       if (sourceName !== null) {
         this.name = sourceName
       }
     }
 
-    const summaries = await this.komootApi.loadTrackSummaries(this.target)
+    const summaries = (await this.komootApi.import.importTarget(this.target)).tracks
 
     if (summaries.length === 0 && this.target.kind === 'collection') {
       throw new Error('Komoot collection has no public tours or could not be read.')
@@ -80,8 +82,8 @@ export class KomootTrackSource implements TrackSource {
       return meta.track
     }
 
-    const summary = this.summaries.get(meta) ?? await this.komootApi.loadTourSummary(meta.remoteId)
-    const points = await this.komootApi.loadTourCoordinates(summary)
+    const summary = this.summaries.get(meta) ?? await this.komootApi.tours.getSummary(meta.remoteId)
+    const points = await this.komootApi.tours.getCoordinates(summary)
 
     if (points.length === 0) {
       throw new Error(`Komoot tour ${meta.remoteId} has no public coordinates.`)
@@ -135,11 +137,11 @@ export class KomootTrackSource implements TrackSource {
   }
 
   public getOriginalUrl(meta: TrackMeta): string | null {
-    return this.komootApi.getTourOriginalUrl(meta.remoteId)
+    return this.komootApi.urls.getTourUrl(meta.remoteId)
   }
 
   public getShareUrl(meta: TrackMeta): string | null {
-    return this.komootApi.getTourShareUrl(meta.remoteId)
+    return this.komootApi.urls.getTourShareUrl(meta.remoteId)
   }
 
   private createMetaFromSummary(summary: KomootTourSummary): TrackMeta {

@@ -10,7 +10,7 @@ export type ApiRequest = {
 export type ApiResponse = {
   statusCode?: number
   setHeader(name: string, value: string | string[]): void
-  end(payload?: string): void
+  end(payload?: string | Buffer): void
 }
 
 export function sendJson(response: ApiResponse, statusCode: number, payload: unknown): void {

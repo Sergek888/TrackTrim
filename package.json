@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:vercel": "vercel dev",
     "build": "tsc -b && vite build",
+    "test": "tsx --test tests/**/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.0",
     "vercel": "^54.9.1",
     "vite": "^7.0.0"

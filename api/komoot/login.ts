@@ -5,9 +5,9 @@ import {
 } from './_cookies.js'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
 import {
-  loginKomoot,
-  KomootHttpError,
-} from './_KomootClient.js'
+  KomootApiClient,
+} from '../../src/komoot/KomootApiClient.js'
+import { KomootAuthError } from '../../src/komoot/KomootApi.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
 const loginSchema = z.object({
@@ -23,16 +23,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const body = loginSchema.parse(await readJsonBody(request))
-    const account = await loginKomoot(body.email, body.password)
+    const auth = await new KomootApiClient().auth.loginWithPassword(body.email, body.password)
     const now = new Date().toISOString()
     const sessionId = createSessionId()
 
     await getKomootSessionStore().set({
       sessionId,
       email: body.email,
-      userId: account.userId,
-      apiToken: account.apiToken,
-      displayName: account.displayName,
+      auth,
       createdAt: now,
       updatedAt: now,
     })
@@ -41,8 +39,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     sendJson(response, 200, {
       ok: true,
       connected: true,
-      userId: account.userId,
-      displayName: account.displayName,
+      userId: auth.userId,
+      displayName: auth.displayName,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -58,7 +56,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     if (
-      error instanceof KomootHttpError &&
+      error instanceof KomootAuthError &&
       (error.status === 401 || error.status === 403 || error.status === 404)
     ) {
       sendJson(response, 401, {

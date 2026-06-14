@@ -1,7 +1,7 @@
 import { authorizeKomootRequest } from './_auth.js'
 import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies.js'
 import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
-import { KomootHttpError } from './_KomootClient.js'
+import { KomootAuthError } from '../../src/komoot/KomootApi.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
@@ -22,19 +22,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    await auth.client.apiGet(`/users/${auth.session.userId}/tours/`, {
-      type: 'tour_planned',
-      page: 0,
-      limit: 1,
-    })
+    const user = await auth.komoot.users.getCurrentUser()
 
     sendJson(response, 200, {
       connected: true,
-      userId: auth.session.userId,
-      displayName: auth.session.displayName,
+      userId: auth.session.auth.userId,
+      displayName: user.displayName ?? auth.session.auth.displayName,
     })
   } catch (error) {
-    if (error instanceof KomootHttpError && (error.status === 401 || error.status === 403)) {
+    if (error instanceof KomootAuthError && (error.status === 401 || error.status === 403)) {
       const sessionId = getTrackTrimSessionId(request)
 
       if (sessionId !== null) {

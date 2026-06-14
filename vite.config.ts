@@ -16,6 +16,7 @@ const komootDevRoutes = new Map([
   ['/logout', '/api/komoot/logout.ts'],
   ['/proxy', '/api/komoot/proxy.ts'],
   ['/status', '/api/komoot/status.ts'],
+  ['/tours/upload', '/api/komoot/tours/upload.ts'],
 ])
 
 export default defineConfig({
@@ -27,7 +28,12 @@ export default defineConfig({
         server.middlewares.use('/api/komoot', async (request, response) => {
           const url = new URL(request.url ?? '/', 'http://localhost')
           const path = url.pathname.replace(/\/+$/, '') || '/'
-          const route = komootDevRoutes.get(path)
+          const dynamicRoute = path.match(/^\/tours\/(\d+)\/(edit|delete)$/)
+          const route = komootDevRoutes.get(path) ?? (
+            dynamicRoute === null
+              ? undefined
+              : `/api/komoot/tours/[id]/${dynamicRoute[2]}.ts`
+          )
 
           if (route === undefined) {
             response.statusCode = 404
@@ -38,6 +44,9 @@ export default defineConfig({
           const devRequest = request as DevApiRequest
 
           devRequest.query = Object.fromEntries(url.searchParams.entries())
+          if (dynamicRoute?.[1] !== undefined) {
+            devRequest.query.id = dynamicRoute[1]
+          }
 
           const apiModule = await server.ssrLoadModule(route) as {
             default: VercelApiHandler

@@ -115,10 +115,10 @@ export class KomootConnectionService {
       throw new Error('Connect Komoot before loading account tours.')
     }
 
-    return new KomootApiClient(
-      { kind: 'tracktrim-session' },
-      () => this.markExpired(),
-    )
+    return new KomootApiClient({
+      mode: 'proxy',
+      onAuthorizationExpired: () => this.markExpired(),
+    })
   }
 
   private stateFromPayload(payload: KomootConnectionPayload): KomootConnectionState {

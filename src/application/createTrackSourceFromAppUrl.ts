@@ -18,7 +18,7 @@ export function createTrackSourceFromAppUrl(
     return null
   }
 
-  const targetType = KomootTrackSource.getTargetType(sourceUrl)
+  const targetType = KomootTrackSource.getTargetType(sourceUrl, options.komootApi)
 
   if (targetType === null) {
     throw new Error('The source link is not supported.')

@@ -250,7 +250,10 @@ export default function TrackWorkspace() {
           sourceIndex={library.sources.length}
           komootConnection={komootState}
           onCreateKomootSource={({ target, name, color, listType, accountSource }) => {
-            const targetType = KomootTrackSource.getTargetType(target)
+            const targetType = KomootTrackSource.getTargetType(
+              target,
+              komootConnection.publicApi(),
+            )
 
             if (!accountSource && targetType !== 'tour' && targetType !== 'collection') {
               throw new Error('Enter a Komoot tour or collection URL.')
