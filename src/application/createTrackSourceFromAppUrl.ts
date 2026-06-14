@@ -1,11 +1,11 @@
-import type { KomootCredentials } from '../komoot/KomootApi'
+import type { KomootApi } from '../komoot/KomootApi'
 import { KomootTrackSource } from './sources/KomootTrackSource'
 import type { TrackSource } from './sources/TrackSource'
 
 type CreateTrackSourceOptions = {
   color: string
   order: number
-  komootCredentials: KomootCredentials | null
+  komootApi: KomootApi
 }
 
 export function createTrackSourceFromAppUrl(
@@ -33,7 +33,7 @@ export function createTrackSourceFromAppUrl(
         : 'Komoot profile',
     options.color,
     'planned',
-    options.komootCredentials,
+    options.komootApi,
   )
 
   source.order = options.order

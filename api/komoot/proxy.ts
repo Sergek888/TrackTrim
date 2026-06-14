@@ -14,6 +14,16 @@ const proxySchema = z.object({
 })
 
 const allowedApiBases = new Set(['https://www.komoot.com/api/v007', 'https://api.komoot.de/v007'])
+const allowedPaths = [
+  /^\/users\/\d+\/?$/,
+  /^\/users\/\d+\/tours\/?$/,
+  /^\/tours\/\d+\/?$/,
+  /^\/discover_tours\/\d+\/?$/,
+  /^\/tours\/\d+\/coordinates\/?$/,
+  /^\/collections?\/\d+\/?$/,
+  /^\/collections?\/\d+\/tours\/?$/,
+  /^\/collections\/\d+\/compilation_lines_extended\/?$/,
+]
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method !== 'POST') {
@@ -36,7 +46,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     const apiBase = body.apiBase ?? 'https://www.komoot.com/api/v007'
 
-    if (!allowedApiBases.has(apiBase) || body.path.includes('://')) {
+    const path = body.path.split('?')[0]
+
+    if (
+      !allowedApiBases.has(apiBase) ||
+      body.path.includes('://') ||
+      !allowedPaths.some((pattern) => pattern.test(path))
+    ) {
       sendJson(response, 400, { error: 'Only Komoot API requests are allowed.' })
       return
     }

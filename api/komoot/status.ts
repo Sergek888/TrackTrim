@@ -22,7 +22,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    await auth.client.getPlannedTours(auth.session.userId, { page: 0, limit: 1 })
+    await auth.client.apiGet(`/users/${auth.session.userId}/tours/`, {
+      type: 'tour_planned',
+      page: 0,
+      limit: 1,
+    })
 
     sendJson(response, 200, {
       connected: true,

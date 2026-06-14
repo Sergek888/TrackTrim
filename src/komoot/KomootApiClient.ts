@@ -177,7 +177,10 @@ export function getKomootTargetType(
 }
 
 export class KomootApiClient implements KomootApi {
-  public constructor(private readonly credentials: KomootCredentials | null = null) {}
+  public constructor(
+    private readonly credentials: KomootCredentials | null = null,
+    private readonly onAuthorizationExpired?: () => void,
+  ) {}
 
   public parseTarget(
     input: string,
@@ -813,6 +816,7 @@ export class KomootApiClient implements KomootApi {
       query,
       accept: 'application/hal+json',
       credentials: mode === 'server' ? this.credentials : null,
+      onAuthorizationExpired: this.onAuthorizationExpired,
     })
   }
 }

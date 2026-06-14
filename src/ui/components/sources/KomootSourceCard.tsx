@@ -1,37 +1,44 @@
 import { Unplug, Wifi, WifiOff } from 'lucide-react'
 import { useState } from 'react'
-import KomootConnectDialog, { type KomootConnection } from './KomootConnectDialog'
+import type { KomootConnectionState } from '../../../application/KomootConnectionService'
+import KomootConnectDialog from './KomootConnectDialog'
 
 type KomootSourceCardProps = {
-  connection: KomootConnection
-  onConnected: (connection: KomootConnection) => void
-  onDisconnected: () => void
+  connection: KomootConnectionState
+  onConnect: (email: string, password: string) => Promise<KomootConnectionState>
+  onDisconnect: () => Promise<KomootConnectionState>
 }
 
 export default function KomootSourceCard({
   connection,
-  onConnected,
-  onDisconnected,
+  onConnect,
+  onDisconnect,
 }: KomootSourceCardProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [connectDialogOpen, setConnectDialogOpen] = useState(false)
 
   async function handleLogout(): Promise<void> {
     try {
-      await fetch('/api/komoot/logout', { method: 'POST' })
-      setErrorMessage(null)
-      onDisconnected()
+      const nextConnection = await onDisconnect()
+
+      setErrorMessage(
+        nextConnection.status === 'error' ? nextConnection.error : null,
+      )
     } catch {
       setErrorMessage('Komoot could not be disconnected.')
     }
   }
 
-  const userLabel = connection.displayName ?? connection.userId ?? 'Connected'
+  const userLabel = connection.connected
+    ? connection.displayName ?? connection.userId
+    : 'Connected'
   const connectionLabel = connection.connected
     ? userLabel
-    : connection.expired
+    : connection.status === 'expired'
       ? 'Connection expired'
-      : connection.error ?? 'Not connected'
+      : connection.status === 'error'
+        ? connection.error
+        : 'Not connected'
 
   return (
     <section className="komoot-connection-row">
@@ -62,11 +69,11 @@ export default function KomootSourceCard({
 
       {connectDialogOpen && (
         <KomootConnectDialog
+          onConnect={onConnect}
           onCancel={() => setConnectDialogOpen(false)}
-          onConnected={(nextConnection) => {
+          onConnected={() => {
             setConnectDialogOpen(false)
             setErrorMessage(null)
-            onConnected(nextConnection)
           }}
         />
       )}

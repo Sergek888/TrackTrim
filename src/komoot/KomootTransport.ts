@@ -9,6 +9,7 @@ type KomootRequestInput = {
   readonly pathOrUrl: string
   readonly accept: string
   readonly credentials?: KomootCredentials | null
+  readonly onAuthorizationExpired?: () => void
   readonly query?: Readonly<Record<string, string | number | boolean | null | undefined>>
 }
 
@@ -71,7 +72,7 @@ async function serverRequest(input: KomootRequestInput): Promise<Response> {
   })
 
   if (response.status === 401 || response.status === 403) {
-    window.dispatchEvent(new Event('tracktrim:komoot-expired'))
+    input.onAuthorizationExpired?.()
   }
 
   return assertKomootResponse(response)

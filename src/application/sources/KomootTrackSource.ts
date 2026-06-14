@@ -4,14 +4,12 @@ import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
 import type { TrackPointInput } from '../../model/TrackPoint'
 import {
-  KomootApiClient,
   getKomootTargetType,
   parseKomootTarget,
 } from '../../komoot/KomootApiClient'
 import type {
   KomootApi,
   KomootCoordinate,
-  KomootCredentials,
   KomootTarget,
   KomootTourSummary,
   KomootUserListType,
@@ -35,8 +33,7 @@ export class KomootTrackSource implements TrackSource {
     public name: string,
     public color: string,
     userListType: KomootUserListType = 'planned',
-    credentials: KomootCredentials | null = null,
-    komootApi: KomootApi = new KomootApiClient(credentials),
+    komootApi: KomootApi,
   ) {
     const target = parseKomootTarget(url, userListType)
 

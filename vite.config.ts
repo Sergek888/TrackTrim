@@ -14,13 +14,8 @@ type DevApiRequest = IncomingMessage & {
 const komootDevRoutes = new Map([
   ['/login', '/api/komoot/login.ts'],
   ['/logout', '/api/komoot/logout.ts'],
-  ['/me', '/api/komoot/me.ts'],
   ['/proxy', '/api/komoot/proxy.ts'],
   ['/status', '/api/komoot/status.ts'],
-  ['/tracks/completed', '/api/komoot/tracks/completed.ts'],
-  ['/tracks/planned', '/api/komoot/tracks/planned.ts'],
-  ['/import/tour-url', '/api/komoot/import/tour-url.ts'],
-  ['/import/collection-url', '/api/komoot/import/collection-url.ts'],
 ])
 
 export default defineConfig({

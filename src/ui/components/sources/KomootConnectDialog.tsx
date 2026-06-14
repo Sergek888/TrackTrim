@@ -1,21 +1,16 @@
 import { X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-
-export type KomootConnection = {
-  connected: boolean
-  expired?: boolean
-  userId?: string
-  displayName?: string | null
-  error?: string
-}
+import type { KomootConnectionState } from '../../../application/KomootConnectionService'
 
 type KomootConnectDialogProps = {
   onCancel: () => void
-  onConnected: (connection: KomootConnection) => void
+  onConnect: (email: string, password: string) => Promise<KomootConnectionState>
+  onConnected: () => void
 }
 
 export default function KomootConnectDialog({
   onCancel,
+  onConnect,
   onConnected,
 }: KomootConnectDialogProps) {
   const [email, setEmail] = useState('')
@@ -33,22 +28,18 @@ export default function KomootConnectDialog({
       const formData = new FormData(event.currentTarget)
       const submittedEmail = String(formData.get('username') ?? '').trim()
       const submittedPassword = String(formData.get('password') ?? '')
-      const response = await fetch('/api/komoot/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          email: submittedEmail,
-          password: submittedPassword,
-        }),
-      })
-      const payload = (await response.json()) as KomootConnection
+      const connection = await onConnect(submittedEmail, submittedPassword)
 
-      if (!response.ok || !payload.connected) {
-        setErrorMessage(payload.error ?? 'Komoot authorization failed.')
+      if (!connection.connected) {
+        setErrorMessage(
+          connection.status === 'error'
+            ? connection.error
+            : 'Komoot authorization failed.',
+        )
         return
       }
 
-      onConnected(payload)
+      onConnected()
     } catch {
       setErrorMessage('Komoot connection could not be completed.')
     } finally {

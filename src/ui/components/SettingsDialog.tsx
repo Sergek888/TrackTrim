@@ -1,20 +1,23 @@
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
+import type {
+  KomootConnectionService,
+  KomootConnectionState,
+} from '../../application/KomootConnectionService'
 import KomootSourceCard from './sources/KomootSourceCard'
-import type { KomootConnection } from './sources/KomootConnectDialog'
 
 type SettingsDialogProps = {
-  komootConnection: KomootConnection
+  komootConnection: KomootConnectionState
   onClose: () => void
-  onKomootConnected: (connection: KomootConnection) => void
-  onKomootDisconnected: () => void
+  onKomootConnect: KomootConnectionService['connect']
+  onKomootDisconnect: KomootConnectionService['disconnect']
 }
 
 export default function SettingsDialog({
   komootConnection,
   onClose,
-  onKomootConnected,
-  onKomootDisconnected,
+  onKomootConnect,
+  onKomootDisconnect,
 }: SettingsDialogProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -40,8 +43,8 @@ export default function SettingsDialog({
           <h3>Connections</h3>
           <KomootSourceCard
             connection={komootConnection}
-            onConnected={onKomootConnected}
-            onDisconnected={onKomootDisconnected}
+            onConnect={onKomootConnect}
+            onDisconnect={onKomootDisconnect}
           />
         </section>
       </section>

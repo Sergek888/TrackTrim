@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  KomootConnectionService,
+} from '../../application/KomootConnectionService'
 import { TrackLibrary } from '../../application/TrackLibrary'
 import { createTrackSourceFromAppUrl } from '../../application/createTrackSourceFromAppUrl'
+import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
@@ -12,7 +16,6 @@ import SettingsDialog from './SettingsDialog'
 import TrackMap from './TrackMap'
 import TrackSidebar from './TrackSidebar'
 import TrackTooltip, { type TrackTooltipState } from './TrackTooltip'
-import type { KomootConnection } from './sources/KomootConnectDialog'
 
 type ColorPaletteState =
   | {
@@ -30,7 +33,9 @@ type ColorPaletteState =
 
 export default function TrackWorkspace() {
   const [library] = useState(() => new TrackLibrary())
+  const [komootConnection] = useState(() => new KomootConnectionService())
   const [libraryVersion, setLibraryVersion] = useState(0)
+  const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -39,9 +44,6 @@ export default function TrackWorkspace() {
   const [mapStyleSettings, setMapStyleSettings] = useState(
     DEFAULT_MAP_STYLE_SETTINGS,
   )
-  const [komootConnection, setKomootConnection] = useState<KomootConnection>({
-    connected: false,
-  })
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
   const [sourceLinkError, setSourceLinkError] = useState<string | null>(null)
   const sourceLinkHandled = useRef(false)
@@ -51,16 +53,15 @@ export default function TrackWorkspace() {
     [library],
   )
 
+  useEffect(
+    () => komootConnection.subscribe(
+      () => setKomootConnectionVersion((version) => version + 1),
+    ),
+    [komootConnection],
+  )
+
   useEffect(() => {
     void initializeKomoot()
-
-    const handleExpired = () => {
-      setKomootConnection({ connected: false, expired: true })
-    }
-
-    window.addEventListener('tracktrim:komoot-expired', handleExpired)
-
-    return () => window.removeEventListener('tracktrim:komoot-expired', handleExpired)
   }, [])
 
   const visibleTracks = useMemo(
@@ -68,9 +69,13 @@ export default function TrackWorkspace() {
     [library, libraryVersion],
   )
   const activeTrack = library.activeMeta?.track ?? null
+  const komootState = useMemo(
+    () => komootConnection.state,
+    [komootConnection, komootConnectionVersion],
+  )
 
   async function initializeKomoot(): Promise<void> {
-    const connection = await refreshKomootConnection()
+    await komootConnection.initialize()
 
     if (sourceLinkHandled.current) {
       return
@@ -82,7 +87,7 @@ export default function TrackWorkspace() {
       const source = createTrackSourceFromAppUrl(window.location.href, {
         color: defaultTrackColor(library.sources.length),
         order: library.sources.length,
-        komootCredentials: connection.connected ? { kind: 'tracktrim-session' } : null,
+        komootApi: komootConnection.publicApi(),
       })
 
       if (source !== null) {
@@ -92,29 +97,6 @@ export default function TrackWorkspace() {
       setSourceLinkError(
         error instanceof Error ? error.message : 'The source link could not be opened.',
       )
-    }
-  }
-
-  async function refreshKomootConnection(): Promise<KomootConnection> {
-    try {
-      const response = await fetch('/api/komoot/status')
-      const payload = (await response.json()) as KomootConnection
-      const connection = response.ok
-        ? payload
-        : { connected: false, error: payload.error ?? 'Komoot status could not be checked.' }
-
-      setKomootConnection(connection)
-
-      return connection
-    } catch {
-      const connection: KomootConnection = {
-        connected: false,
-        error: 'Komoot status could not be checked.',
-      }
-
-      setKomootConnection(connection)
-
-      return connection
     }
   }
 
@@ -230,7 +212,7 @@ export default function TrackWorkspace() {
         }}
         onSettingsClick={() => {
           setIsSettingsOpen(true)
-          void refreshKomootConnection()
+          void komootConnection.refresh()
         }}
         onToggleCollapsed={() => {
           setIsSidebarOpen((open) => !open)
@@ -266,7 +248,24 @@ export default function TrackWorkspace() {
       {isAddSourceOpen && (
         <AddSourceDialog
           sourceIndex={library.sources.length}
-          komootConnection={komootConnection}
+          komootConnection={komootState}
+          onCreateKomootSource={({ target, name, color, listType, accountSource }) => {
+            const targetType = KomootTrackSource.getTargetType(target)
+
+            if (!accountSource && targetType !== 'tour' && targetType !== 'collection') {
+              throw new Error('Enter a Komoot tour or collection URL.')
+            }
+
+            return new KomootTrackSource(
+              target,
+              name,
+              color,
+              listType,
+              accountSource
+                ? komootConnection.accountApi()
+                : komootConnection.publicApi(),
+            )
+          }}
           onOpenSettings={() => {
             setIsAddSourceOpen(false)
             setIsSettingsOpen(true)
@@ -278,10 +277,10 @@ export default function TrackWorkspace() {
 
       {isSettingsOpen && (
         <SettingsDialog
-          komootConnection={komootConnection}
+          komootConnection={komootState}
           onClose={() => setIsSettingsOpen(false)}
-          onKomootConnected={setKomootConnection}
-          onKomootDisconnected={() => setKomootConnection({ connected: false })}
+          onKomootConnect={(email, password) => komootConnection.connect(email, password)}
+          onKomootDisconnect={() => komootConnection.disconnect()}
         />
       )}
     </section>
