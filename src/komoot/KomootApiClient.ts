@@ -1,29 +1,22 @@
 import {
   type KomootApi,
   type KomootCoordinate,
-  type KomootCredentials,
-  type KomootRequestMode,
   type KomootTarget,
   type KomootTourSummary,
   type KomootUserListType,
 } from './KomootApi'
 import {
+  type KomootCredentials,
+  type KomootRequestMode,
   komootRequestJson,
   komootRequestText,
   KomootTransportError,
 } from './KomootTransport'
-import { extractKomootTourIdsFromText } from './komootTourLinks'
-
-const KOMOOT_TOUR_URL_PATTERN =
-  /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?(?:tour|discover_tours|smart_tours)\/(\d+)/i
-const KOMOOT_COLLECTION_URL_PATTERN =
-  /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?collection\/(\d+)/i
-const KOMOOT_USER_URL_PATTERN =
-  /^https?:\/\/(?:www\.)?komoot\.[^/]+\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?user\/(\d+)(?:\/(?:tours|backfilled-tours))?/i
-const KOMOOT_USER_ID_PATTERN = /^\d{6,16}$/
 const KOMOOT_API_BASE = 'https://api.komoot.de/v007'
 const KOMOOT_API_FALLBACK_BASE = 'https://www.komoot.com/api/v007'
 const KOMOOT_WEB_BASE = 'https://www.komoot.com'
+const KOMOOT_TOUR_LINK_PATTERN =
+  /\/(?:tour|discover_tours|smart_tours)\/(\d+)/gi
 
 type KomootCoordinatesResponse = {
   items?: unknown
@@ -139,41 +132,18 @@ function linkHref(value: unknown, rel: string): string | null {
   return parseString(link.href)
 }
 
-export function parseKomootTarget(
-  input: string,
-  userListType: KomootUserListType = 'planned',
-): KomootTarget | null {
-  const trimmedInput = input.trim()
-  const tourMatch = trimmedInput.match(KOMOOT_TOUR_URL_PATTERN)
+function extractKomootTourIdsFromText(text: string): string[] {
+  const ids: string[] = []
 
-  if (tourMatch?.[1] !== undefined) {
-    return { kind: 'tour', id: tourMatch[1] }
+  for (const match of text.matchAll(KOMOOT_TOUR_LINK_PATTERN)) {
+    const tourId = match[1]
+
+    if (tourId !== undefined) {
+      ids.push(tourId)
+    }
   }
 
-  const collectionMatch = trimmedInput.match(KOMOOT_COLLECTION_URL_PATTERN)
-
-  if (collectionMatch?.[1] !== undefined) {
-    return { kind: 'collection', id: collectionMatch[1] }
-  }
-
-  const userMatch = trimmedInput.match(KOMOOT_USER_URL_PATTERN)
-
-  if (userMatch?.[1] !== undefined) {
-    return { kind: 'user', id: userMatch[1], listType: userListType }
-  }
-
-  if (KOMOOT_USER_ID_PATTERN.test(trimmedInput)) {
-    return { kind: 'user', id: trimmedInput, listType: userListType }
-  }
-
-  return null
-}
-
-export function getKomootTargetType(
-  input: string,
-  userListType: KomootUserListType = 'planned',
-): KomootTarget['kind'] | null {
-  return parseKomootTarget(input, userListType)?.kind ?? null
+  return Array.from(new Set(ids))
 }
 
 export class KomootApiClient implements KomootApi {
@@ -181,20 +151,6 @@ export class KomootApiClient implements KomootApi {
     private readonly credentials: KomootCredentials | null = null,
     private readonly onAuthorizationExpired?: () => void,
   ) {}
-
-  public parseTarget(
-    input: string,
-    listType: KomootUserListType = 'planned',
-  ): KomootTarget | null {
-    return parseKomootTarget(input, listType)
-  }
-
-  public getTargetType(
-    input: string,
-    listType: KomootUserListType = 'planned',
-  ): KomootTarget['kind'] | null {
-    return getKomootTargetType(input, listType)
-  }
 
   public async loadTrackSummaries(
     target: KomootTarget,

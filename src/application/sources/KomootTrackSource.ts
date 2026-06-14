@@ -6,13 +6,11 @@ import type { TrackPointInput } from '../../model/TrackPoint'
 import {
   getKomootTargetType,
   parseKomootTarget,
-} from '../../komoot/KomootApiClient'
-import type {
-  KomootApi,
-  KomootCoordinate,
-  KomootTarget,
-  KomootTourSummary,
-  KomootUserListType,
+  type KomootApi,
+  type KomootCoordinate,
+  type KomootTarget,
+  type KomootTourSummary,
+  type KomootUserListType,
 } from '../../komoot/KomootApi'
 import { downloadTextFile } from '../download/downloadTextFile'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
