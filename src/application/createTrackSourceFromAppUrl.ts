@@ -1,6 +1,6 @@
-import type { KomootApi } from '../komoot/KomootApi'
-import { KomootTrackSource } from './sources/KomootTrackSource'
-import type { TrackSource } from './sources/TrackSource'
+import type { KomootApi } from '../komoot/KomootApi.js'
+import { KomootTrackSource } from './sources/KomootTrackSource.js'
+import type { TrackSource } from './sources/TrackSource.js'
 
 type CreateTrackSourceOptions = {
   color: string

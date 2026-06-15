@@ -1,5 +1,5 @@
-import { KomootApiClient } from '../komoot/KomootApiClient'
-import type { KomootApi, KomootRequestTransport } from '../komoot/KomootApi'
+import { KomootApiClient } from '../komoot/KomootApiClient.js'
+import type { KomootApi, KomootRequestTransport } from '../komoot/KomootApi.js'
 
 export type KomootConnectionState =
   | {
@@ -161,7 +161,12 @@ export class KomootConnectionService {
   }
 
   private async readPayload(response: Response): Promise<KomootConnectionPayload> {
-    return await response.json() as KomootConnectionPayload
+    try {
+      return (await response.json()) as KomootConnectionPayload
+    } catch (error) {
+      console.error('Failed to parse Komoot response:', error)
+      return { error: `Server error (${response.status}). Check Vercel logs for details.` }
+    }
   }
 
   private markExpired(): void {
