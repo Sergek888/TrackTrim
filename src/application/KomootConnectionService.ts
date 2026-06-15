@@ -63,7 +63,8 @@ export class KomootConnectionService {
       }
 
       return this.setState(this.stateFromPayload(payload))
-    } catch {
+    } catch (error) {
+      console.error('Komoot status check failed:', error)
       return this.setError('Komoot status could not be checked.')
     }
   }
@@ -82,7 +83,8 @@ export class KomootConnectionService {
       }
 
       return this.setState(this.stateFromPayload(payload))
-    } catch {
+    } catch (error) {
+      console.error('Komoot login request failed:', error)
       return this.setError('Komoot connection could not be completed.')
     }
   }
@@ -101,7 +103,8 @@ export class KomootConnectionService {
         status: 'disconnected',
         connected: false,
       })
-    } catch {
+    } catch (error) {
+      console.error('Komoot logout failed:', error)
       return this.setError('Komoot could not be disconnected.')
     }
   }

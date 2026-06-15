@@ -65,6 +65,7 @@ export default function KomootConnectDialog({
           <input
             type="email"
             name="username"
+            disabled={submitting}
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -76,6 +77,7 @@ export default function KomootConnectDialog({
           <input
             type="password"
             name="password"
+            disabled={submitting}
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
