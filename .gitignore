@@ -6,3 +6,4 @@ vite.restart*.log
 
 .vercel
 .env.local
+.vscode/settings.json
