@@ -1,16 +1,16 @@
-import type { KomootApi } from './KomootApi.js'
-import { KomootPasswordAuth } from './auth/KomootPasswordAuth.js'
-import { DefaultKomootCollectionsApi } from './collections/KomootCollectionsApi.js'
-import { DefaultKomootImportApi } from './import/KomootImportApi.js'
-import { DefaultKomootMutationsApi } from './mutations/KomootMutationsApi.js'
-import type { KomootAuthSession } from './shared/KomootTypes.js'
-import { DefaultKomootToursApi } from './tours/KomootToursApi.js'
+import type { KomootApi } from './KomootApi.ts'
+import { KomootPasswordAuth } from './auth/KomootPasswordAuth.ts'
+import { DefaultKomootCollectionsApi } from './collections/KomootCollectionsApi.ts'
+import { DefaultKomootImportApi } from './import/KomootImportApi.ts'
+import { DefaultKomootMutationsApi } from './mutations/KomootMutationsApi.ts'
+import type { KomootAuthSession } from './shared/KomootTypes.ts'
+import { DefaultKomootToursApi } from './tours/KomootToursApi.ts'
 import {
   KomootHttpClient,
   type KomootRequestTransport,
-} from './transport/KomootHttpClient.js'
-import { DefaultKomootUrlApi } from './url/KomootUrlApi.js'
-import { DefaultKomootUsersApi } from './users/KomootUsersApi.js'
+} from './transport/KomootHttpClient.ts'
+import { DefaultKomootUrlApi } from './url/KomootUrlApi.ts'
+import { DefaultKomootUsersApi } from './users/KomootUsersApi.ts'
 
 export type KomootApiClientOptions = {
   readonly session?: KomootAuthSession | null
