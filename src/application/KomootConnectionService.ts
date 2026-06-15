@@ -1,5 +1,5 @@
 import { KomootApiClient } from '../komoot/KomootApiClient'
-import type { KomootApi } from '../komoot/KomootApi'
+import type { KomootApi, KomootRequestTransport } from '../komoot/KomootApi'
 
 export type KomootConnectionState =
   | {
@@ -116,7 +116,7 @@ export class KomootConnectionService {
     }
 
     return new KomootApiClient({
-      mode: 'proxy',
+      transport: komootProxyTransport,
       onAuthorizationExpired: () => this.markExpired(),
     })
   }
@@ -187,3 +187,19 @@ export class KomootConnectionService {
     return state
   }
 }
+
+const komootProxyTransport: KomootRequestTransport = ({
+  method,
+  path,
+  query,
+  accept,
+}) => fetch('/api/komoot/proxy', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    method,
+    path,
+    query: query ?? {},
+    accept,
+  }),
+})

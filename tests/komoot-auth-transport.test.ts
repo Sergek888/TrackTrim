@@ -60,3 +60,26 @@ test('invokes the default fetch without binding it to the client instance', asyn
     globalThis.fetch = originalFetch
   }
 })
+
+test('uses an injected transport without knowing the application proxy endpoint', async () => {
+  const requests: unknown[] = []
+  const client = new KomootHttpClient({
+    transport: async (request) => {
+      requests.push(request)
+      return new Response('{}', {
+        headers: { 'content-type': 'application/json' },
+      })
+    },
+  })
+
+  await client.getJson('/users/123/tours/', { type: 'tour_planned', page: 0 })
+
+  assert.deepEqual(requests, [{
+    method: 'GET',
+    path: '/users/123/tours/',
+    query: { type: 'tour_planned', page: 0 },
+    accept: 'application/hal+json,application/json',
+    contentType: undefined,
+    body: undefined,
+  }])
+})

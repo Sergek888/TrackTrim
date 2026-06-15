@@ -8,17 +8,8 @@ import {
 } from './KomootErrors'
 
 export type KomootQuery = Readonly<Record<string, string | number | boolean | null | undefined>>
-export type KomootHttpMode = 'direct' | 'proxy'
 
-export type KomootHttpClientOptions = {
-  readonly session?: KomootAuthSession | null
-  readonly mode?: KomootHttpMode
-  readonly apiBaseUrl?: string
-  readonly fetch?: typeof fetch
-  readonly onAuthorizationExpired?: () => void
-}
-
-type RequestOptions = {
+export type KomootRequestOptions = {
   readonly query?: KomootQuery
   readonly accept?: string
   readonly contentType?: string
@@ -26,15 +17,34 @@ type RequestOptions = {
   readonly expectedStatuses?: readonly number[]
 }
 
+export type KomootTransportRequest = {
+  readonly method: string
+  readonly path: string
+  readonly query?: KomootQuery
+  readonly accept?: string
+  readonly contentType?: string
+  readonly body?: BodyInit | null
+}
+
+export type KomootRequestTransport = (
+  request: KomootTransportRequest,
+) => Promise<Response>
+
+export type KomootHttpClientOptions = {
+  readonly session?: KomootAuthSession | null
+  readonly apiBaseUrl?: string
+  readonly fetch?: typeof fetch
+  readonly transport?: KomootRequestTransport
+  readonly onAuthorizationExpired?: () => void
+}
+
 export class KomootHttpClient {
   private readonly fetcher: typeof fetch
   private readonly apiBaseUrl: string
-  private readonly mode: KomootHttpMode
 
   public constructor(private readonly options: KomootHttpClientOptions = {}) {
     this.fetcher = options.fetch ?? ((input, init) => fetch(input, init))
     this.apiBaseUrl = options.apiBaseUrl ?? 'https://api.komoot.de/v007'
-    this.mode = options.mode ?? 'direct'
   }
 
   public getJson(path: string, query?: KomootQuery): Promise<unknown> {
@@ -83,7 +93,35 @@ export class KomootHttpClient {
     })
   }
 
-  private async requestParsed(method: string, path: string, options: RequestOptions): Promise<unknown> {
+  public async requestRaw(
+    method: string,
+    path: string,
+    options: KomootRequestOptions = {},
+  ): Promise<Response> {
+    assertRelativePath(path)
+    const response = this.options.transport === undefined
+      ? await this.directRequest(method, path, options)
+      : await this.options.transport({
+          method,
+          path,
+          query: options.query,
+          accept: options.accept,
+          contentType: options.contentType,
+          body: options.body,
+        })
+
+    if (response.status === 401 || response.status === 403) {
+      this.options.onAuthorizationExpired?.()
+    }
+
+    return response
+  }
+
+  private async requestParsed(
+    method: string,
+    path: string,
+    options: KomootRequestOptions,
+  ): Promise<unknown> {
     const response = await this.request(method, path, options)
     const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
 
@@ -102,12 +140,13 @@ export class KomootHttpClient {
     }
   }
 
-  private async request(method: string, path: string, options: RequestOptions): Promise<Response> {
-    assertRelativePath(path)
+  private async request(
+    method: string,
+    path: string,
+    options: KomootRequestOptions,
+  ): Promise<Response> {
     const expected = options.expectedStatuses
-    const response = this.mode === 'proxy'
-      ? await this.proxyRequest(method, path, options)
-      : await this.directRequest(method, path, options)
+    const response = await this.requestRaw(method, path, options)
 
     if (expected?.includes(response.status) === true || response.ok) {
       return response
@@ -116,12 +155,15 @@ export class KomootHttpClient {
     return throwResponseError(response)
   }
 
-  private directRequest(method: string, path: string, options: RequestOptions): Promise<Response> {
+  private directRequest(
+    method: string,
+    path: string,
+    options: KomootRequestOptions,
+  ): Promise<Response> {
     const url = new URL(path.replace(/^\/+/, ''), `${this.apiBaseUrl.replace(/\/+$/, '')}/`)
     appendQuery(url, options.query)
     const headers: Record<string, string> = {
       accept: options.accept ?? 'application/hal+json,application/json',
-      'user-agent': 'TrackTrim/1.0',
     }
 
     if (options.contentType !== undefined) {
@@ -136,25 +178,6 @@ export class KomootHttpClient {
     }
 
     return this.fetcher(url, { method, headers, body: options.body })
-  }
-
-  private async proxyRequest(method: string, path: string, options: RequestOptions): Promise<Response> {
-    const response = await this.fetcher('/api/komoot/proxy', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        method,
-        path,
-        query: options.query ?? {},
-        accept: options.accept,
-      }),
-    })
-
-    if (response.status === 401 || response.status === 403) {
-      this.options.onAuthorizationExpired?.()
-    }
-
-    return response
   }
 }
 

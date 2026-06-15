@@ -233,11 +233,15 @@ src/komoot
 
 `src/komoot` является единственным владельцем Komoot API, DTO, разбора ответов и fallback-стратегий.
 
-Внутри библиотеки сохраняются три содержательные части:
+Библиотека разделена по ответственностям:
 
-* `KomootApi.ts` — публичный контракт, DTO и разбор поддерживаемых Komoot targets;
-* `KomootApiClient.ts` — единая реализация API, нормализация ответов и fallback-стратегии;
-* `KomootTransport.ts` — direct/proxy HTTP, авторизация и транспортные ошибки.
+* `auth`, `users`, `tours`, `collections`, `mutations`, `import` и `url` реализуют публичные возможности интеграции;
+* `normalize` преобразует ответы Komoot в DTO библиотеки;
+* `transport` отвечает за относительные API paths, авторизацию, разбор ответов и типизированные ошибки;
+* `shared` содержит общие DTO и служебные функции библиотеки;
+* `KomootApiClient` является точкой сборки и предоставляет фасад `auth`, `users`, `tours`, `collections`, `mutations`, `import` и `urls`.
+
+Транспорт библиотеки не знает адресов серверных маршрутов приложения. Для авторизованных браузерных запросов application-слой передаёт ему реализацию транспорта.
 
 Application-адаптеры, включая `KomootTrackSource`, зависят только от публичного контракта библиотеки. Конкретный `KomootApiClient` создаётся только в точке сборки подключения и передаётся адаптеру готовым.
 
@@ -245,9 +249,13 @@ Application-адаптеры, включая `KomootTrackSource`, зависят
 
 * создание и удаление Komoot-сессии;
 * проверку состояния сессии;
-* ограниченный авторизованный proxy для запросов интеграционной библиотеки.
+* ограниченный авторизованный proxy для запросов интеграционной библиотеки;
+* отдельные POST routes для upload, edit и delete.
 
 Серверный runtime не нормализует туры и коллекции и не реализует параллельный прикладной Komoot API.
+Авторизованный proxy использует транспорт из `src/komoot`, но самостоятельно отвечает за cookies, session store и allowlist. Mutation-запросы через общий proxy запрещены.
+
+Komoot API tokens перед записью в session store шифруются посредством AES-256-GCM. Ключ выводится из обязательного `KOMOOT_SESSION_SECRET` длиной не менее 32 символов. Legacy plaintext sessions считаются истёкшими.
 
 ---
 
@@ -359,24 +367,3 @@ UI не должен:
 * секреты внешних систем не попадают в клиентский код;
 * серверные proxy ограничиваются поддерживаемыми API;
 * исходные пользовательские данные не изменяются без явного действия пользователя.
----
-
-# Komoot module structure
-
-The implemented Komoot integration is isolated under `src/komoot` and split
-into `auth`, `users`, `tours`, `collections`, `mutations`, `import`, `url`,
-`normalize`, `transport`, and `shared` responsibilities.
-
-`KomootApiClient` is a composition root exposing `auth`, `users`, `tours`,
-`collections`, `mutations`, `import`, and `urls`. It does not normalize
-TrackTrim models. `KomootTrackSource` is the only adapter that converts Komoot
-DTOs into `TrackMeta` and `Track`.
-
-`api/komoot` contains only server runtime adapters: TrackTrim session cookies,
-encrypted session persistence, a read-only allowlisted proxy, and dedicated
-POST routes for upload, edit, and delete. Mutations never pass through the
-general proxy.
-
-Komoot API tokens are encrypted with AES-256-GCM before persistence. The key is
-derived from the required `KOMOOT_SESSION_SECRET`, which must contain at least
-32 characters. Legacy plaintext session records are invalidated.

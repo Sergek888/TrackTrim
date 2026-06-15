@@ -10,7 +10,6 @@ import {
   type KomootTourSummary,
   type KomootUserListType,
 } from '../../komoot/KomootApi'
-import { DefaultKomootUrlApi } from '../../komoot/url/KomootUrlApi'
 import { downloadTextFile } from '../download/downloadTextFile'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
@@ -40,13 +39,6 @@ export class KomootTrackSource implements TrackSource {
 
     this.target = target
     this.komootApi = komootApi
-  }
-
-  public static canLoadUrl(
-    url: string,
-    userListType: KomootUserListType = 'planned',
-  ): boolean {
-    return new DefaultKomootUrlApi().parse(url, { userListType }) !== null
   }
 
   public static getTargetType(

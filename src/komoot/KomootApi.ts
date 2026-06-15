@@ -18,3 +18,4 @@ export interface KomootApi {
 
 export * from './shared/KomootTypes'
 export * from './transport/KomootErrors'
+export type { KomootRequestTransport, KomootTransportRequest } from './transport/KomootHttpClient'

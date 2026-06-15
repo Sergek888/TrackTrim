@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { KomootApiError } from '../../src/komoot/KomootApi.js'
+import { KomootHttpClient } from '../../src/komoot/transport/KomootHttpClient.js'
 import { authorizeKomootRequest } from './_auth.js'
-import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies.js'
+import { clearTrackTrimSessionCookie } from './_cookies.js'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
 import { isAllowedKomootProxyRequest } from './_proxyAllowlist.js'
 import { getKomootSessionStore } from './_sessionStore.js'
@@ -35,19 +35,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    const url = new URL(body.path.replace(/^\/+/, ''), 'https://api.komoot.de/v007/')
-    for (const [key, value] of Object.entries(body.query ?? {})) {
-      if (value !== null) {
-        url.searchParams.set(key, String(value))
-      }
-    }
-    const upstream = await fetch(url, {
-      headers: {
-        accept: body.accept ?? 'application/hal+json,application/json',
-        authorization: `Basic ${Buffer.from(`${auth.session.auth.userId}:${auth.session.auth.apiToken}`, 'utf8').toString('base64')}`,
-        'user-agent': 'TrackTrim/1.0',
-      },
+    const upstream = await new KomootHttpClient({
+      session: auth.session.auth,
+    }).requestRaw('GET', body.path, {
+      query: body.query,
+      accept: body.accept,
     })
+
+    if (upstream.status === 401 || upstream.status === 403) {
+      await getKomootSessionStore().delete(auth.session.sessionId)
+      clearTrackTrimSessionCookie(response)
+    }
+
     const payload = await upstream.arrayBuffer()
     response.statusCode = upstream.status
     response.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'application/octet-stream')
@@ -55,15 +54,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   } catch (error) {
     if (error instanceof z.ZodError) {
       sendJson(response, 400, { error: 'Komoot proxy payload is invalid.' })
-      return
-    }
-    if (error instanceof KomootApiError && (error.status === 401 || error.status === 403)) {
-      const sessionId = getTrackTrimSessionId(request)
-      if (sessionId !== null) {
-        await getKomootSessionStore().delete(sessionId)
-      }
-      clearTrackTrimSessionCookie(response)
-      sendJson(response, 401, { connected: false, expired: true })
       return
     }
     sendJson(response, 502, {

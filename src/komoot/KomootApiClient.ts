@@ -5,15 +5,18 @@ import { DefaultKomootImportApi } from './import/KomootImportApi'
 import { DefaultKomootMutationsApi } from './mutations/KomootMutationsApi'
 import type { KomootAuthSession } from './shared/KomootTypes'
 import { DefaultKomootToursApi } from './tours/KomootToursApi'
-import { KomootHttpClient, type KomootHttpMode } from './transport/KomootHttpClient'
+import {
+  KomootHttpClient,
+  type KomootRequestTransport,
+} from './transport/KomootHttpClient'
 import { DefaultKomootUrlApi } from './url/KomootUrlApi'
 import { DefaultKomootUsersApi } from './users/KomootUsersApi'
 
 export type KomootApiClientOptions = {
   readonly session?: KomootAuthSession | null
-  readonly mode?: KomootHttpMode
   readonly apiBaseUrl?: string
   readonly fetch?: typeof fetch
+  readonly transport?: KomootRequestTransport
   readonly onAuthorizationExpired?: () => void
 }
 
@@ -28,7 +31,7 @@ export class KomootApiClient implements KomootApi {
 
   public constructor(options: KomootApiClientOptions = {}) {
     const http = new KomootHttpClient(options)
-    const publicWebHttp = options.mode === 'proxy'
+    const publicWebHttp = options.transport !== undefined
       ? null
       : new KomootHttpClient({
           ...options,

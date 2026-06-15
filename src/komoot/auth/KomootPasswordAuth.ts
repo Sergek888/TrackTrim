@@ -21,7 +21,6 @@ export class KomootPasswordAuth implements KomootAuthApi {
       headers: {
         accept: 'application/json',
         authorization: basicAuthHeader(normalizedEmail, password),
-        'user-agent': 'TrackTrim/1.0',
       },
     })
 
@@ -49,7 +48,6 @@ export class KomootPasswordAuth implements KomootAuthApi {
       headers: {
         accept: 'application/hal+json,application/json',
         authorization: basicAuthHeader(session.userId, session.apiToken),
-        'user-agent': 'TrackTrim/1.0',
       },
     })
 
