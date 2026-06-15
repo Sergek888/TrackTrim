@@ -73,7 +73,7 @@ export default function TrackSidebar({
       >
         <header className="sidebar-header">
           <div className="app-brand">
-            <h1>GPS Track Navigator</h1>
+            <h1>TrackViewer</h1>
           </div>
           {!collapsed && (
             <div className="sidebar-header-actions">

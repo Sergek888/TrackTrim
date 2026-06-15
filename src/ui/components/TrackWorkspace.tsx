@@ -34,7 +34,8 @@ type ColorPaletteState =
 export default function TrackWorkspace() {
   const [library] = useState(() => new TrackLibrary())
   const [komootConnection] = useState(() => new KomootConnectionService())
-  const [libraryVersion, setLibraryVersion] = useState(0)
+  const [, setLibraryVersion] = useState(0)
+  const [mapVersion, setMapVersion] = useState(0)
   const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -49,7 +50,13 @@ export default function TrackWorkspace() {
   const sourceLinkHandled = useRef(false)
 
   useEffect(
-    () => library.subscribe(() => setLibraryVersion((version) => version + 1)),
+    () => library.subscribe((change) => {
+      setLibraryVersion((version) => version + 1)
+
+      if (change.mapChanged) {
+        setMapVersion((version) => version + 1)
+      }
+    }),
     [library],
   )
 
@@ -66,7 +73,7 @@ export default function TrackWorkspace() {
 
   const visibleTracks = useMemo(
     () => library.visibleTracks(),
-    [library, libraryVersion],
+    [library, mapVersion],
   )
   const activeTrack = library.activeMeta?.track ?? null
   const komootState = useMemo(

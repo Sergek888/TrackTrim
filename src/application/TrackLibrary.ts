@@ -15,7 +15,11 @@ type FocusedTrackState = {
   version: number
 }
 
-type Listener = () => void
+export type TrackLibraryChange = {
+  mapChanged: boolean
+}
+
+type Listener = (change: TrackLibraryChange) => void
 
 const MAX_PARALLEL_TRACK_LOADS = 3
 
@@ -44,7 +48,7 @@ export class TrackLibrary {
     this.lastError = null
     this.sources.push(source)
     this.metadataLoadingSources.add(source)
-    this.notify()
+    this.notify(true)
 
     try {
       const metas = await source.loadTrackMetas()
@@ -70,19 +74,19 @@ export class TrackLibrary {
         this.focusedTrack = { track: firstReadyTrack, version: Date.now() }
       }
 
-      this.notify()
+      this.notify(true)
       this.pumpQueue()
     } catch (error) {
       this.metadataLoadingSources.delete(source)
       this.removeSource(source)
       this.lastError = error instanceof Error ? error.message : 'Source could not be loaded.'
-      this.notify()
+      this.notify(true)
     }
   }
 
   public deleteSource(source: TrackSource): void {
     this.removeSource(source)
-    this.notify()
+    this.notify(true)
     this.pumpQueue()
   }
 
@@ -98,7 +102,7 @@ export class TrackLibrary {
       this.focusedTrack = null
     }
 
-    this.notify()
+    this.notify(true)
 
     if (visible) {
       this.pumpQueue()
@@ -117,7 +121,7 @@ export class TrackLibrary {
       meta.color = color
     }
 
-    this.notify()
+    this.notify(true)
   }
 
   public moveSource(source: TrackSource, direction: -1 | 1): void {
@@ -134,7 +138,7 @@ export class TrackLibrary {
 
     source.order = nextSource.order
     nextSource.order = currentOrder
-    this.notify()
+    this.notify(true)
   }
 
   public moveSourceToIndex(source: TrackSource, targetIndex: number): void {
@@ -152,7 +156,7 @@ export class TrackLibrary {
     orderedSources.forEach((orderedSource, index) => {
       orderedSource.order = index
     })
-    this.notify()
+    this.notify(true)
   }
 
   public renameSource(source: TrackSource, name: string): void {
@@ -178,7 +182,7 @@ export class TrackLibrary {
       this.focusedTrack = null
     }
 
-    this.notify()
+    this.notify(true)
 
     if (visible) {
       this.pumpQueue()
@@ -187,12 +191,12 @@ export class TrackLibrary {
 
   public setTrackColor(meta: TrackMeta, color: string): void {
     meta.color = color
-    this.notify()
+    this.notify(true)
   }
 
   public activateTrack(meta: TrackMeta): void {
     this.activeMeta = meta
-    this.notify()
+    this.notify(true)
     this.pumpQueue()
   }
 
@@ -206,7 +210,7 @@ export class TrackLibrary {
       }
     }
 
-    this.notify()
+    this.notify(true)
     this.pumpQueue()
   }
 
@@ -312,6 +316,7 @@ export class TrackLibrary {
     meta.loadError = null
     this.activeLoadCount += 1
     this.notify()
+    let mapChanged = false
 
     try {
       const track = await meta.source.loadTrack(meta)
@@ -319,6 +324,7 @@ export class TrackLibrary {
       if (!this.deletedSources.has(meta.source)) {
         meta.track = track
         meta.loadStatus = 'ready'
+        mapChanged = true
       }
     } catch (error) {
       if (!this.deletedSources.has(meta.source)) {
@@ -328,7 +334,7 @@ export class TrackLibrary {
       }
     } finally {
       this.activeLoadCount = Math.max(0, this.activeLoadCount - 1)
-      this.notify()
+      this.notify(mapChanged)
       this.pumpQueue()
     }
   }
@@ -368,9 +374,9 @@ export class TrackLibrary {
     return null
   }
 
-  private notify(): void {
+  private notify(mapChanged = false): void {
     for (const listener of this.listeners) {
-      listener()
+      listener({ mapChanged })
     }
   }
 }
