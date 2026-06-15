@@ -100,7 +100,7 @@ export class KomootTrackSource implements TrackSource {
     const track = new TrackModel(points.map((point) => this.trackPointInput(point)), meta)
 
     meta.track = track
-    this.fillMissingCalculatedMetadata(meta, track)
+    meta.fillMissingCalculated(track)
 
     return track
   }
@@ -178,7 +178,7 @@ export class KomootTrackSource implements TrackSource {
       const track = new TrackModel(points, meta)
 
       meta.track = track
-      this.fillMissingCalculatedMetadata(meta, track)
+      meta.fillMissingCalculated(track)
     }
 
     return meta
@@ -194,13 +194,6 @@ export class KomootTrackSource implements TrackSource {
     }
   }
 
-  private fillMissingCalculatedMetadata(meta: TrackMeta, track: Track): void {
-    meta.dateTime ??= track.getPoints().find((point) => point.time !== null)?.time ?? null
-    meta.distanceMeters ??= track.distanceKm() * 1000
-    meta.durationSeconds ??= track.durationSec()
-    meta.elevationGainMeters ??= track.elevationGainM()
-    meta.elevationLossMeters ??= track.elevationLossM()
-  }
 
   private activityType(sport: KomootSport | null): TrackActivityType | null {
     switch (sport) {

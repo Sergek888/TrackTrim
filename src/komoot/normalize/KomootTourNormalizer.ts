@@ -203,12 +203,16 @@ function difficultyLevelValue(value: unknown): KomootDifficultyLevel | null {
   }
 }
 
+const TECHNICAL_DIFFICULTY_REGEX = /t([123])$/
+const PHYSICAL_DIFFICULTY_REGEX = /c([123])$/
+
 function explanationLevelValue(
   value: unknown,
   marker: 't' | 'c',
 ): KomootDifficultyLevel | null {
   const explanation = stringValue(value)?.toLowerCase() ?? null
-  const match = explanation?.match(new RegExp(`${marker}([123])$`)) ?? null
+  const regex = marker === 't' ? TECHNICAL_DIFFICULTY_REGEX : PHYSICAL_DIFFICULTY_REGEX
+  const match = explanation?.match(regex) ?? null
 
   switch (match?.[1]) {
     case '1':

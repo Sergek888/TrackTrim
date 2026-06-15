@@ -37,7 +37,7 @@ export class LocalFileTrackSource implements TrackSource {
       const track = this.createTrackFromText(sourceText, meta)
 
       meta.track = track
-      fillLocalTrackMetadata(meta, track)
+      meta.fillMissingCalculated(track)
       metas.push(meta)
     }
 
@@ -59,7 +59,7 @@ export class LocalFileTrackSource implements TrackSource {
 
     meta.track = track
     meta.loadStatus = 'ready'
-    fillLocalTrackMetadata(meta, track)
+    meta.fillMissingCalculated(track)
 
     return track
   }
@@ -140,12 +140,4 @@ export class LocalFileTrackSource implements TrackSource {
 
     return `${baseName || 'track'}.gpx`
   }
-}
-
-export function fillLocalTrackMetadata(meta: TrackMeta, track: Track): void {
-  meta.dateTime ??= track.getPoints().find((point) => point.time !== null)?.time ?? null
-  meta.distanceMeters ??= track.distanceKm() * 1000
-  meta.durationSeconds ??= track.durationSec()
-  meta.elevationGainMeters ??= track.elevationGainM()
-  meta.elevationLossMeters ??= track.elevationLossM()
 }

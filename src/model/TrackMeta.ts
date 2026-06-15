@@ -105,4 +105,12 @@ export class TrackMeta {
   public getShareUrl(): string | null {
     return this.source.getShareUrl(this)
   }
+
+  public fillMissingCalculated(track: Track): void {
+    this.dateTime ??= track.getPoints().find((point) => point.time !== null)?.time ?? null
+    this.distanceMeters ??= track.distanceKm() * 1000
+    this.durationSeconds ??= track.durationSec()
+    this.elevationGainMeters ??= track.elevationGainM()
+    this.elevationLossMeters ??= track.elevationLossM()
+  }
 }

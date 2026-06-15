@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { KomootTrackSource } from '../src/application/sources/KomootTrackSource'
-import { fillLocalTrackMetadata } from '../src/application/sources/LocalFileSource'
 import type { TrackFormat, TrackSource } from '../src/application/sources/TrackSource'
 import { gpxConverter } from '../src/formats/gpx/GpxConverter'
 import type { KomootApi, KomootImportResult, KomootTourSummary } from '../src/komoot/KomootApi'
@@ -198,7 +197,7 @@ test('local GPX metadata keeps activity time separate from file update time', ()
     { lat: 0, lon: 0.01, ele: 80, time: new Date(activityTime.getTime() + 60_000) },
   ], meta)
 
-  fillLocalTrackMetadata(meta, track)
+  meta.fillMissingCalculated(track)
 
   assert.equal(meta.dateTime, activityTime)
   assert.equal(meta.sourceUpdatedAt, sourceUpdatedAt)
