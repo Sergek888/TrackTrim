@@ -25,10 +25,7 @@ export default function KomootConnectDialog({
     setErrorMessage(null)
 
     try {
-      const formData = new FormData(event.currentTarget)
-      const submittedEmail = String(formData.get('username') ?? '').trim()
-      const submittedPassword = String(formData.get('password') ?? '')
-      const connection = await onConnect(submittedEmail, submittedPassword)
+      const connection = await onConnect(email.trim(), password)
 
       if (!connection.connected) {
         setErrorMessage(
@@ -40,7 +37,8 @@ export default function KomootConnectDialog({
       }
 
       onConnected()
-    } catch {
+    } catch (error) {
+      console.error('Komoot connection failed:', error)
       setErrorMessage('Komoot connection could not be completed.')
     } finally {
       setSubmitting(false)

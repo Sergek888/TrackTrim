@@ -5,3 +5,4 @@ vercel*.log
 vite.restart*.log
 
 .vercel
+.env.local
