@@ -121,10 +121,7 @@ test('loaded track geometry invalidates the map after loading status updates', a
     'deferred-track',
     'Deferred track',
     source.color,
-    true,
-    null,
-    null,
-    'queued',
+    { loadStatus: 'queued' },
   )
   const changes: TrackLibraryChange[] = []
 

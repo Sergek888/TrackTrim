@@ -176,9 +176,9 @@ export default function TrackWorkspace() {
   function handleMapTrackClick(track: Track): void {
     if (track.meta !== null) {
       library.activateTrack(track.meta)
+      setTooltip({ meta: track.meta })
     }
 
-    setTooltip({ track })
     setColorPalette(null)
   }
 

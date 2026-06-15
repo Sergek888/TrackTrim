@@ -99,7 +99,7 @@ export class DefaultKomootToursApi implements KomootToursApi {
     })
     const items = uniqueTourSummaries(
       embeddedItems(raw)
-        .map(summaryFromUserTourItem)
+        .map((item) => summaryFromUserTourItem(item, query.type ?? null))
         .filter((item): item is KomootTourSummary => item !== null),
     )
     const totalPages = isRecord(raw) && isRecord(raw.page)

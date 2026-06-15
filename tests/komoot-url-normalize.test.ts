@@ -46,6 +46,7 @@ test('normalizes tours, coordinates, compilation lines, and unique ids', () => {
     lon: 2,
     elevation: 3,
     time: null,
+    elapsedSeconds: null,
   }])
 
   const userSummary = summaryFromUserTourItem({ id: 13, name: 'User tour' })

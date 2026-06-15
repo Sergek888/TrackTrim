@@ -3,9 +3,10 @@ export type TrackPointInput = {
   lon: number
   ele: number | null
   time: Date | null
+  elapsedSec?: number | null
 }
 
-export type TrackPoint = TrackPointInput & {
+export type TrackPoint = Omit<TrackPointInput, 'elapsedSec'> & {
   elapsedSec: number | null
   distanceFromStartKm: number
 }

@@ -133,6 +133,13 @@ export class DefaultKomootCollectionsApi implements KomootCollectionsApi {
         distanceMeters: null,
         coordinatesUrl: `/tours/${tourId}/coordinates`,
         coordinates: null,
+        sport: null,
+        kind: null,
+        difficulty: null,
+        changedAt: null,
+        durationSeconds: null,
+        elevationUpMeters: null,
+        elevationDownMeters: null,
         sourceUrl: `https://www.komoot.com/tour/${tourId}`,
       })))
     } catch (error) {

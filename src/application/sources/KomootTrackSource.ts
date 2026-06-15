@@ -1,11 +1,20 @@
 import { gpxConverter } from '../../formats/gpx/GpxConverter'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
-import { TrackMeta } from '../../model/TrackMeta'
+import {
+  TrackActivityKind,
+  TrackActivityType,
+  TrackDifficultyLevel,
+  TrackMeta,
+  type TrackDifficulty,
+} from '../../model/TrackMeta'
 import type { TrackPointInput } from '../../model/TrackPoint'
 import {
   type KomootApi,
   type KomootCoordinate,
+  type KomootDifficulty,
+  type KomootDifficultyLevel as KomootDifficultyLevelDto,
+  type KomootSport,
   type KomootTarget,
   type KomootTourSummary,
   type KomootUserListType,
@@ -91,6 +100,7 @@ export class KomootTrackSource implements TrackSource {
     const track = new TrackModel(points.map((point) => this.trackPointInput(point)), meta)
 
     meta.track = track
+    this.fillMissingCalculatedMetadata(meta, track)
 
     return track
   }
@@ -143,10 +153,22 @@ export class KomootTrackSource implements TrackSource {
       summary.id,
       summary.name ?? `Komoot tour ${summary.id}`,
       this.color,
-      true,
-      summary.date,
-      summary.distanceMeters,
-      hasGeometry ? 'ready' : 'queued',
+      {
+        activityKind: summary.kind === 'planned'
+          ? TrackActivityKind.Planned
+          : summary.kind === 'recorded'
+            ? TrackActivityKind.Recorded
+            : null,
+        activityType: this.activityType(summary.sport),
+        difficulty: this.difficulty(summary.difficulty),
+        dateTime: summary.date,
+        sourceUpdatedAt: summary.changedAt,
+        distanceMeters: summary.distanceMeters,
+        durationSeconds: summary.durationSeconds,
+        elevationGainMeters: summary.elevationUpMeters,
+        elevationLossMeters: summary.elevationDownMeters,
+        loadStatus: hasGeometry ? 'ready' : 'queued',
+      },
     )
 
     this.summaries.set(meta, summary)
@@ -156,6 +178,7 @@ export class KomootTrackSource implements TrackSource {
       const track = new TrackModel(points, meta)
 
       meta.track = track
+      this.fillMissingCalculatedMetadata(meta, track)
     }
 
     return meta
@@ -167,6 +190,99 @@ export class KomootTrackSource implements TrackSource {
       lon: point.lon,
       ele: point.elevation,
       time: point.time,
+      elapsedSec: point.elapsedSeconds,
+    }
+  }
+
+  private fillMissingCalculatedMetadata(meta: TrackMeta, track: Track): void {
+    meta.dateTime ??= track.getPoints().find((point) => point.time !== null)?.time ?? null
+    meta.distanceMeters ??= track.distanceKm() * 1000
+    meta.durationSeconds ??= track.durationSec()
+    meta.elevationGainMeters ??= track.elevationGainM()
+    meta.elevationLossMeters ??= track.elevationLossM()
+  }
+
+  private activityType(sport: KomootSport | null): TrackActivityType | null {
+    switch (sport) {
+      case 'hike':
+        return TrackActivityType.Hiking
+      case 'jogging':
+        return TrackActivityType.Running
+      case 'touringbicycle':
+        return TrackActivityType.TouringCycling
+      case 'mtb':
+        return TrackActivityType.MountainBiking
+      case 'racebike':
+        return TrackActivityType.RoadCycling
+      case 'mtb_easy':
+        return TrackActivityType.EasyMountainBiking
+      case 'mtb_advanced':
+        return TrackActivityType.AdvancedMountainBiking
+      case 'mountaineering':
+        return TrackActivityType.Mountaineering
+      case 'climbing':
+        return TrackActivityType.Climbing
+      case 'downhillbike':
+        return TrackActivityType.DownhillMountainBiking
+      case 'unicycle':
+        return TrackActivityType.Unicycling
+      case 'nordic':
+        return TrackActivityType.CrossCountrySkiing
+      case 'nordicwalking':
+        return TrackActivityType.NordicWalking
+      case 'skaten':
+        return TrackActivityType.InlineSkating
+      case 'skialpin':
+        return TrackActivityType.AlpineSkiing
+      case 'skitour':
+        return TrackActivityType.SkiTouring
+      case 'sled':
+        return TrackActivityType.Sledding
+      case 'snowboard':
+        return TrackActivityType.Snowboarding
+      case 'snowshoe':
+        return TrackActivityType.Snowshoeing
+      case 'bikepacking':
+        return TrackActivityType.Bikepacking
+      case 'e_touringbicycle':
+        return TrackActivityType.ElectricTouringCycling
+      case 'e_mtb':
+        return TrackActivityType.ElectricMountainBiking
+      case 'e_racebike':
+        return TrackActivityType.ElectricRoadCycling
+      case 'e_mtb_easy':
+        return TrackActivityType.EasyElectricMountainBiking
+      case 'e_mtb_advanced':
+        return TrackActivityType.AdvancedElectricMountainBiking
+      case 'other':
+        return TrackActivityType.Other
+      case null:
+        return null
+    }
+  }
+
+  private difficulty(value: KomootDifficulty | null): TrackDifficulty | null {
+    if (value === null) {
+      return null
+    }
+
+    return {
+      overall: this.difficultyLevel(value.overall),
+      technical: this.difficultyLevel(value.technical),
+      physical: this.difficultyLevel(value.physical),
+    }
+  }
+
+  private difficultyLevel(value: KomootDifficultyLevelDto | null): TrackDifficultyLevel | null {
+    switch (value) {
+      case 'easy':
+        return TrackDifficultyLevel.Easy
+      case 'moderate':
+        return TrackDifficultyLevel.Moderate
+      case 'difficult':
+        return TrackDifficultyLevel.Difficult
+      case null:
+        return null
     }
   }
 

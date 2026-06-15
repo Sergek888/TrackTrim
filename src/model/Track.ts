@@ -27,11 +27,11 @@ function distanceMetersBetween(from: TrackPointInput, to: TrackPointInput): numb
 }
 
 function secondsBetween(from: TrackPoint, to: TrackPoint): number | null {
-  if (from.time === null || to.time === null) {
+  if (from.elapsedSec === null || to.elapsedSec === null) {
     return null
   }
 
-  return Math.max(0, (to.time.getTime() - from.time.getTime()) / 1000)
+  return Math.max(0, to.elapsedSec - from.elapsedSec)
 }
 
 function speedKmh(distanceKm: number, durationSec: number): number | null {
@@ -122,15 +122,15 @@ export class Track {
   }
 
   public durationSec(): number | null {
-    const timedPoints = this.trackPoints.filter((point) => point.time !== null)
-    const startTime = timedPoints[0]?.time ?? null
-    const finishTime = timedPoints[timedPoints.length - 1]?.time ?? null
+    const elapsedPoints = this.trackPoints.filter((point) => point.elapsedSec !== null)
+    const startElapsedSec = elapsedPoints[0]?.elapsedSec ?? null
+    const finishElapsedSec = elapsedPoints[elapsedPoints.length - 1]?.elapsedSec ?? null
 
-    if (startTime === null || finishTime === null) {
+    if (startElapsedSec === null || finishElapsedSec === null) {
       return null
     }
 
-    return Math.max(0, (finishTime.getTime() - startTime.getTime()) / 1000)
+    return Math.max(0, finishElapsedSec - startElapsedSec)
   }
 
   public averageSpeedKmh(): number | null {
@@ -160,6 +160,25 @@ export class Track {
     }
 
     return measuredSegments === 0 ? null : elevationGainM
+  }
+
+  public elevationLossM(): number | null {
+    let elevationLossM = 0
+    let measuredSegments = 0
+
+    for (let index = 1; index < this.trackPoints.length; index += 1) {
+      const previousElevation = this.trackPoints[index - 1].ele
+      const currentElevation = this.trackPoints[index].ele
+
+      if (previousElevation === null || currentElevation === null) {
+        continue
+      }
+
+      measuredSegments += 1
+      elevationLossM += Math.max(0, previousElevation - currentElevation)
+    }
+
+    return measuredSegments === 0 ? null : elevationLossM
   }
 
   public segmentUntilTimeFromStart(cutFromEndSec: number): Track {
@@ -378,7 +397,10 @@ export class Track {
   }
 
   private createTrackPoints(points: TrackPointInput[]): TrackPoint[] {
-    const startTime = points[0]?.time ?? null
+    const firstElapsedSec = points.find((point) => point.elapsedSec !== null && point.elapsedSec !== undefined)
+      ?.elapsedSec ?? null
+    const firstTimedPoint = points.find((point) => point.time !== null) ?? null
+    const startTime = firstTimedPoint?.time ?? null
     let distanceFromStartKm = 0
 
     return points.map((point, index) => {
@@ -386,13 +408,17 @@ export class Track {
         distanceFromStartKm += distanceMetersBetween(points[index - 1], point) / 1000
       }
 
-      const elapsedSec =
-        startTime !== null && point.time !== null
+      const elapsedSec = point.elapsedSec !== null && point.elapsedSec !== undefined
+        ? Math.max(0, point.elapsedSec - (firstElapsedSec ?? point.elapsedSec))
+        : startTime !== null && point.time !== null
           ? Math.max(0, (point.time.getTime() - startTime.getTime()) / 1000)
           : null
 
       return {
-        ...point,
+        lat: point.lat,
+        lon: point.lon,
+        ele: point.ele,
+        time: point.time,
         elapsedSec,
         distanceFromStartKm,
       }
@@ -405,6 +431,7 @@ export class Track {
       lon: point.lon,
       ele: point.ele,
       time: point.time === null ? null : new Date(point.time.getTime()),
+      elapsedSec: point.elapsedSec,
     }
   }
 

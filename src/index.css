@@ -1161,7 +1161,7 @@ dialog.dialog-backdrop::backdrop {
   bottom: 18px;
   left: 18px;
   z-index: 30;
-  width: min(340px, calc(100vw - 36px));
+  width: min(380px, calc(100vw - 36px));
   gap: 6px;
   border-radius: 12px;
   padding: 10px;
@@ -1189,29 +1189,85 @@ dialog.dialog-backdrop::backdrop {
   font-size: 11px;
 }
 
-.tooltip-metrics {
+.tooltip-properties {
   display: flex;
-  grid-template-columns: none;
-  align-items: center;
-  gap: 7px;
-  border-block: 1px solid var(--color-border);
-  padding: 7px 0;
+  flex-wrap: wrap;
+  gap: 6px 12px;
 }
 
-.tooltip-metrics span {
+.tooltip-properties span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: var(--color-text);
   font-size: 11px;
-  font-weight: 650;
+}
+
+.tooltip-difficulty {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.tooltip-difficulty span,
+.tooltip-metrics span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.tooltip-difficulty small,
+.tooltip-metrics small {
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tooltip-difficulty strong {
+  font-size: 11px;
+}
+
+.difficulty-easy {
+  color: #15803d;
+}
+
+.difficulty-moderate {
+  color: #b45309;
+}
+
+.difficulty-difficult {
+  color: #b91c1c;
+}
+
+.tooltip-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  border-block: 1px solid var(--color-border);
+  padding: 7px 0;
+}
+
+.tooltip-metrics span {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 5px;
+  color: var(--color-text);
+}
+
+.tooltip-metrics span svg {
+  grid-row: 1 / span 2;
+}
+
+.tooltip-metrics strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tooltip-metrics i {
-  width: 1px;
-  height: 14px;
-  background: var(--color-border);
+  display: none;
 }
 
 .tooltip-actions {

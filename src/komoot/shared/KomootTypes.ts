@@ -1,5 +1,40 @@
 export type KomootUserListType = 'planned' | 'recorded'
 export type KomootVisibility = 'private' | 'friends' | 'public'
+export type KomootTourKind = 'planned' | 'recorded'
+export type KomootDifficultyLevel = 'easy' | 'moderate' | 'difficult'
+export type KomootSport =
+  | 'hike'
+  | 'jogging'
+  | 'touringbicycle'
+  | 'mtb'
+  | 'racebike'
+  | 'mtb_easy'
+  | 'mtb_advanced'
+  | 'mountaineering'
+  | 'climbing'
+  | 'downhillbike'
+  | 'unicycle'
+  | 'nordic'
+  | 'nordicwalking'
+  | 'skaten'
+  | 'skialpin'
+  | 'skitour'
+  | 'sled'
+  | 'snowboard'
+  | 'snowshoe'
+  | 'bikepacking'
+  | 'e_touringbicycle'
+  | 'e_mtb'
+  | 'e_racebike'
+  | 'e_mtb_easy'
+  | 'e_mtb_advanced'
+  | 'other'
+
+export type KomootDifficulty = {
+  readonly overall: KomootDifficultyLevel | null
+  readonly technical: KomootDifficultyLevel | null
+  readonly physical: KomootDifficultyLevel | null
+}
 
 export type KomootTarget =
   | { readonly kind: 'tour'; readonly id: string; readonly shareToken?: string | null }
@@ -11,6 +46,7 @@ export type KomootCoordinate = {
   readonly lon: number
   readonly elevation: number | null
   readonly time: Date | null
+  readonly elapsedSeconds: number | null
 }
 
 export type KomootTourSummary = {
@@ -20,13 +56,14 @@ export type KomootTourSummary = {
   readonly distanceMeters: number | null
   readonly coordinatesUrl: string | null
   readonly coordinates: readonly KomootCoordinate[] | null
-  readonly sport?: string | null
-  readonly durationSeconds?: number | null
-  readonly elevationUpMeters?: number | null
-  readonly elevationDownMeters?: number | null
+  readonly sport: KomootSport | null
+  readonly kind: KomootTourKind | null
+  readonly difficulty: KomootDifficulty | null
+  readonly changedAt: Date | null
+  readonly durationSeconds: number | null
+  readonly elevationUpMeters: number | null
+  readonly elevationDownMeters: number | null
   readonly sourceUrl?: string | null
-  readonly isPlanned?: boolean | null
-  readonly isRecorded?: boolean | null
   readonly raw?: unknown
 }
 
