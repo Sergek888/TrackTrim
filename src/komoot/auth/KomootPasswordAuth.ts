@@ -1,8 +1,8 @@
-import type { KomootAuthApi } from './KomootAuthApi'
-import type { KomootAuthSession, KomootUser } from '../shared/KomootTypes'
-import { isRecord, stringValue } from '../shared/KomootUtils'
-import { KomootAuthError, KomootParseError } from '../transport/KomootErrors'
-import { basicAuthHeader } from '../transport/KomootHttpClient'
+import type { KomootAuthApi } from './KomootAuthApi.js'
+import type { KomootAuthSession, KomootUser } from '../shared/KomootTypes.js'
+import { isRecord, stringValue } from '../shared/KomootUtils.js'
+import { KomootAuthError, KomootParseError } from '../transport/KomootErrors.js'
+import { basicAuthHeader } from '../transport/KomootHttpClient.js'
 
 export class KomootPasswordAuth implements KomootAuthApi {
   private readonly fetcher: typeof fetch

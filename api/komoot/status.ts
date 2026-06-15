@@ -1,7 +1,7 @@
 import { authorizeKomootRequest } from './_auth.js'
 import { clearTrackTrimSessionCookie, getTrackTrimSessionId } from './_cookies.js'
 import { sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
-import { KomootAuthError } from '../../src/komoot/KomootApi.js'
+import { KomootAuthError } from '../../src/komoot/transport/KomootErrors.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {

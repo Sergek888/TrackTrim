@@ -1,11 +1,11 @@
-import type { KomootAuthSession } from '../shared/KomootTypes'
+import type { KomootAuthSession } from '../shared/KomootTypes.js'
 import {
   KomootApiError,
   KomootAuthError,
   KomootNotFoundError,
   KomootParseError,
   KomootRateLimitError,
-} from './KomootErrors'
+} from './KomootErrors.js'
 
 export type KomootQuery = Readonly<Record<string, string | number | boolean | null | undefined>>
 

@@ -5,14 +5,14 @@ import type {
   KomootTour,
   KomootUploadedTour,
   KomootUploadTourInput,
-} from '../shared/KomootTypes'
-import { isRecord, stringValue } from '../shared/KomootUtils'
-import { tourFromResponse } from '../normalize/KomootTourNormalizer'
-import { KomootApiError, KomootMutationError } from '../transport/KomootErrors'
-import type { KomootHttpClient } from '../transport/KomootHttpClient'
-import type { KomootDeleteApi } from './KomootDeleteApi'
-import type { KomootEditApi } from './KomootEditApi'
-import type { KomootUploadApi } from './KomootUploadApi'
+} from '../shared/KomootTypes.js'
+import { isRecord, stringValue } from '../shared/KomootUtils.js'
+import { tourFromResponse } from '../normalize/KomootTourNormalizer.js'
+import { KomootApiError, KomootMutationError } from '../transport/KomootErrors.js'
+import type { KomootHttpClient } from '../transport/KomootHttpClient.js'
+import type { KomootDeleteApi } from './KomootDeleteApi.js'
+import type { KomootEditApi } from './KomootEditApi.js'
+import type { KomootUploadApi } from './KomootUploadApi.js'
 
 export interface KomootMutationsApi extends KomootUploadApi, KomootEditApi, KomootDeleteApi {}
 

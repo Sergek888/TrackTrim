@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { KomootAuthSession } from '../../src/komoot/KomootApi.js'
+import type { KomootAuthSession } from '../../src/komoot/shared/KomootTypes.js'
 import {
   decryptKomootToken,
   encryptKomootToken,

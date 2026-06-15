@@ -1,4 +1,4 @@
-import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes'
+import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes.js'
 
 const USER_ID_PATTERN = /^\d{6,16}$/
 

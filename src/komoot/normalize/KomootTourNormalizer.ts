@@ -1,6 +1,6 @@
-import type { KomootCoordinate, KomootTour, KomootTourSummary } from '../shared/KomootTypes'
-import { dateValue, idValue, isRecord, linkHref, numberValue, stringValue } from '../shared/KomootUtils'
-import { KomootParseError } from '../transport/KomootErrors'
+import type { KomootCoordinate, KomootTour, KomootTourSummary } from '../shared/KomootTypes.js'
+import { dateValue, idValue, isRecord, linkHref, numberValue, stringValue } from '../shared/KomootUtils.js'
+import { KomootParseError } from '../transport/KomootErrors.js'
 
 export function coordinateFromResponse(value: unknown): KomootCoordinate | null {
   if (!isRecord(value)) {

@@ -7,7 +7,7 @@ import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResp
 import {
   KomootApiClient,
 } from '../../src/komoot/KomootApiClient.js'
-import { KomootAuthError } from '../../src/komoot/KomootApi.js'
+import { KomootAuthError } from '../../src/komoot/transport/KomootErrors.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
 const loginSchema = z.object({

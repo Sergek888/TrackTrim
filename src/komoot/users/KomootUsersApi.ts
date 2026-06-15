@@ -1,6 +1,6 @@
-import type { KomootUser } from '../shared/KomootTypes'
-import { isRecord, stringValue } from '../shared/KomootUtils'
-import type { KomootHttpClient } from '../transport/KomootHttpClient'
+import type { KomootUser } from '../shared/KomootTypes.js'
+import { isRecord, stringValue } from '../shared/KomootUtils.js'
+import type { KomootHttpClient } from '../transport/KomootHttpClient.js'
 
 export interface KomootUsersApi {
   getUser(userId: string): Promise<KomootUser>

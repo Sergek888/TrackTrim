@@ -1,7 +1,7 @@
-import type { KomootCollection, KomootCompilationLine, KomootPage } from '../shared/KomootTypes'
-import { embeddedItems, idValue, isRecord, numberValue, stringValue } from '../shared/KomootUtils'
-import { coordinateFromResponse } from './KomootTourNormalizer'
-import { KomootParseError } from '../transport/KomootErrors'
+import type { KomootCollection, KomootCompilationLine, KomootPage } from '../shared/KomootTypes.js'
+import { embeddedItems, idValue, isRecord, numberValue, stringValue } from '../shared/KomootUtils.js'
+import { coordinateFromResponse } from './KomootTourNormalizer.js'
+import { KomootParseError } from '../transport/KomootErrors.js'
 
 export function collectionFromResponse(value: unknown, fallbackId?: string): KomootCollection {
   if (!isRecord(value)) {

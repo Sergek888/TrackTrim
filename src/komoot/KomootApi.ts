@@ -1,10 +1,10 @@
-import type { KomootAuthApi } from './auth/KomootAuthApi'
-import type { KomootCollectionsApi } from './collections/KomootCollectionsApi'
-import type { KomootImportApi } from './import/KomootImportApi'
-import type { KomootMutationsApi } from './mutations/KomootMutationsApi'
-import type { KomootToursApi } from './tours/KomootToursApi'
-import type { KomootUrlApi } from './url/KomootUrlApi'
-import type { KomootUsersApi } from './users/KomootUsersApi'
+import type { KomootAuthApi } from './auth/KomootAuthApi.js'
+import type { KomootCollectionsApi } from './collections/KomootCollectionsApi.js'
+import type { KomootImportApi } from './import/KomootImportApi.js'
+import type { KomootMutationsApi } from './mutations/KomootMutationsApi.js'
+import type { KomootToursApi } from './tours/KomootToursApi.js'
+import type { KomootUrlApi } from './url/KomootUrlApi.js'
+import type { KomootUsersApi } from './users/KomootUsersApi.js'
 
 export interface KomootApi {
   readonly auth: KomootAuthApi
@@ -16,6 +16,6 @@ export interface KomootApi {
   readonly urls: KomootUrlApi
 }
 
-export * from './shared/KomootTypes'
-export * from './transport/KomootErrors'
-export type { KomootRequestTransport, KomootTransportRequest } from './transport/KomootHttpClient'
+export * from './shared/KomootTypes.js'
+export * from './transport/KomootErrors.js'
+export type { KomootRequestTransport, KomootTransportRequest } from './transport/KomootHttpClient.js'

@@ -5,17 +5,17 @@ import type {
   KomootTour,
   KomootTourSummary,
   KomootUserToursQuery,
-} from '../shared/KomootTypes'
-import { embeddedItems, isRecord, numberValue } from '../shared/KomootUtils'
-import { KomootAuthError, KomootNotFoundError } from '../transport/KomootErrors'
-import type { KomootHttpClient } from '../transport/KomootHttpClient'
+} from '../shared/KomootTypes.js'
+import { embeddedItems, isRecord, numberValue } from '../shared/KomootUtils.js'
+import { KomootAuthError, KomootNotFoundError } from '../transport/KomootErrors.js'
+import type { KomootHttpClient } from '../transport/KomootHttpClient.js'
 import {
   coordinatesFromResponse,
   summaryFromTourResponse,
   summaryFromUserTourItem,
   tourFromResponse,
   uniqueTourSummaries,
-} from '../normalize/KomootTourNormalizer'
+} from '../normalize/KomootTourNormalizer.js'
 
 export interface KomootToursApi {
   get(id: string, options?: KomootShareOptions): Promise<KomootTour>

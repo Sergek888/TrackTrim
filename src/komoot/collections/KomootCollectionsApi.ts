@@ -5,20 +5,20 @@ import type {
   KomootPage,
   KomootShareOptions,
   KomootTourSummary,
-} from '../shared/KomootTypes'
-import { embeddedItems } from '../shared/KomootUtils'
-import { KomootAuthError, KomootNotFoundError } from '../transport/KomootErrors'
-import type { KomootHttpClient } from '../transport/KomootHttpClient'
+} from '../shared/KomootTypes.js'
+import { embeddedItems } from '../shared/KomootUtils.js'
+import { KomootAuthError, KomootNotFoundError } from '../transport/KomootErrors.js'
+import type { KomootHttpClient } from '../transport/KomootHttpClient.js'
 import {
   collectionFromResponse,
   collectionPageFromResponse,
   compilationLinesFromResponse,
-} from '../normalize/KomootCollectionNormalizer'
+} from '../normalize/KomootCollectionNormalizer.js'
 import {
   summaryFromCompilationLineItem,
   summaryFromUserTourItem,
   uniqueTourSummaries,
-} from '../normalize/KomootTourNormalizer'
+} from '../normalize/KomootTourNormalizer.js'
 
 export interface KomootCollectionsApi {
   getCollections(query?: KomootCollectionsQuery): Promise<KomootPage<KomootCollection>>

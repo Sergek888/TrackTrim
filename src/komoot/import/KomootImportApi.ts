@@ -4,10 +4,10 @@ import type {
   KomootTarget,
   KomootTourSummary,
   KomootUserListType,
-} from '../shared/KomootTypes'
-import type { KomootCollectionsApi } from '../collections/KomootCollectionsApi'
-import type { KomootToursApi } from '../tours/KomootToursApi'
-import type { KomootUrlApi } from '../url/KomootUrlApi'
+} from '../shared/KomootTypes.js'
+import type { KomootCollectionsApi } from '../collections/KomootCollectionsApi.js'
+import type { KomootToursApi } from '../tours/KomootToursApi.js'
+import type { KomootUrlApi } from '../url/KomootUrlApi.js'
 
 export interface KomootImportApi {
   importTarget(target: KomootTarget): Promise<KomootImportResult>

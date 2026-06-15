@@ -1,5 +1,5 @@
-import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes'
-import { parseKomootTarget } from './KomootUrlParser'
+import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes.js'
+import { parseKomootTarget } from './KomootUrlParser.js'
 
 export interface KomootUrlApi {
   parse(input: string, options?: { userListType?: KomootUserListType }): KomootTarget | null

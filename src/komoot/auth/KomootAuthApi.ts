@@ -1,4 +1,4 @@
-import type { KomootAuthSession, KomootUser } from '../shared/KomootTypes'
+import type { KomootAuthSession, KomootUser } from '../shared/KomootTypes.js'
 
 export interface KomootAuthApi {
   loginWithPassword(email: string, password: string): Promise<KomootAuthSession>
