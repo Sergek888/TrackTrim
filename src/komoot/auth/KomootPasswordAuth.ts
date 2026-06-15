@@ -5,7 +5,11 @@ import { KomootAuthError, KomootParseError } from '../transport/KomootErrors'
 import { basicAuthHeader } from '../transport/KomootHttpClient'
 
 export class KomootPasswordAuth implements KomootAuthApi {
-  public constructor(private readonly fetcher: typeof fetch = fetch) {}
+  private readonly fetcher: typeof fetch
+
+  public constructor(fetcher?: typeof fetch) {
+    this.fetcher = fetcher ?? ((input, init) => fetch(input, init))
+  }
 
   public async loginWithPassword(email: string, password: string): Promise<KomootAuthSession> {
     const normalizedEmail = email.trim().toLowerCase()

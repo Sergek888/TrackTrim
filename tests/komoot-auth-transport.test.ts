@@ -41,3 +41,22 @@ test('rejects absolute paths', async () => {
   const client = new KomootHttpClient({ fetch: async () => new Response('{}') })
   await assert.rejects(() => client.getJson('https://example.com/tours/1'))
 })
+
+test('invokes the default fetch without binding it to the client instance', async () => {
+  const originalFetch = globalThis.fetch
+  let receiver: unknown
+
+  globalThis.fetch = function (this: unknown) {
+    receiver = this
+    return Promise.resolve(new Response('{}', {
+      headers: { 'content-type': 'application/json' },
+    }))
+  }
+
+  try {
+    await new KomootHttpClient().getJson('/tours/1')
+    assert.equal(receiver, undefined)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

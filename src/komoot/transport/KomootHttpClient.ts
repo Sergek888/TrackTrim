@@ -32,7 +32,7 @@ export class KomootHttpClient {
   private readonly mode: KomootHttpMode
 
   public constructor(private readonly options: KomootHttpClientOptions = {}) {
-    this.fetcher = options.fetch ?? fetch
+    this.fetcher = options.fetch ?? ((input, init) => fetch(input, init))
     this.apiBaseUrl = options.apiBaseUrl ?? 'https://api.komoot.de/v007'
     this.mode = options.mode ?? 'direct'
   }
