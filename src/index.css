@@ -1167,6 +1167,10 @@ dialog.dialog-backdrop::backdrop {
   padding: 10px;
 }
 
+.track-tooltip > * {
+  min-width: 0;
+}
+
 .tooltip-title {
   display: flex;
   align-items: center;
@@ -1175,6 +1179,7 @@ dialog.dialog-backdrop::backdrop {
 }
 
 .tooltip-title h2 {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1185,6 +1190,7 @@ dialog.dialog-backdrop::backdrop {
 .tooltip-source {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 7px;
   font-size: 11px;
 }

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
 import { TrackLibrary } from '../../application/TrackLibrary'
-import { createTrackSourceFromAppUrl } from '../../application/createTrackSourceFromAppUrl'
+import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
 import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
@@ -47,7 +47,6 @@ export default function TrackWorkspace() {
   )
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
   const [sourceLinkError, setSourceLinkError] = useState<string | null>(null)
-  const sourceLinkHandled = useRef(false)
 
   useEffect(
     () => library.subscribe((change) => {
@@ -68,7 +67,30 @@ export default function TrackWorkspace() {
   )
 
   useEffect(() => {
-    void initializeKomoot()
+    const controller = new AbortController()
+    const sourceCount = library.sources.length
+
+    resolveWorkspaceStartup(
+      komootConnection,
+      {
+        appUrl: window.location.href,
+        sourceCount,
+        defaultColor: defaultTrackColor(sourceCount),
+      },
+      controller.signal,
+    ).then((result) => {
+      if (controller.signal.aborted) return
+
+      if (result.sourceLink !== null) {
+        if (result.sourceLink.kind === 'source') {
+          void library.addSource(result.sourceLink.source)
+        } else {
+          setSourceLinkError(result.sourceLink.message)
+        }
+      }
+    }).catch(() => {})
+
+    return () => { controller.abort() }
   }, [])
 
   const visibleTracks = useMemo(
@@ -80,32 +102,6 @@ export default function TrackWorkspace() {
     () => komootConnection.state,
     [komootConnection, komootConnectionVersion],
   )
-
-  async function initializeKomoot(): Promise<void> {
-    await komootConnection.initialize()
-
-    if (sourceLinkHandled.current) {
-      return
-    }
-
-    sourceLinkHandled.current = true
-
-    try {
-      const source = createTrackSourceFromAppUrl(window.location.href, {
-        color: defaultTrackColor(library.sources.length),
-        order: library.sources.length,
-        komootApi: komootConnection.publicApi(),
-      })
-
-      if (source !== null) {
-        void library.addSource(source)
-      }
-    } catch (error) {
-      setSourceLinkError(
-        error instanceof Error ? error.message : 'The source link could not be opened.',
-      )
-    }
-  }
 
   function handleSourceCreate(source: TrackSource): void {
     setIsAddSourceOpen(false)
