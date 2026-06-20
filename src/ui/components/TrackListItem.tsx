@@ -1,6 +1,7 @@
 import { TriangleAlert } from 'lucide-react'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
+import Spinner from '../shared/Spinner'
 
 type TrackListItemProps = {
   meta: TrackMeta
@@ -42,7 +43,9 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
       </button>
       <span className="track-metric">
         {loading ? (
-          <span className="loading-spinner" role="status" aria-label={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'} title={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'} />
+          <Spinner
+            label={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'}
+          />
         ) : meta.loadStatus === 'error' ? (
           <span title={meta.loadError ?? 'Track could not be loaded'}>
             <TriangleAlert className="track-error-icon" aria-label="Track loading failed" size={17} />

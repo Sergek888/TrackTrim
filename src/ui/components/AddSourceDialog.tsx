@@ -1,9 +1,15 @@
-import { Check, FolderUp, X } from 'lucide-react'
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
+import { Check, FolderUp } from 'lucide-react'
+import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import type { KomootConnectionState } from '../../application/KomootConnectionService'
 import { LocalFileTrackSource } from '../../application/sources/LocalFileSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import { defaultTrackColor, TRACK_COLORS } from '../trackColors'
+import Button from '../shared/Button'
+import Dialog from '../shared/Dialog'
+import FormField from '../shared/FormField'
+import Notice from '../shared/Notice'
+import SegmentedControl from '../shared/SegmentedControl'
+import TextInput from '../shared/TextInput'
 
 type KomootUserListType = 'planned' | 'recorded'
 
@@ -27,6 +33,11 @@ type AddSourceDialogProps = {
 type SourceMode = 'files' | 'komoot'
 type KomootImportMode = KomootUserListType | 'url'
 
+const SOURCE_TYPE_SEGMENTS = [
+  { value: 'files', label: 'GPX files' },
+  { value: 'komoot', label: 'Komoot' },
+] as const
+
 export default function AddSourceDialog({
   sourceIndex,
   komootConnection,
@@ -48,14 +59,6 @@ export default function AddSourceDialog({
   const komootDisplayName = komootConnection.connected
     ? komootConnection.displayName ?? 'Komoot'
     : 'Komoot'
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onCancel])
 
   function acceptFiles(nextFiles: File[]): void {
     const supportedFiles = nextFiles.filter((file) => /\.(gpx|xml)$/i.test(file.name))
@@ -132,84 +135,93 @@ export default function AddSourceDialog({
     }
   }
 
+  const komootImportSegments = [
+    { value: 'planned', label: 'Planned', disabled: !komootConnection.connected },
+    { value: 'recorded', label: 'Completed', disabled: !komootConnection.connected },
+    { value: 'url', label: 'Link' },
+  ]
+
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onCancel()
-    }}>
+    <Dialog
+      title="Add New Source"
+      ariaLabel="Add new source"
+      onClose={onCancel}
+      closeLabel="Close add source"
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            form="add-source-form"
+            disabled={
+              mode === 'komoot' &&
+              komootImportMode !== 'url' &&
+              !komootConnection.connected
+            }
+          >
+            Add Source
+          </Button>
+        </>
+      }
+    >
       <form
-        className="add-source-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add new source"
+        id="add-source-form"
         autoComplete="on"
         onSubmit={handleSubmit}
       >
-        <header>
-          <h2>Add New Source</h2>
-          <button className="icon-button" type="button" aria-label="Close add source" title="Close" onClick={onCancel}>
-            <X aria-hidden="true" size={15} strokeWidth={2.2} />
-          </button>
-        </header>
+        <SegmentedControl
+          segments={SOURCE_TYPE_SEGMENTS}
+          value={mode}
+          onChange={(value) => setMode(value as SourceMode)}
+          ariaLabel="Source type"
+        />
 
-        <div className="segmented-control" role="group" aria-label="Source type">
-          <button
-            type="button"
-            className={mode === 'files' ? 'is-selected' : ''}
-            onClick={() => setMode('files')}
-          >
-            GPX files
-          </button>
-          <button
-            type="button"
-            className={mode === 'komoot' ? 'is-selected' : ''}
-            onClick={() => setMode('komoot')}
-          >
-            Komoot
-          </button>
-        </div>
+        <div className="dialog-section">
+          <FormField label="Name">
+            <TextInput
+              type="text"
+              name="source-display-name"
+              autoComplete="off"
+              value={name}
+              placeholder={
+                mode === 'files'
+                  ? 'GPX import'
+                  : komootImportMode === 'url'
+                    ? 'Komoot source'
+                    : `${komootDisplayName} ${
+                        komootImportMode === 'planned' ? 'planned' : 'completed'
+                      }`
+              }
+              onChange={(event) => setName(event.target.value)}
+            />
+          </FormField>
 
-        <label>
-          <span>Name</span>
-          <input
-            type="text"
-            name="source-display-name"
-            autoComplete="off"
-            value={name}
-            placeholder={
-              mode === 'files'
-                ? 'GPX import'
-                : komootImportMode === 'url'
-                  ? 'Komoot source'
-                  : `${komootDisplayName} ${
-                      komootImportMode === 'planned' ? 'planned' : 'completed'
-                    }`
-            }
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-
-        <fieldset className="color-picker-field">
-          <legend>Color</legend>
-          <div className="color-presets">
-            {TRACK_COLORS.map((preset) => (
-              <button
-                key={preset}
-                className={`color-preset${color === preset ? ' is-selected' : ''}`}
-                type="button"
-                style={{ background: preset }}
-                aria-label={`Use color ${preset}`}
-                title={`Use color ${preset}`}
-                onClick={() => setColor(preset)}
-              >
-                {color === preset && <Check aria-hidden="true" size={14} />}
+          <fieldset className="color-picker-field">
+            <legend>Color</legend>
+            <div className="color-presets">
+              {TRACK_COLORS.map((preset) => (
+                <button
+                  key={preset}
+                  className={`color-preset${color === preset ? ' is-selected' : ''}`}
+                  type="button"
+                  style={{ background: preset }}
+                  aria-label={`Use color ${preset}`}
+                  title={`Use color ${preset}`}
+                  onClick={() => setColor(preset)}
+                >
+                  {color === preset && <Check aria-hidden="true" size={14} />}
+                </button>
+              ))}
+              <button className="custom-color-button" type="button" title="Choose custom color" onClick={() => customColorRef.current?.click()}>
+                <span style={{ background: color }} />
               </button>
-            ))}
-            <button className="custom-color-button" type="button" title="Choose custom color" onClick={() => customColorRef.current?.click()}>
-              <span style={{ background: color }} />
-            </button>
-            <input ref={customColorRef} className="visually-hidden" type="color" value={color} onChange={(event) => setColor(event.target.value)} />
-          </div>
-        </fieldset>
+              <input ref={customColorRef} className="visually-hidden" type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+            </div>
+          </fieldset>
+        </div>
 
         {mode === 'files' ? (
           <div className="file-drop-field">
@@ -229,50 +241,28 @@ export default function AddSourceDialog({
             <small className="selected-files">{files.length === 0 ? 'No files selected' : `${files.length} file${files.length === 1 ? '' : 's'} selected`}</small>
           </div>
         ) : (
-          <>
-            <div
-              className="segmented-control komoot-import-mode"
-              role="group"
-              aria-label="Komoot source"
-            >
-              <button
-                type="button"
-                className={komootImportMode === 'planned' ? 'is-selected' : ''}
-                disabled={!komootConnection.connected}
-                onClick={() => setKomootImportMode('planned')}
-              >
-                Planned
-              </button>
-              <button
-                type="button"
-                className={komootImportMode === 'recorded' ? 'is-selected' : ''}
-                disabled={!komootConnection.connected}
-                onClick={() => setKomootImportMode('recorded')}
-              >
-                Completed
-              </button>
-              <button
-                type="button"
-                className={komootImportMode === 'url' ? 'is-selected' : ''}
-                onClick={() => setKomootImportMode('url')}
-              >
-                Link
-              </button>
-            </div>
+          <div className="dialog-section">
+            <h3>Komoot</h3>
+            <SegmentedControl
+              segments={komootImportSegments}
+              value={komootImportMode}
+              onChange={(value) => setKomootImportMode(value as KomootImportMode)}
+              columns={3}
+              ariaLabel="Komoot source"
+            />
 
             {!komootConnection.connected && komootImportMode !== 'url' && (
               <p className="form-note">
                 Komoot is not connected.{' '}
-                <button className="text-button" type="button" onClick={onOpenSettings}>
+                <Button type="button" variant="text" onClick={onOpenSettings}>
                   Open settings
-                </button>
+                </Button>
               </p>
             )}
 
             {komootImportMode === 'url' && (
-              <label>
-                <span>Komoot tour or collection URL</span>
-                <input
+              <FormField label="Komoot tour or collection URL">
+                <TextInput
                   type="url"
                   name="komoot-source-url"
                   autoComplete="off"
@@ -283,30 +273,13 @@ export default function AddSourceDialog({
                     setErrorMessage(null)
                   }}
                 />
-              </label>
+              </FormField>
             )}
-          </>
+          </div>
         )}
 
-        {errorMessage !== null && <p className="error-message">{errorMessage}</p>}
-
-        <footer>
-          <button className="secondary-button" type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            className="save-button"
-            type="submit"
-            disabled={
-              mode === 'komoot' &&
-              komootImportMode !== 'url' &&
-              !komootConnection.connected
-            }
-          >
-            Add Source
-          </button>
-        </footer>
+        {errorMessage !== null && <Notice variant="error">{errorMessage}</Notice>}
       </form>
-    </div>
+    </Dialog>
   )
 }

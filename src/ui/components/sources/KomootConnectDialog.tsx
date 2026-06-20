@@ -1,6 +1,10 @@
-import { X } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import type { KomootConnectionState } from '../../../application/KomootConnectionService'
+import Button from '../../shared/Button'
+import Dialog from '../../shared/Dialog'
+import FormField from '../../shared/FormField'
+import Notice from '../../shared/Notice'
+import TextInput from '../../shared/TextInput'
 
 type KomootConnectDialogProps = {
   onCancel: () => void
@@ -13,34 +17,11 @@ export default function KomootConnectDialog({
   onConnect,
   onConnected,
 }: KomootConnectDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement | null>(null)
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    const previouslyFocused = document.activeElement
-
-    if (dialog === null) {
-      return
-    }
-
-    dialog.showModal()
-    emailInputRef.current?.focus()
-
-    return () => {
-      if (dialog.open) {
-        dialog.close()
-      }
-
-      if (previouslyFocused instanceof HTMLElement) {
-        previouslyFocused.focus()
-      }
-    }
-  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
@@ -70,41 +51,37 @@ export default function KomootConnectDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog-backdrop"
-      aria-label="Connect Komoot"
-      onCancel={(event) => {
-        event.preventDefault()
-        onCancel()
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          event.stopPropagation()
-          onCancel()
-        }
-      }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
+    <Dialog
+      title="Connect Komoot"
+      onClose={onCancel}
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            form="komoot-connect-form"
+            disabled={submitting}
+          >
+            {submitting ? 'Connecting...' : 'Connect'}
+          </Button>
+        </>
+      }
     >
-      <form className="add-source-dialog" method="dialog" aria-label="Connect Komoot" onSubmit={handleSubmit}>
-        <header>
-          <h2>Connect Komoot</h2>
-          <button className="icon-button" type="button" aria-label="Close" onClick={onCancel}>
-            <X aria-hidden="true" size={15} strokeWidth={2.2} />
-          </button>
-        </header>
+      <p className="form-note">
+        TrackViewer exchanges your Komoot email and password for an API session on the backend.
+        The password is not stored after the connection is created.
+      </p>
 
-        <p className="form-note">
-          TrackViewer exchanges your Komoot email and password for an API session on the backend.
-          The password is not stored after the connection is created.
-        </p>
-
-        <label>
-          <span>Email</span>
-          <input
+      <form
+        id="komoot-connect-form"
+        aria-label="Connect Komoot"
+        onSubmit={handleSubmit}
+      >
+        <FormField label="Email">
+          <TextInput
             ref={emailInputRef}
             type="email"
             name="username"
@@ -113,11 +90,10 @@ export default function KomootConnectDialog({
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-        </label>
+        </FormField>
 
-        <label>
-          <span>Password</span>
-          <input
+        <FormField label="Password">
+          <TextInput
             type="password"
             name="password"
             disabled={submitting}
@@ -125,19 +101,10 @@ export default function KomootConnectDialog({
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-        </label>
+        </FormField>
 
-        {errorMessage !== null && <p className="error-message">{errorMessage}</p>}
-
-        <footer>
-          <button className="secondary-button" type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="save-button" type="submit" disabled={submitting}>
-            {submitting ? 'Connecting...' : 'Connect'}
-          </button>
-        </footer>
+        {errorMessage !== null && <Notice variant="error">{errorMessage}</Notice>}
       </form>
-    </dialog>
+    </Dialog>
   )
 }

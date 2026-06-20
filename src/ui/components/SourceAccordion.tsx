@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEven
 import type { SourceProgress } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
+import IconButton from '../shared/IconButton'
 import TrackListItem from './TrackListItem'
 
 type SourceAccordionProps = {
@@ -136,20 +137,20 @@ export default function SourceAccordion(props: SourceAccordionProps) {
 
         <span className="source-counter">({visibleCount}/{progress.total})</span>
         <div className="source-menu-wrap" ref={menuRef}>
-          <button className="icon-button ghost-button source-menu-trigger" type="button" aria-label="Source actions" title="Source actions" onClick={() => setMenuOpen((open) => !open)}>
+          <IconButton className="source-menu-trigger" variant="ghost" type="button" aria-label="Source actions" title="Source actions" onClick={() => setMenuOpen((open) => !open)}>
             <MoreVertical aria-hidden="true" size={16} />
-          </button>
+          </IconButton>
           {menuOpen && (
-            <div className="source-context-menu" role="menu">
+            <div className="surface source-context-menu" role="menu">
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setRenaming(true) }}><Pencil aria-hidden="true" size={15} />Rename</button>
               <button type="button" role="menuitem" onClick={openColorPalette}><Palette aria-hidden="true" size={15} />Change color</button>
               <button className="danger" type="button" role="menuitem" onClick={() => { setMenuOpen(false); onDeleteSource(source) }}><Trash2 aria-hidden="true" size={15} />Delete</button>
             </div>
           )}
         </div>
-        <button className="icon-button ghost-button" type="button" aria-label={source.expanded ? 'Collapse source' : 'Expand source'} title={source.expanded ? 'Collapse source' : 'Expand source'} onClick={() => onSourceExpandedChange(source, !source.expanded)}>
+        <IconButton variant="ghost" type="button" aria-label={source.expanded ? 'Collapse source' : 'Expand source'} title={source.expanded ? 'Collapse source' : 'Expand source'} onClick={() => onSourceExpandedChange(source, !source.expanded)}>
           {source.expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}
-        </button>
+        </IconButton>
       </header>
 
       {source.expanded && (

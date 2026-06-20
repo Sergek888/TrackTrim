@@ -2,6 +2,8 @@ import { PanelRightClose, PanelRightOpen, Plus, Search, Settings, X } from 'luci
 import type { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
+import IconButton from '../shared/IconButton'
+import EmptyState from '../shared/EmptyState'
 import SourceAccordion from './SourceAccordion'
 
 type TrackSidebarProps = {
@@ -54,15 +56,15 @@ export default function TrackSidebar({
   return (
     <>
       {collapsed && (
-        <button
-          className="icon-button sidebar-action-button sidebar-toggle"
+        <IconButton
+          className="sidebar-action-button sidebar-toggle"
           type="button"
           aria-label="Open navigation panel"
           title="Open navigation panel"
           onClick={onToggleCollapsed}
         >
           <PanelRightOpen aria-hidden="true" />
-        </button>
+        </IconButton>
       )}
 
       <aside
@@ -71,39 +73,39 @@ export default function TrackSidebar({
         aria-hidden={collapsed}
         inert={collapsed}
       >
-        <header className="sidebar-header">
+        <header className="surface-header sidebar-header">
           <div className="app-brand">
             <h1>TrackViewer</h1>
           </div>
           {!collapsed && (
             <div className="sidebar-header-actions">
-              <button
-                className="icon-button sidebar-action-button add-source-button"
+              <IconButton
+                className="sidebar-action-button add-source-button"
                 type="button"
                 aria-label="Add source"
                 title="Add source"
                 onClick={onAddSourceClick}
               >
                 <Plus aria-hidden="true" />
-              </button>
-              <button
-                className="icon-button sidebar-action-button sidebar-settings-button"
+              </IconButton>
+              <IconButton
+                className="sidebar-action-button sidebar-settings-button"
                 type="button"
                 aria-label="Settings"
                 title="Settings"
                 onClick={onSettingsClick}
               >
                 <Settings aria-hidden="true" />
-              </button>
-              <button
-                className="icon-button sidebar-action-button"
+              </IconButton>
+              <IconButton
+                className="sidebar-action-button"
                 type="button"
                 aria-label="Close navigation panel"
                 title="Close navigation panel"
                 onClick={onToggleCollapsed}
               >
                 <PanelRightClose aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           )}
         </header>
@@ -134,10 +136,9 @@ export default function TrackSidebar({
 
         <div className="source-list">
           {orderedSources.length === 0 ? (
-            <section className="sidebar-empty">
-              <h2>No sources</h2>
+            <EmptyState heading="No sources">
               <p>Add GPX files or a Komoot tour URL.</p>
-            </section>
+            </EmptyState>
           ) : (
             orderedSources.map((source, index) => {
               const sourceMetas = library.sourceMetas(source)

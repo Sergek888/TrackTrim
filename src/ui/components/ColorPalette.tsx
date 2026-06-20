@@ -21,7 +21,7 @@ export default function ColorPalette({ left, top, value, onChange }: ColorPalett
   )
 
   return (
-    <div className="palette" style={{ left: clampedLeft, top: clampedTop }} aria-label="Color palette">
+    <div className="surface palette" style={{ left: clampedLeft, top: clampedTop }} aria-label="Color palette">
       {TRACK_COLORS.map((color) => (
         <button
           key={color}

@@ -37,7 +37,7 @@ export default function MapStyleControl({
   }
 
   return isOpen ? (
-    <div className="map-style-panel" id="map-style-panel">
+    <div className="surface map-style-panel" id="map-style-panel">
       <fieldset>
         <legend>Базовая карта</legend>
         {BASE_STYLE_OPTIONS.map((option) => (

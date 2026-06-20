@@ -1,6 +1,8 @@
 import { Unplug, Wifi, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import type { KomootConnectionState } from '../../../application/KomootConnectionService'
+import Button from '../../shared/Button'
+import Notice from '../../shared/Notice'
 import KomootConnectDialog from './KomootConnectDialog'
 
 type KomootSourceCardProps = {
@@ -55,17 +57,17 @@ export default function KomootSourceCard({
       </div>
 
       {connection.connected ? (
-        <button className="secondary-button" type="button" onClick={() => void handleLogout()}>
+        <Button type="button" variant="secondary" onClick={() => void handleLogout()}>
           <Unplug aria-hidden="true" size={15} strokeWidth={2.2} />
           Disconnect
-        </button>
+        </Button>
       ) : (
-        <button className="secondary-button" type="button" onClick={() => setConnectDialogOpen(true)}>
+        <Button type="button" variant="secondary" onClick={() => setConnectDialogOpen(true)}>
           Connect
-        </button>
+        </Button>
       )}
 
-      {errorMessage !== null && <p className="error-message">{errorMessage}</p>}
+      {errorMessage !== null && <Notice variant="error">{errorMessage}</Notice>}
 
       {connectDialogOpen && (
         <KomootConnectDialog

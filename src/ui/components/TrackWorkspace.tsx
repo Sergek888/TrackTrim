@@ -4,18 +4,16 @@ import {
 } from '../../application/KomootConnectionService'
 import { TrackLibrary } from '../../application/TrackLibrary'
 import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
-import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { DEFAULT_MAP_STYLE_SETTINGS } from '../map/mapStyleSettings'
 import { defaultTrackColor } from '../trackColors'
-import AddSourceDialog from './AddSourceDialog'
-import ColorPalette from './ColorPalette'
-import SettingsDialog from './SettingsDialog'
+import Notice from '../shared/Notice'
 import TrackMap from './TrackMap'
 import TrackSidebar from './TrackSidebar'
 import TrackTooltip, { type TrackTooltipState } from './TrackTooltip'
+import WorkspaceDialogs from './WorkspaceDialogs'
 
 type ColorPaletteState =
   | {
@@ -197,9 +195,9 @@ export default function TrackWorkspace() {
         <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
 
         {(sourceLinkError ?? library.lastError) !== null && (
-          <p className="workspace-error" role="alert">
+          <Notice variant="error" alert>
             {sourceLinkError ?? library.lastError}
-          </p>
+          </Notice>
         )}
       </div>
 
@@ -235,60 +233,18 @@ export default function TrackWorkspace() {
         onTrackVisibilityChange={handleTrackVisibilityChange}
       />
 
-      {colorPalette !== null && (
-        <ColorPalette
-          left={colorPalette.left}
-          top={colorPalette.top}
-          value={
-            colorPalette.kind === 'source'
-              ? colorPalette.source.color
-              : colorPalette.meta.color
-          }
-          onChange={handleColorPaletteChange}
-        />
-      )}
-
-      {isAddSourceOpen && (
-        <AddSourceDialog
-          sourceIndex={library.sources.length}
-          komootConnection={komootState}
-          onCreateKomootSource={({ target, name, color, listType, accountSource }) => {
-            const targetType = KomootTrackSource.getTargetType(
-              target,
-              komootConnection.publicApi(),
-            )
-
-            if (!accountSource && targetType !== 'tour' && targetType !== 'collection') {
-              throw new Error('Enter a Komoot tour or collection URL.')
-            }
-
-            return new KomootTrackSource(
-              target,
-              name,
-              color,
-              listType,
-              accountSource
-                ? komootConnection.accountApi()
-                : komootConnection.publicApi(),
-            )
-          }}
-          onOpenSettings={() => {
-            setIsAddSourceOpen(false)
-            setIsSettingsOpen(true)
-          }}
-          onCancel={() => setIsAddSourceOpen(false)}
-          onCreate={handleSourceCreate}
-        />
-      )}
-
-      {isSettingsOpen && (
-        <SettingsDialog
-          komootConnection={komootState}
-          onClose={() => setIsSettingsOpen(false)}
-          onKomootConnect={(email, password) => komootConnection.connect(email, password)}
-          onKomootDisconnect={() => komootConnection.disconnect()}
-        />
-      )}
+      <WorkspaceDialogs
+        library={library}
+        komootConnection={komootConnection}
+        komootState={komootState}
+        isAddSourceOpen={isAddSourceOpen}
+        isSettingsOpen={isSettingsOpen}
+        colorPalette={colorPalette}
+        onAddSourceClose={() => setIsAddSourceOpen(false)}
+        onSettingsClose={() => setIsSettingsOpen(false)}
+        onColorPaletteChange={handleColorPaletteChange}
+        onSourceCreate={handleSourceCreate}
+      />
     </section>
   )
 }

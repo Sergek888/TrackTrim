@@ -23,6 +23,8 @@ import {
   type TrackMeta,
 } from '../../model/TrackMeta'
 import { formatDateTime, formatDistance, formatDuration } from '../formatters'
+import IconButton from '../shared/IconButton'
+import Notice from '../shared/Notice'
 
 export type TrackTooltipState = {
   meta: TrackMeta
@@ -119,14 +121,14 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
   }
 
   return (
-    <aside className="track-tooltip" aria-label="Track details">
-      <header>
+    <aside className="surface track-tooltip" aria-label="Track details">
+      <header className="surface-header">
         <div className="tooltip-title">
           <h2 title={meta.name}>{meta.name}</h2>
         </div>
-        <button className="icon-button ghost-button" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
-          <X aria-hidden="true" size={16} />
-        </button>
+        <IconButton variant="ghost" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
+          <X aria-hidden="true" size={15} strokeWidth={2.2} />
+        </IconButton>
       </header>
 
       <p className="tooltip-source" title={meta.source.name}>
@@ -178,21 +180,21 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
           </a>
         )}
         {shareUrl !== null && (
-          <button className="icon-button details-button" type="button" aria-label="Copy link" title="Copy link" onClick={() => void copyShareUrl()}>
+          <IconButton type="button" aria-label="Copy link" title="Copy link" onClick={() => void copyShareUrl()}>
             <Link aria-hidden="true" size={14} />
-          </button>
+          </IconButton>
         )}
         {meta.track !== null && (
-          <button className="icon-button details-button" type="button" aria-label="Download GPX" title="Download GPX" onClick={() => void downloadGpx()}>
+          <IconButton type="button" aria-label="Download GPX" title="Download GPX" onClick={() => void downloadGpx()}>
             <Download aria-hidden="true" size={14} />
-          </button>
+          </IconButton>
         )}
       </div>
 
       {notice !== null && (
-        <p className={`tooltip-notice is-${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        <Notice variant={notice.kind} panel role={notice.kind === 'error' ? 'alert' : 'status'}>
           {notice.message}
-        </p>
+        </Notice>
       )}
     </aside>
   )
