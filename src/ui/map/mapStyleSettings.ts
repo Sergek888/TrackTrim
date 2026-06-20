@@ -7,6 +7,7 @@ export type MapStyleSettings = {
   labelMode: MapLabelMode
   showContours: boolean
   showHillshade: boolean
+  showTerrain3D: boolean
   satelliteOpacity: number
 }
 
@@ -15,5 +16,6 @@ export const DEFAULT_MAP_STYLE_SETTINGS: MapStyleSettings = {
   labelMode: 'local',
   showContours: false,
   showHillshade: false,
+  showTerrain3D: false,
   satelliteOpacity: 100,
 }
