@@ -2,7 +2,7 @@ import type {
   MapBaseStyle,
   MapLabelMode,
   MapStyleSettings,
-} from '../map/mapStyleSettings'
+} from './mapStyleSettings'
 
 type MapStyleControlProps = {
   isOpen: boolean

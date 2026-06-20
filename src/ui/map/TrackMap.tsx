@@ -9,14 +9,15 @@ import type { Track } from '../../model/Track'
 import type {
   MapLabelMode,
   MapStyleSettings,
-} from '../map/mapStyleSettings'
+} from './mapStyleSettings'
 import MapStyleControl from './MapStyleControl'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
   type TrackMarkersFeatureCollectionGeoJson,
   type TracksFeatureCollectionGeoJson,
-} from '../map/trackToGeoJson'
+} from '../../formats/geojson/trackToGeoJson'
+import './map.css'
 
 type TrackMapProps = {
   tracks: readonly Track[]
