@@ -18,6 +18,7 @@ import {
   OPENFREEMAP_WATER_LAYER_ID,
   OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
+  TERRAIN_SOURCE_ID,
   TOPOGRAPHIC_LAYER_ID,
 } from './mapLayerIds'
 
@@ -40,9 +41,10 @@ export type MapBaseStyleConfig = {
 }
 
 const OPENFREEMAP_SOURCE_ID = 'openfreemap'
+const TERRAIN_TILE_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
 
 const contourDemSource = new mlcontour.DemSource({
-  url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+  url: TERRAIN_TILE_URL,
   encoding: 'terrarium',
   maxzoom: 12,
   worker: false,
@@ -131,6 +133,17 @@ export const MAP_SOURCE_CONFIGS: readonly MapSourceConfig[] = [
       ],
       tileSize: 256,
       attribution: 'Esri World Hillshade',
+    },
+  },
+  {
+    id: TERRAIN_SOURCE_ID,
+    kind: 'generated-overlay',
+    source: {
+      type: 'raster-dem',
+      tiles: [TERRAIN_TILE_URL],
+      tileSize: 256,
+      encoding: 'terrarium',
+      maxzoom: 12,
     },
   },
   {
