@@ -1,4 +1,4 @@
-export type MapBaseStyle = 'osm' | 'topographic' | 'satellite' | 'hybrid'
+export type MapBaseStyle = 'osm' | 'openfreemap' | 'topographic' | 'satellite' | 'hybrid'
 
 export type MapLabelMode = 'local' | 'ru' | 'en' | 'dual'
 
