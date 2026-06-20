@@ -5,9 +5,9 @@ import { LocalFileTrackSource } from '../../application/sources/LocalFileSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import { defaultTrackColor, TRACK_COLORS } from '../trackColors'
 import Button from '../shared/Button'
-import Dialog from '../shared/Dialog'
 import FormField from '../shared/FormField'
 import Notice from '../shared/Notice'
+import Panel from '../shared/Panel'
 import SegmentedControl from '../shared/SegmentedControl'
 import TextInput from '../shared/TextInput'
 
@@ -21,7 +21,7 @@ type CreateKomootSourceInput = {
   accountSource: boolean
 }
 
-type AddSourceDialogProps = {
+type AddSourcePanelProps = {
   sourceIndex: number
   komootConnection: KomootConnectionState
   onCreateKomootSource: (input: CreateKomootSourceInput) => TrackSource
@@ -38,14 +38,14 @@ const SOURCE_TYPE_SEGMENTS = [
   { value: 'komoot', label: 'Komoot' },
 ] as const
 
-export default function AddSourceDialog({
+export default function AddSourcePanel({
   sourceIndex,
   komootConnection,
   onCreateKomootSource,
   onOpenSettings,
   onCancel,
   onCreate,
-}: AddSourceDialogProps) {
+}: AddSourcePanelProps) {
   const [mode, setMode] = useState<SourceMode>('files')
   const [name, setName] = useState('')
   const [color, setColor] = useState(defaultTrackColor(sourceIndex))
@@ -142,7 +142,7 @@ export default function AddSourceDialog({
   ]
 
   return (
-    <Dialog
+    <Panel
       title="Add New Source"
       ariaLabel="Add new source"
       onClose={onCancel}
@@ -167,11 +167,7 @@ export default function AddSourceDialog({
         </>
       }
     >
-      <form
-        id="add-source-form"
-        autoComplete="on"
-        onSubmit={handleSubmit}
-      >
+      <form id="add-source-form" autoComplete="on" onSubmit={handleSubmit}>
         <SegmentedControl
           segments={SOURCE_TYPE_SEGMENTS}
           value={mode}
@@ -179,7 +175,7 @@ export default function AddSourceDialog({
           ariaLabel="Source type"
         />
 
-        <div className="dialog-section">
+        <div className="panel-section">
           <FormField label="Name">
             <TextInput
               type="text"
@@ -241,7 +237,7 @@ export default function AddSourceDialog({
             <small className="selected-files">{files.length === 0 ? 'No files selected' : `${files.length} file${files.length === 1 ? '' : 's'} selected`}</small>
           </div>
         ) : (
-          <div className="dialog-section">
+          <div className="panel-section">
             <h3>Komoot</h3>
             <SegmentedControl
               segments={komootImportSegments}
@@ -280,6 +276,6 @@ export default function AddSourceDialog({
 
         {errorMessage !== null && <Notice variant="error">{errorMessage}</Notice>}
       </form>
-    </Dialog>
+    </Panel>
   )
 }

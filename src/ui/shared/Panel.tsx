@@ -1,10 +1,11 @@
-import type { ReactNode, MouseEvent } from 'react'
+import type { ReactNode } from 'react'
 import IconButton from './IconButton'
 import { X } from 'lucide-react'
 import './Panel.css'
 import './Surface.css'
 
 type PanelProps = {
+  id?: string
   title: string
   ariaLabel?: string
   onClose: () => void
@@ -15,6 +16,7 @@ type PanelProps = {
 }
 
 export default function Panel({
+  id,
   title,
   ariaLabel,
   onClose,
@@ -23,12 +25,6 @@ export default function Panel({
   className,
   closeLabel = 'Close',
 }: PanelProps) {
-  function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>): void {
-    if (event.target === event.currentTarget) {
-      onClose()
-    }
-  }
-
   const panelClasses = ['surface', 'panel-content']
 
   if (className) {
@@ -37,14 +33,12 @@ export default function Panel({
 
   return (
     <div
-      className="panel-backdrop"
+      className="panel-layer"
       role="presentation"
-      onMouseDown={handleBackdropMouseDown}
     >
-      <div
+      <aside
+        id={id}
         className={panelClasses.join(' ')}
-        role="dialog"
-        aria-modal="true"
         aria-label={ariaLabel ?? title}
       >
         <header className="panel-header">
@@ -62,7 +56,7 @@ export default function Panel({
           {children}
         </div>
         {footer !== undefined && <footer className="panel-footer">{footer}</footer>}
-      </div>
+      </aside>
     </div>
   )
 }

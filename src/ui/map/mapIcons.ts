@@ -31,7 +31,7 @@ export function createMapStyleButton(onClick: () => void): HTMLButtonElement {
   button.type = 'button'
   button.title = 'Стили карты'
   button.setAttribute('aria-label', 'Стили карты')
-  button.setAttribute('aria-controls', 'map-style-panel')
+  button.setAttribute('aria-controls', 'map-settings-panel')
   button.setAttribute('aria-expanded', 'false')
   button.append(createLayersIcon())
   button.addEventListener('click', onClick)

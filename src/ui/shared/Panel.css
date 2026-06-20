@@ -1,8 +1,8 @@
-.panel-backdrop {
+.panel-layer {
   position: absolute;
   inset: 0;
   z-index: 80;
-  background: rgba(15, 23, 42, 0.28);
+  pointer-events: none;
 }
 
 .panel-content {
@@ -10,20 +10,36 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(420px, 100%);
+  width: var(--right-panel-width);
+  min-width: 300px;
+  max-width: 520px;
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(14px);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-panel);
+}
+
+.panel-section {
+  display: grid;
+  gap: 10px;
+}
+
+.panel-section h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 0;
+  border-bottom: 1px solid var(--color-border);
+  padding: 16px 16px 12px;
 }
 
 .panel-header h2 {
@@ -46,4 +62,17 @@
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 767px) {
+  .panel-content {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: var(--mobile-sheet-height, 96px);
+  }
 }

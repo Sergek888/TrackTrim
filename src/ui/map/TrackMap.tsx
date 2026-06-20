@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import type { MapStyleSettings } from './mapStyleSettings'
-import MapStyleControl from './MapStyleControl'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
@@ -40,7 +39,8 @@ type TrackMapProps = {
     version: number
   } | null
   mapStyleSettings: MapStyleSettings
-  onMapStyleSettingsChange: (settings: MapStyleSettings) => void
+  isMapSettingsOpen: boolean
+  onMapSettingsToggle: () => void
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
   extraButtons?: readonly ExtraButton[]
@@ -67,7 +67,8 @@ export default function TrackMap({
   activeTrack,
   focusedTrack,
   mapStyleSettings,
-  onMapStyleSettingsChange,
+  isMapSettingsOpen,
+  onMapSettingsToggle,
   onTrackClick,
   onMapClick,
   extraButtons,
@@ -77,12 +78,12 @@ export default function TrackMap({
   const mapStyleButtonRef = useRef<HTMLButtonElement | null>(null)
   const extraButtonsRef = useRef<HTMLButtonElement[]>([])
   const extraButtonsRootsRef = useRef<ReturnType<typeof createRoot>[]>([])
-  const [isMapStylePanelOpen, setIsMapStylePanelOpen] = useState(false)
   const latestTracksRef = useRef(tracks)
   const latestActiveTrackRef = useRef(activeTrack)
   const latestOnTrackClickRef = useRef(onTrackClick)
   const latestOnMapClickRef = useRef(onMapClick)
   const latestMapStyleSettingsRef = useRef(mapStyleSettings)
+  const latestOnMapSettingsToggleRef = useRef(onMapSettingsToggle)
   const fittedInitialBoundsRef = useRef(false)
   const isMapReadyRef = useRef(false)
 
@@ -91,6 +92,7 @@ export default function TrackMap({
   latestOnTrackClickRef.current = onTrackClick
   latestOnMapClickRef.current = onMapClick
   latestMapStyleSettingsRef.current = mapStyleSettings
+  latestOnMapSettingsToggleRef.current = onMapSettingsToggle
 
   useEffect(() => {
     if (containerRef.current === null || mapRef.current !== null) {
@@ -110,7 +112,7 @@ export default function TrackMap({
       '.maplibregl-ctrl-top-right .maplibregl-ctrl-group',
     )
     const handleMapStyleClick = () => {
-      setIsMapStylePanelOpen((open) => !open)
+      latestOnMapSettingsToggleRef.current()
     }
 
     if (navigationControlGroup !== null && navigationControlGroup !== undefined) {
@@ -262,9 +264,9 @@ export default function TrackMap({
   useEffect(() => {
     mapStyleButtonRef.current?.setAttribute(
       'aria-expanded',
-      String(isMapStylePanelOpen),
+      String(isMapSettingsOpen),
     )
-  }, [isMapStylePanelOpen])
+  }, [isMapSettingsOpen])
 
   useEffect(() => {
     const map = mapRef.current
@@ -347,14 +349,5 @@ export default function TrackMap({
     }
   }, [extraButtons])
 
-  return (
-    <>
-      <div className="track-map" ref={containerRef} aria-label="Track map" />
-      <MapStyleControl
-        isOpen={isMapStylePanelOpen}
-        settings={mapStyleSettings}
-        onChange={onMapStyleSettingsChange}
-      />
-    </>
-  )
+  return <div className="track-map" ref={containerRef} aria-label="Track map" />
 }

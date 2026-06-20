@@ -88,7 +88,7 @@ a:focus-visible {
 }
 
 .workspace {
-  --sidebar-width: 0px;
+  --right-panel-width: 0px;
   --controls-right: 0px;
   position: relative;
   isolation: isolate;
@@ -96,9 +96,9 @@ a:focus-visible {
   background: #dfe7eb;
 }
 
-.workspace[data-sidebar='open'] {
-  --sidebar-width: 360px;
-  --controls-right: var(--sidebar-width);
+.workspace[data-right-panel='open'] {
+  --right-panel-width: 360px;
+  --controls-right: var(--right-panel-width);
 }
 
 .workspace svg {
@@ -141,7 +141,7 @@ a:focus-visible {
   z-index: 40;
   display: grid;
   grid-template-rows: auto auto auto 1fr;
-  width: var(--sidebar-width);
+  width: var(--right-panel-width);
   min-width: 300px;
   max-width: 520px;
   overflow: hidden;
@@ -990,6 +990,7 @@ a:focus-visible {
   }
 
   .workspace {
+    --controls-right: 0px;
   }
 
   .sidebar {

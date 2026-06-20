@@ -3,73 +3,68 @@ import type { TrackLibrary } from '../../application/TrackLibrary'
 import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
-import AddSourceDialog from './AddSourceDialog'
+import MapSettingsPanel from '../map/MapSettingsPanel'
+import type { MapStyleSettings } from '../map/mapStyleSettings'
+import AddSourcePanel from './AddSourcePanel'
 import ColorPalette from './ColorPalette'
-import SettingsDialog from './SettingsDialog'
+import SettingsPanel from './SettingsPanel'
 
 type ColorPaletteState =
-  | {
-      kind: 'source'
-      source: TrackSource
-      left: number
-      top: number
-    }
-  | {
-      kind: 'track'
-      meta: TrackMeta
-      left: number
-      top: number
-    }
+  | { kind: 'source'; source: TrackSource; left: number; top: number }
+  | { kind: 'track'; meta: TrackMeta; left: number; top: number }
 
-type WorkspaceDialogsProps = {
+type WorkspacePanelsProps = {
   library: TrackLibrary
   komootConnection: KomootConnectionService
   komootState: KomootConnectionState
   isAddSourceOpen: boolean
   isSettingsOpen: boolean
+  isMapSettingsOpen: boolean
+  mapStyleSettings: MapStyleSettings
   colorPalette: ColorPaletteState | null
   onAddSourceClose: () => void
   onSettingsClose: () => void
+  onSettingsOpen: () => void
+  onMapSettingsClose: () => void
+  onMapStyleSettingsChange: (settings: MapStyleSettings) => void
   onColorPaletteChange: (color: string) => void
   onSourceCreate: (source: TrackSource) => void
 }
 
-export default function WorkspaceDialogs({
+export default function WorkspacePanels({
   library,
   komootConnection,
   komootState,
   isAddSourceOpen,
   isSettingsOpen,
+  isMapSettingsOpen,
+  mapStyleSettings,
   colorPalette,
   onAddSourceClose,
   onSettingsClose,
+  onSettingsOpen,
+  onMapSettingsClose,
+  onMapStyleSettingsChange,
   onColorPaletteChange,
   onSourceCreate,
-}: WorkspaceDialogsProps) {
+}: WorkspacePanelsProps) {
   return (
     <>
       {colorPalette !== null && (
         <ColorPalette
           left={colorPalette.left}
           top={colorPalette.top}
-          value={
-            colorPalette.kind === 'source'
-              ? colorPalette.source.color
-              : colorPalette.meta.color
-          }
+          value={colorPalette.kind === 'source' ? colorPalette.source.color : colorPalette.meta.color}
           onChange={onColorPaletteChange}
         />
       )}
 
       {isAddSourceOpen && (
-        <AddSourceDialog
+        <AddSourcePanel
           sourceIndex={library.sources.length}
           komootConnection={komootState}
           onCreateKomootSource={({ target, name, color, listType, accountSource }) => {
-            const targetType = KomootTrackSource.getTargetType(
-              target,
-              komootConnection.publicApi(),
-            )
+            const targetType = KomootTrackSource.getTargetType(target, komootConnection.publicApi())
 
             if (!accountSource && targetType !== 'tour' && targetType !== 'collection') {
               throw new Error('Enter a Komoot tour or collection URL.')
@@ -80,14 +75,11 @@ export default function WorkspaceDialogs({
               name,
               color,
               listType,
-              accountSource
-                ? komootConnection.accountApi()
-                : komootConnection.publicApi(),
+              accountSource ? komootConnection.accountApi() : komootConnection.publicApi(),
             )
           }}
           onOpenSettings={() => {
-            onAddSourceClose()
-            onSettingsClose()
+            onSettingsOpen()
           }}
           onCancel={onAddSourceClose}
           onCreate={onSourceCreate}
@@ -95,11 +87,19 @@ export default function WorkspaceDialogs({
       )}
 
       {isSettingsOpen && (
-        <SettingsDialog
+        <SettingsPanel
           komootConnection={komootState}
           onClose={onSettingsClose}
           onKomootConnect={(email, password) => komootConnection.connect(email, password)}
           onKomootDisconnect={() => komootConnection.disconnect()}
+        />
+      )}
+
+      {isMapSettingsOpen && (
+        <MapSettingsPanel
+          settings={mapStyleSettings}
+          onChange={onMapStyleSettingsChange}
+          onClose={onMapSettingsClose}
         />
       )}
     </>

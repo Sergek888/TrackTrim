@@ -27,8 +27,3 @@ dialog.dialog-backdrop::backdrop {
   font-size: 13px;
   font-weight: 850;
 }
-
-.dialog-section {
-  display: grid;
-  gap: 10px;
-}

@@ -2,24 +2,24 @@ import type {
   KomootConnectionService,
   KomootConnectionState,
 } from '../../application/KomootConnectionService'
-import Dialog from '../shared/Dialog'
+import Panel from '../shared/Panel'
 import KomootSourceCard from './sources/KomootSourceCard'
 
-type SettingsDialogProps = {
+type SettingsPanelProps = {
   komootConnection: KomootConnectionState
   onClose: () => void
   onKomootConnect: KomootConnectionService['connect']
   onKomootDisconnect: KomootConnectionService['disconnect']
 }
 
-export default function SettingsDialog({
+export default function SettingsPanel({
   komootConnection,
   onClose,
   onKomootConnect,
   onKomootDisconnect,
-}: SettingsDialogProps) {
+}: SettingsPanelProps) {
   return (
-    <Dialog
+    <Panel
       title="Settings"
       onClose={onClose}
       closeLabel="Close settings"
@@ -32,6 +32,6 @@ export default function SettingsDialog({
           onDisconnect={onKomootDisconnect}
         />
       </section>
-    </Dialog>
+    </Panel>
   )
 }
