@@ -1,4 +1,4 @@
-import { Flag, MapPin } from 'lucide-react'
+import { ExternalLink, Flag, MapPin } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { TrackMeta } from '../../../model/TrackMeta'
@@ -134,21 +134,31 @@ function CoordDropdown({
           onClick={(event) => event.stopPropagation()}
         >
           {items.map((item) => (
-            <button
-              key={item.id}
-              className="track-coordinates-menu-item"
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                if (item.copyValue) handleCopy(item.copyValue)
-                if (item.externalUrl) handleOpen(item.externalUrl)
-              }}
-            >
-              <span className="track-coordinates-menu-icon">
-                {item.icon === 'copy' ? '\u2398' : '\u2197'}
-              </span>
-              <span className="track-coordinates-menu-label">{item.label}</span>
-            </button>
+            <div key={item.id} className="track-coordinates-menu-item">
+              <button
+                className="track-coordinates-menu-item-body"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  if (item.copyValue) handleCopy(item.copyValue)
+                }}
+              >
+                <span className="track-coordinates-menu-label">{item.label}</span>
+              </button>
+              {item.externalUrl && (
+                <button
+                  className="track-coordinates-menu-item-action"
+                  type="button"
+                  aria-label={`Open in ${item.label}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpen(item.externalUrl!)
+                  }}
+                >
+                  <ExternalLink size={12} aria-hidden="true" />
+                </button>
+              )}
+            </div>
           ))}
         </div>,
         document.body,

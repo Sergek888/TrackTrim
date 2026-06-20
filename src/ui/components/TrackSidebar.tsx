@@ -1,4 +1,4 @@
-import { PanelRightClose, PanelRightOpen, Plus, Search, Settings, X } from 'lucide-react'
+import { Plus, Search, X } from 'lucide-react'
 import type { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
@@ -12,8 +12,6 @@ type TrackSidebarProps = {
   collapsed: boolean
   onSearchChange: (value: string) => void
   onAddSourceClick: () => void
-  onSettingsClick: () => void
-  onToggleCollapsed: () => void
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
   onSourceColorClick: (source: TrackSource, left: number, top: number) => void
@@ -39,8 +37,6 @@ export default function TrackSidebar({
   collapsed,
   onSearchChange,
   onAddSourceClick,
-  onSettingsClick,
-  onToggleCollapsed,
   onSourceVisibilityChange,
   onSourceExpandedChange,
   onSourceColorClick,
@@ -55,59 +51,33 @@ export default function TrackSidebar({
 
   return (
     <>
-      {collapsed && (
-        <IconButton
-          className="sidebar-action-button sidebar-toggle"
-          type="button"
-          aria-label="Open navigation panel"
-          title="Open navigation panel"
-          onClick={onToggleCollapsed}
-        >
-          <PanelRightOpen aria-hidden="true" />
-        </IconButton>
-      )}
-
       <aside
         className={`sidebar${collapsed ? ' is-collapsed' : ''}`}
         aria-label="Track sources"
         aria-hidden={collapsed}
         inert={collapsed}
       >
-        <header className="surface-header sidebar-header">
-          <div className="app-brand">
-            <h1>TrackViewer</h1>
-          </div>
+        <header className="sidebar-header">
           {!collapsed && (
-            <div className="sidebar-header-actions">
-              <IconButton
-                className="sidebar-action-button add-source-button"
-                type="button"
-                aria-label="Add source"
-                title="Add source"
-                onClick={onAddSourceClick}
-              >
-                <Plus aria-hidden="true" />
-              </IconButton>
-              <IconButton
-                className="sidebar-action-button sidebar-settings-button"
-                type="button"
-                aria-label="Settings"
-                title="Settings"
-                onClick={onSettingsClick}
-              >
-                <Settings aria-hidden="true" />
-              </IconButton>
-              <IconButton
-                className="sidebar-action-button"
-                type="button"
-                aria-label="Close navigation panel"
-                title="Close navigation panel"
-                onClick={onToggleCollapsed}
-              >
-                <PanelRightClose aria-hidden="true" />
-              </IconButton>
+            <div className="app-brand">
+              <h1>TrackViewer</h1>
             </div>
           )}
+          <div className="sidebar-header-actions">
+            {!collapsed && (
+              <>
+                <IconButton
+                  className="sidebar-action-button add-source-button"
+                  type="button"
+                  aria-label="Add source"
+                  title="Add source"
+                  onClick={onAddSourceClick}
+                >
+                  <Plus aria-hidden="true" />
+                </IconButton>
+              </>
+            )}
+          </div>
         </header>
 
         <div className="sidebar-controls">

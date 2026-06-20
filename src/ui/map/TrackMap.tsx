@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
 import type { Track } from '../../model/Track'
@@ -32,6 +33,13 @@ import {
 } from './mapLayerIds'
 import './map.css'
 
+type ExtraButton = {
+  icon: ReactNode
+  label: string
+  title: string
+  onClick: () => void
+}
+
 type TrackMapProps = {
   tracks: readonly Track[]
   activeTrack: Track | null
@@ -43,6 +51,7 @@ type TrackMapProps = {
   onMapStyleSettingsChange: (settings: MapStyleSettings) => void
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
+  extraButtons?: readonly ExtraButton[]
 }
 
 export type TrackMapPoint = {
@@ -77,10 +86,13 @@ export default function TrackMap({
   onMapStyleSettingsChange,
   onTrackClick,
   onMapClick,
+  extraButtons,
 }: TrackMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapStyleButtonRef = useRef<HTMLButtonElement | null>(null)
+  const extraButtonsRef = useRef<HTMLButtonElement[]>([])
+  const extraButtonsRootsRef = useRef<ReturnType<typeof createRoot>[]>([])
   const [isMapStylePanelOpen, setIsMapStylePanelOpen] = useState(false)
   const latestTracksRef = useRef(tracks)
   const latestActiveTrackRef = useRef(activeTrack)
@@ -242,18 +254,31 @@ export default function TrackMap({
     })
 
     mapRef.current = map
-    map.addControl(new maplibregl.NavigationControl(), 'top-left')
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
     const navigationControlGroup = containerRef.current.querySelector<HTMLElement>(
-      '.maplibregl-ctrl-top-left .maplibregl-ctrl-group',
+      '.maplibregl-ctrl-top-right .maplibregl-ctrl-group',
     )
     const handleMapStyleClick = () => {
       setIsMapStylePanelOpen((open) => !open)
     }
 
-    if (navigationControlGroup !== null) {
+    if (navigationControlGroup !== null && navigationControlGroup !== undefined) {
       const mapStyleButton = createMapStyleButton(handleMapStyleClick)
       navigationControlGroup.append(mapStyleButton)
       mapStyleButtonRef.current = mapStyleButton
+
+      const buttons: HTMLButtonElement[] = []
+      for (const cfg of (extraButtons ?? [])) {
+        const btn = document.createElement('button')
+        btn.className = 'maplibregl-ctrl-icon map-extra-toggle'
+        btn.type = 'button'
+        btn.setAttribute('aria-label', cfg.label)
+        btn.setAttribute('title', cfg.title)
+        btn.onclick = cfg.onClick
+        navigationControlGroup.append(btn)
+        buttons.push(btn)
+      }
+      extraButtonsRef.current = buttons
     }
 
     map.on('load', () => {
@@ -371,6 +396,11 @@ export default function TrackMap({
       )
       mapStyleButtonRef.current?.remove()
       mapStyleButtonRef.current = null
+      for (const root of extraButtonsRootsRef.current) root.unmount()
+      extraButtonsRootsRef.current = []
+      for (const btn of extraButtonsRef.current) btn.onclick = null
+      for (const btn of extraButtonsRef.current) btn.remove()
+      extraButtonsRef.current = []
       map.remove()
       mapRef.current = null
       fittedInitialBoundsRef.current = false
@@ -443,6 +473,28 @@ export default function TrackMap({
       map.fitBounds(bounds, { padding: 80, duration: 450, maxZoom: 16 })
     }
   }, [focusedTrack])
+
+  useEffect(() => {
+    const buttons = extraButtonsRef.current
+    const configs = extraButtons ?? []
+
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i]
+      const cfg = configs[i]
+      if (btn === undefined || cfg === undefined) continue
+
+      btn.setAttribute('aria-label', cfg.label)
+      btn.setAttribute('title', cfg.title)
+      btn.onclick = cfg.onClick
+
+      let root = extraButtonsRootsRef.current[i]
+      if (root === undefined) {
+        root = createRoot(btn)
+        extraButtonsRootsRef.current[i] = root
+      }
+      root.render(cfg.icon)
+    }
+  }, [extraButtons])
 
   return (
     <>

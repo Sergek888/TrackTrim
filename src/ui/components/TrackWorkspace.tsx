@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PanelRightClose, PanelRightOpen, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
@@ -37,7 +38,7 @@ export default function TrackWorkspace() {
   const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [mapStyleSettings, setMapStyleSettings] = useState(
@@ -176,9 +177,37 @@ export default function TrackWorkspace() {
     setColorPalette(null)
   }
 
+  const extraButtons = useMemo(() => [
+    {
+      icon: isSidebarOpen
+        ? <PanelRightClose aria-hidden="true" />
+        : <PanelRightOpen aria-hidden="true" />,
+      label: isSidebarOpen ? 'Close navigation panel' : 'Open navigation panel',
+      title: isSidebarOpen ? 'Close navigation panel' : 'Open navigation panel',
+      onClick: () => {
+        setIsSidebarOpen((open) => !open)
+        setTooltip(null)
+        setColorPalette(null)
+      },
+    },
+    {
+      icon: <Settings aria-hidden="true" />,
+      label: 'Settings',
+      title: 'Settings',
+      onClick: () => {
+        setIsSettingsOpen(true)
+        void komootConnection.refresh()
+      },
+    },
+  ], [isSidebarOpen])
+
   return (
-    <section className="workspace" aria-label="Track workspace">
-      <div className="map-shell">
+    <section
+      className="workspace"
+      data-sidebar={isSidebarOpen ? 'open' : 'closed'}
+      aria-label="Track workspace"
+    >
+      <div className="map-area">
         <TrackMap
           tracks={visibleTracks}
           activeTrack={activeTrack}
@@ -190,6 +219,7 @@ export default function TrackWorkspace() {
             setTooltip(null)
             setColorPalette(null)
           }}
+          extraButtons={extraButtons}
         />
 
         <TrackTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
@@ -210,15 +240,6 @@ export default function TrackWorkspace() {
           setTooltip(null)
           setColorPalette(null)
           setIsAddSourceOpen(true)
-        }}
-        onSettingsClick={() => {
-          setIsSettingsOpen(true)
-          void komootConnection.refresh()
-        }}
-        onToggleCollapsed={() => {
-          setIsSidebarOpen((open) => !open)
-          setTooltip(null)
-          setColorPalette(null)
         }}
         onSourceVisibilityChange={handleSourceVisibilityChange}
         onSourceExpandedChange={handleSourceExpandedChange}

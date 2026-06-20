@@ -31,8 +31,17 @@ function createMapServiceItems(point: TrackPoint): GeoPointMenuItem[] {
 }
 
 export function buildGeoPointMenuItems(point: TrackPoint): GeoPointMenuItem[] {
+  const geoUri = formatCoordinate(point, 'geoUri')
+
   return [
     ...createCoordinateItems(point),
+    {
+      id: 'coord-geoUri',
+      group: 'coordinates',
+      label: geoUri,
+      icon: 'external-link',
+      externalUrl: geoUri,
+    },
     ...createMapServiceItems(point),
   ]
 }
