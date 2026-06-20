@@ -1,7 +1,7 @@
 import type { TrackPoint } from '../../model/TrackPoint'
 import type { CoordinateFormat } from './CoordinateFormat'
 import { COORDINATE_FORMATS } from './CoordinateFormat'
-import { coordinateFormatLabel, formatCoordinate } from './CoordinateFormatter'
+import { formatCoordinate } from './CoordinateFormatter'
 import type { GeoPointMenuItem } from './GeoPointMenuItem'
 import { getAvailableMapProviders } from './GeoServiceRegistry'
 import { buildMapLinks } from './MapLinkBuilder'
@@ -10,7 +10,7 @@ function createCoordinateItems(point: TrackPoint): GeoPointMenuItem[] {
   return COORDINATE_FORMATS.map((format: CoordinateFormat) => ({
     id: `coord-${format}`,
     group: 'coordinates' as const,
-    label: coordinateFormatLabel(format),
+    label: formatCoordinate(point, format),
     icon: 'copy' as const,
     copyValue: formatCoordinate(point, format),
   }))

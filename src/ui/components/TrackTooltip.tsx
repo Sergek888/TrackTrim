@@ -133,10 +133,29 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
         </IconButton>
       </header>
 
-      <p className="tooltip-source" title={meta.source.name}>
-        <Folder aria-hidden="true" size={14} />
-        {meta.source.name}
-      </p>
+      <div className="tooltip-source-row">
+        <p className="tooltip-source" title={meta.source.name}>
+          <Folder aria-hidden="true" size={14} />
+          {meta.source.name}
+        </p>
+        <div className="tooltip-actions-inline">
+          {originalUrl !== null && (
+            <a className="icon-button details-button" href={originalUrl} target="_blank" rel="noreferrer" aria-label="Open original track" title="Open original track">
+              <ExternalLink aria-hidden="true" size={14} />
+            </a>
+          )}
+          {shareUrl !== null && (
+            <IconButton type="button" aria-label="Copy link" title="Copy link" onClick={() => void copyShareUrl()}>
+              <Link aria-hidden="true" size={14} />
+            </IconButton>
+          )}
+          {meta.track !== null && (
+            <IconButton type="button" aria-label="Download GPX" title="Download GPX" onClick={() => void downloadGpx()}>
+              <Download aria-hidden="true" size={14} />
+            </IconButton>
+          )}
+        </div>
+      </div>
 
       {(meta.activityType !== null || meta.activityKind !== null || meta.dateTime !== null) && (
         <div className="tooltip-properties">
@@ -176,24 +195,6 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
       </div>
 
       <TrackCoordinatesBlock meta={meta} />
-
-      <div className="tooltip-actions">
-        {originalUrl !== null && (
-          <a className="icon-button details-button" href={originalUrl} target="_blank" rel="noreferrer" aria-label="Open original track" title="Open original track">
-            <ExternalLink aria-hidden="true" size={14} />
-          </a>
-        )}
-        {shareUrl !== null && (
-          <IconButton type="button" aria-label="Copy link" title="Copy link" onClick={() => void copyShareUrl()}>
-            <Link aria-hidden="true" size={14} />
-          </IconButton>
-        )}
-        {meta.track !== null && (
-          <IconButton type="button" aria-label="Download GPX" title="Download GPX" onClick={() => void downloadGpx()}>
-            <Download aria-hidden="true" size={14} />
-          </IconButton>
-        )}
-      </div>
 
       {notice !== null && (
         <Notice variant={notice.kind} panel role={notice.kind === 'error' ? 'alert' : 'status'}>
