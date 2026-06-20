@@ -1,21 +1,11 @@
-import type {
-  MapBaseStyle,
-  MapLabelMode,
-  MapStyleSettings,
-} from './mapStyleSettings'
+import type { MapLabelMode, MapStyleSettings } from './mapStyleSettings'
+import { MAP_BASE_STYLE_CONFIGS } from './mapStyle'
 
 type MapStyleControlProps = {
   isOpen: boolean
   settings: MapStyleSettings
   onChange: (settings: MapStyleSettings) => void
 }
-
-const BASE_STYLE_OPTIONS: readonly { value: MapBaseStyle; label: string }[] = [
-  { value: 'osm', label: 'OSM' },
-  { value: 'topographic', label: 'Топографическая' },
-  { value: 'satellite', label: 'Спутник' },
-  { value: 'hybrid', label: 'Гибрид' },
-]
 
 const LABEL_MODE_OPTIONS: readonly { value: MapLabelMode; label: string }[] = [
   { value: 'local', label: 'Local' },
@@ -40,14 +30,14 @@ export default function MapStyleControl({
     <div className="surface map-style-panel" id="map-style-panel">
       <fieldset>
         <legend>Базовая карта</legend>
-        {BASE_STYLE_OPTIONS.map((option) => (
-          <label key={option.value}>
+        {MAP_BASE_STYLE_CONFIGS.map((option) => (
+          <label key={option.id}>
             <input
               type="radio"
               name="map-base-style"
-              value={option.value}
-              checked={settings.baseStyle === option.value}
-              onChange={() => updateSettings({ baseStyle: option.value })}
+              value={option.id}
+              checked={settings.baseStyle === option.id}
+              onChange={() => updateSettings({ baseStyle: option.id })}
             />
             <span>{option.label}</span>
           </label>
