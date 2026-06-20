@@ -7,6 +7,15 @@ import {
   CONTOURS_LAYER_ID,
   HILLSHADE_LAYER_ID,
   MAP_LABELS_LAYER_ID,
+  OPENFREEMAP_BACKGROUND_LAYER_ID,
+  OPENFREEMAP_BOUNDARY_LAYER_ID,
+  OPENFREEMAP_BUILDING_LAYER_ID,
+  OPENFREEMAP_LABELS_LAYER_ID,
+  OPENFREEMAP_LANDCOVER_LAYER_ID,
+  OPENFREEMAP_LANDUSE_LAYER_ID,
+  OPENFREEMAP_LAYER_IDS,
+  OPENFREEMAP_ROAD_LAYER_ID,
+  OPENFREEMAP_WATER_LAYER_ID,
   OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
   TOPOGRAPHIC_LAYER_ID,
@@ -30,6 +39,8 @@ export type MapBaseStyleConfig = {
   labelLayerVisible: boolean
 }
 
+const OPENFREEMAP_SOURCE_ID = 'openfreemap'
+
 const contourDemSource = new mlcontour.DemSource({
   url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
   encoding: 'terrarium',
@@ -41,6 +52,12 @@ contourDemSource.setupMaplibre(maplibregl)
 
 export const MAP_BASE_STYLE_CONFIGS: readonly MapBaseStyleConfig[] = [
   { id: 'osm', label: 'OSM', layerIds: [OSM_LAYER_ID], labelLayerVisible: false },
+  {
+    id: 'openfreemap',
+    label: 'OpenFreeMap',
+    layerIds: OPENFREEMAP_LAYER_IDS,
+    labelLayerVisible: false,
+  },
   {
     id: 'topographic',
     label: 'Топографическая',
@@ -70,6 +87,15 @@ export const MAP_SOURCE_CONFIGS: readonly MapSourceConfig[] = [
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
       attribution: '© OpenStreetMap contributors',
+    },
+  },
+  {
+    id: OPENFREEMAP_SOURCE_ID,
+    kind: 'base',
+    source: {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+      attribution: '© OpenStreetMap contributors | OpenFreeMap',
     },
   },
   {
@@ -172,6 +198,174 @@ function createMapLayers(labelMode: MapLabelMode): MapStyleLayer[] {
       id: OSM_LAYER_ID,
       type: 'raster',
       source: 'osm',
+    },
+    {
+      id: OPENFREEMAP_BACKGROUND_LAYER_ID,
+      type: 'background',
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'background-color': '#f8fafc',
+      },
+    },
+    {
+      id: OPENFREEMAP_LANDCOVER_LAYER_ID,
+      type: 'fill',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'landcover',
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'class'],
+          'wood',
+          '#dbe9d4',
+          'grass',
+          '#e4edd8',
+          'farmland',
+          '#efe6cc',
+          '#edf2e6',
+        ],
+        'fill-opacity': 0.75,
+      },
+    },
+    {
+      id: OPENFREEMAP_LANDUSE_LAYER_ID,
+      type: 'fill',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'landuse',
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'class'],
+          'park',
+          '#dcefd2',
+          'residential',
+          '#f2f1ed',
+          'industrial',
+          '#eee6e6',
+          'cemetery',
+          '#d8ead5',
+          '#f4f1e8',
+        ],
+        'fill-opacity': 0.7,
+      },
+    },
+    {
+      id: OPENFREEMAP_WATER_LAYER_ID,
+      type: 'fill',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'water',
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'fill-color': '#b8d7ef',
+      },
+    },
+    {
+      id: OPENFREEMAP_BOUNDARY_LAYER_ID,
+      type: 'line',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'boundary',
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'line-color': '#94a3b8',
+        'line-width': 0.75,
+        'line-dasharray': [2, 2],
+      },
+    },
+    {
+      id: OPENFREEMAP_BUILDING_LAYER_ID,
+      type: 'fill',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'building',
+      minzoom: 13,
+      layout: {
+        visibility: 'none',
+      },
+      paint: {
+        'fill-color': '#d8d2c8',
+        'fill-opacity': 0.78,
+      },
+    },
+    {
+      id: OPENFREEMAP_ROAD_LAYER_ID,
+      type: 'line',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'transportation',
+      layout: {
+        visibility: 'none',
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': [
+          'match',
+          ['get', 'class'],
+          'motorway',
+          '#f59e0b',
+          'trunk',
+          '#fbbf24',
+          'primary',
+          '#fde68a',
+          'secondary',
+          '#fff7cc',
+          '#ffffff',
+        ],
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          5,
+          0.5,
+          10,
+          1.2,
+          14,
+          3.5,
+          17,
+          8,
+        ],
+      },
+    },
+    {
+      id: OPENFREEMAP_LABELS_LAYER_ID,
+      type: 'symbol',
+      source: OPENFREEMAP_SOURCE_ID,
+      'source-layer': 'place',
+      minzoom: 2,
+      layout: {
+        visibility: 'none',
+        'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
+        'text-field': mapLabelTextField(labelMode),
+        'text-font': ['Noto Sans Regular'],
+        'text-size': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          2,
+          10,
+          8,
+          13,
+          14,
+          15,
+        ],
+        'text-max-width': 9,
+        'text-padding': 3,
+      },
+      paint: {
+        'text-color': '#1f2937',
+        'text-halo-color': 'rgba(255, 255, 255, 0.92)',
+        'text-halo-width': 1.5,
+      },
     },
     {
       id: TOPOGRAPHIC_LAYER_ID,

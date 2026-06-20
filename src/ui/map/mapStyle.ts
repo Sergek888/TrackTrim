@@ -10,6 +10,7 @@ import {
   CONTOURS_LAYER_ID,
   HILLSHADE_LAYER_ID,
   MAP_LABELS_LAYER_ID,
+  OPENFREEMAP_LABELS_LAYER_ID,
   SATELLITE_LAYER_ID,
 } from './mapLayerIds'
 
@@ -45,12 +46,14 @@ export function applyMapStyleSettings(
   setLayerVisibility(map, CONTOURS_LAYER_ID, settings.showContours)
   setLayerVisibility(map, HILLSHADE_LAYER_ID, settings.showHillshade)
 
-  if (map.getLayer(MAP_LABELS_LAYER_ID) !== undefined) {
-    map.setLayoutProperty(
-      MAP_LABELS_LAYER_ID,
-      'text-field',
-      mapLabelTextField(settings.labelMode),
-    )
+  for (const layerId of [MAP_LABELS_LAYER_ID, OPENFREEMAP_LABELS_LAYER_ID]) {
+    if (map.getLayer(layerId) !== undefined) {
+      map.setLayoutProperty(
+        layerId,
+        'text-field',
+        mapLabelTextField(settings.labelMode),
+      )
+    }
   }
 
   if (map.getLayer(SATELLITE_LAYER_ID) !== undefined) {
