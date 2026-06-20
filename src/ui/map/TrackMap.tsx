@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
-import mlcontour from 'maplibre-contour'
 import type { Track } from '../../model/Track'
 import type { MapStyleSettings } from './mapStyleSettings'
 import MapStyleControl from './MapStyleControl'
@@ -11,18 +10,11 @@ import {
   type TracksFeatureCollectionGeoJson,
 } from '../../formats/geojson/trackToGeoJson'
 import { allTracksBounds, trackBounds } from './mapBounds'
-import { mapLabelTextField } from './mapLabels'
-import { applyMapStyleSettings } from './mapStyle'
+import { applyMapStyleSettings, createInitialMapStyle } from './mapStyle'
 import { createMapStyleButton, createTrackMarkerImage } from './mapIcons'
 import { queryTrackFeatures, resetInteractiveCursor, setInteractiveCursor } from './mapHitTest'
 import {
   ACTIVE_TRACKS_LAYER_ID,
-  CONTOURS_LAYER_ID,
-  HILLSHADE_LAYER_ID,
-  MAP_LABELS_LAYER_ID,
-  OSM_LAYER_ID,
-  SATELLITE_LAYER_ID,
-  TOPOGRAPHIC_LAYER_ID,
   TRACK_FINISH_IMAGE_ID,
   TRACK_MARKERS_LAYER_ID,
   TRACK_MARKERS_SOURCE_ID,
@@ -60,14 +52,6 @@ const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
 }
-const contourDemSource = new mlcontour.DemSource({
-  url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
-  encoding: 'terrarium',
-  maxzoom: 12,
-  worker: false,
-})
-
-contourDemSource.setupMaplibre(maplibregl)
 
 export default function TrackMap({
   tracks,
@@ -103,140 +87,7 @@ export default function TrackMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: {
-        version: 8,
-        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
-          },
-          topographic: {
-            type: 'raster',
-            tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            maxzoom: 17,
-            attribution: '© OpenStreetMap contributors, SRTM | OpenTopoMap',
-          },
-          satellite: {
-            type: 'raster',
-            tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            ],
-            tileSize: 256,
-            attribution: 'Esri World Imagery',
-          },
-          hillshade: {
-            type: 'raster',
-            tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
-            ],
-            tileSize: 256,
-            attribution: 'Esri World Hillshade',
-          },
-          mapLabels: {
-            type: 'vector',
-            url: 'https://tiles.openfreemap.org/planet',
-            attribution: '© OpenStreetMap contributors | OpenFreeMap',
-          },
-          contours: {
-            type: 'vector',
-            tiles: [
-              contourDemSource.contourProtocolUrl({
-                thresholds: {
-                  9: [500, 2500],
-                  11: [200, 1000],
-                  13: [100, 500],
-                  15: [50, 250],
-                },
-              }),
-            ],
-            maxzoom: 15,
-          },
-        },
-        layers: [
-          {
-            id: OSM_LAYER_ID,
-            type: 'raster',
-            source: 'osm',
-          },
-          {
-            id: TOPOGRAPHIC_LAYER_ID,
-            type: 'raster',
-            source: 'topographic',
-            layout: {
-              visibility: 'none',
-            },
-          },
-          {
-            id: SATELLITE_LAYER_ID,
-            type: 'raster',
-            source: 'satellite',
-            layout: {
-              visibility: 'none',
-            },
-          },
-          {
-            id: HILLSHADE_LAYER_ID,
-            type: 'raster',
-            source: 'hillshade',
-            layout: {
-              visibility: 'none',
-            },
-            paint: {
-              'raster-opacity': 0.35,
-            },
-          },
-          {
-            id: CONTOURS_LAYER_ID,
-            type: 'line',
-            source: 'contours',
-            'source-layer': 'contours',
-            layout: {
-              visibility: 'none',
-            },
-            paint: {
-              'line-color': 'rgba(71, 85, 105, 0.72)',
-              'line-width': ['match', ['get', 'level'], 1, 1.15, 0.55],
-            },
-          },
-          {
-            id: MAP_LABELS_LAYER_ID,
-            type: 'symbol',
-            source: 'mapLabels',
-            'source-layer': 'place',
-            minzoom: 2,
-            layout: {
-              visibility: 'none',
-              'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
-              'text-field': mapLabelTextField(
-                latestMapStyleSettingsRef.current.labelMode,
-              ),
-              'text-font': ['Noto Sans Regular'],
-              'text-size': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                2,
-                10,
-                8,
-                13,
-                14,
-                15,
-              ],
-              'text-max-width': 9,
-              'text-padding': 3,
-            },
-            paint: {
-              'text-color': '#1f2937',
-              'text-halo-color': 'rgba(255, 255, 255, 0.92)',
-              'text-halo-width': 1.5,
-            },
-          },
-        ],
-      },
+      style: createInitialMapStyle(latestMapStyleSettingsRef.current.labelMode),
       center: [0, 0],
       zoom: 1,
     })
