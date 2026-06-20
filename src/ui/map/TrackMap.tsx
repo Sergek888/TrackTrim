@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl, {
-  type ExpressionSpecification,
-  type GeoJSONSource,
-  type LngLatBoundsLike,
-} from 'maplibre-gl'
+import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
 import type { Track } from '../../model/Track'
-import type {
-  MapLabelMode,
-  MapStyleSettings,
-} from './mapStyleSettings'
+import type { MapStyleSettings } from './mapStyleSettings'
 import MapStyleControl from './MapStyleControl'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
@@ -17,6 +10,26 @@ import {
   type TrackMarkersFeatureCollectionGeoJson,
   type TracksFeatureCollectionGeoJson,
 } from '../../formats/geojson/trackToGeoJson'
+import { allTracksBounds, trackBounds } from './mapBounds'
+import { mapLabelTextField } from './mapLabels'
+import { applyMapStyleSettings } from './mapStyle'
+import { createMapStyleButton, createTrackMarkerImage } from './mapIcons'
+import { queryTrackFeatures, resetInteractiveCursor, setInteractiveCursor } from './mapHitTest'
+import {
+  ACTIVE_TRACKS_LAYER_ID,
+  CONTOURS_LAYER_ID,
+  HILLSHADE_LAYER_ID,
+  MAP_LABELS_LAYER_ID,
+  OSM_LAYER_ID,
+  SATELLITE_LAYER_ID,
+  TOPOGRAPHIC_LAYER_ID,
+  TRACK_FINISH_IMAGE_ID,
+  TRACK_MARKERS_LAYER_ID,
+  TRACK_MARKERS_SOURCE_ID,
+  TRACK_START_IMAGE_ID,
+  TRACKS_LAYER_ID,
+  TRACKS_SOURCE_ID,
+} from './mapLayerIds'
 import './map.css'
 
 type TrackMapProps = {
@@ -39,22 +52,6 @@ export type TrackMapPoint = {
   y: number
 }
 
-const TRACKS_SOURCE_ID = 'tracks'
-const TRACKS_LAYER_ID = 'track-lines'
-const ACTIVE_TRACKS_LAYER_ID = 'active-track-lines'
-const TRACK_MARKERS_SOURCE_ID = 'track-markers'
-const TRACK_MARKERS_LAYER_ID = 'track-markers-symbols'
-const TRACK_START_IMAGE_ID = 'track-start'
-const TRACK_FINISH_IMAGE_ID = 'track-finish'
-const OSM_LAYER_ID = 'osm'
-const TOPOGRAPHIC_LAYER_ID = 'topographic'
-const SATELLITE_LAYER_ID = 'satellite'
-const HILLSHADE_LAYER_ID = 'hillshade'
-const MAP_LABELS_LAYER_ID = 'map-labels'
-const CONTOURS_LAYER_ID = 'contours'
-const INTERACTIVE_TRACK_LAYER_IDS = [ACTIVE_TRACKS_LAYER_ID, TRACKS_LAYER_ID]
-const TRACK_HIT_TOLERANCE = 5
-const TRACK_MARKER_SIZE = 20
 const EMPTY_TRACKS_GEOJSON: TracksFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
@@ -63,7 +60,6 @@ const EMPTY_TRACK_MARKERS_GEOJSON: TrackMarkersFeatureCollectionGeoJson = {
   type: 'FeatureCollection',
   features: [],
 }
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 const contourDemSource = new mlcontour.DemSource({
   url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
   encoding: 'terrarium',
@@ -72,240 +68,6 @@ const contourDemSource = new mlcontour.DemSource({
 })
 
 contourDemSource.setupMaplibre(maplibregl)
-
-function createLayersIcon(): SVGSVGElement {
-  const icon = document.createElementNS(SVG_NAMESPACE, 'svg')
-
-  icon.setAttribute('aria-hidden', 'true')
-  icon.setAttribute('fill', 'none')
-  icon.setAttribute('stroke', 'currentColor')
-  icon.setAttribute('stroke-linecap', 'round')
-  icon.setAttribute('stroke-linejoin', 'round')
-  icon.setAttribute('viewBox', '0 0 24 24')
-
-  for (const pathData of [
-    'm12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z',
-    'm22 12.5-9.17 4.17a2 2 0 0 1-1.66 0L2 12.5',
-    'm22 17.5-9.17 4.17a2 2 0 0 1-1.66 0L2 17.5',
-  ]) {
-    const path = document.createElementNS(SVG_NAMESPACE, 'path')
-    path.setAttribute('d', pathData)
-    icon.append(path)
-  }
-
-  return icon
-}
-
-function createMapStyleButton(onClick: () => void): HTMLButtonElement {
-  const button = document.createElement('button')
-
-  button.className = 'maplibregl-ctrl-icon map-style-toggle'
-  button.type = 'button'
-  button.title = 'Стили карты'
-  button.setAttribute('aria-label', 'Стили карты')
-  button.setAttribute('aria-controls', 'map-style-panel')
-  button.setAttribute('aria-expanded', 'false')
-  button.append(createLayersIcon())
-  button.addEventListener('click', onClick)
-
-  return button
-}
-
-function createTrackMarkerImage(kind: 'start' | 'finish'): ImageData {
-  const canvas = document.createElement('canvas')
-  const scale = 2
-  const size = TRACK_MARKER_SIZE * scale
-  const center = size / 2
-  const radius = center - scale
-  const context = canvas.getContext('2d')
-
-  canvas.width = size
-  canvas.height = size
-
-  if (context === null) {
-    return new ImageData(size, size)
-  }
-
-  context.save()
-  context.beginPath()
-  context.arc(center, center, radius, 0, Math.PI * 2)
-  context.clip()
-
-  if (kind === 'start') {
-    context.fillStyle = '#16a34a'
-    context.fillRect(0, 0, size, size)
-  } else {
-    const squareSize = 5 * scale
-
-    for (let row = 0; row < size / squareSize; row += 1) {
-      for (let column = 0; column < size / squareSize; column += 1) {
-        context.fillStyle = (row + column) % 2 === 0 ? '#111827' : '#ffffff'
-        context.fillRect(column * squareSize, row * squareSize, squareSize, squareSize)
-      }
-    }
-  }
-
-  context.restore()
-  context.beginPath()
-  context.arc(center, center, radius, 0, Math.PI * 2)
-  context.strokeStyle = '#ffffff'
-  context.lineWidth = 2 * scale
-  context.stroke()
-
-  return context.getImageData(0, 0, size, size)
-}
-
-function trackBounds(track: Track): LngLatBoundsLike | null {
-  const points = track.getPoints()
-  const firstPoint = points[0] ?? null
-
-  if (firstPoint === null) {
-    return null
-  }
-
-  const bounds = new maplibregl.LngLatBounds(
-    [firstPoint.lon, firstPoint.lat],
-    [firstPoint.lon, firstPoint.lat],
-  )
-
-  for (const point of points.slice(1)) {
-    bounds.extend([point.lon, point.lat])
-  }
-
-  return bounds
-}
-
-function allTracksBounds(tracks: readonly Track[]): LngLatBoundsLike | null {
-  let bounds: maplibregl.LngLatBounds | null = null
-
-  for (const track of tracks) {
-    const points = track.getPoints()
-
-    for (const point of points) {
-      if (bounds === null) {
-        bounds = new maplibregl.LngLatBounds([point.lon, point.lat], [point.lon, point.lat])
-        continue
-      }
-
-      bounds.extend([point.lon, point.lat])
-    }
-  }
-
-  return bounds
-}
-
-function setInteractiveCursor(map: maplibregl.Map): void {
-  map.getCanvas().style.cursor = 'pointer'
-}
-
-function resetInteractiveCursor(map: maplibregl.Map): void {
-  map.getCanvas().style.cursor = ''
-}
-
-function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point) {
-  const directFeatures = map.queryRenderedFeatures(point, {
-    layers: INTERACTIVE_TRACK_LAYER_IDS,
-  })
-
-  if (directFeatures.length > 0) {
-    return directFeatures
-  }
-
-  return map.queryRenderedFeatures(
-    [
-      [point.x - TRACK_HIT_TOLERANCE, point.y - TRACK_HIT_TOLERANCE],
-      [point.x + TRACK_HIT_TOLERANCE, point.y + TRACK_HIT_TOLERANCE],
-    ],
-    {
-      layers: INTERACTIVE_TRACK_LAYER_IDS,
-    },
-  )
-}
-
-function setLayerVisibility(
-  map: maplibregl.Map,
-  layerId: string,
-  visible: boolean,
-): void {
-  if (map.getLayer(layerId) !== undefined) {
-    map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
-  }
-}
-
-function mapLabelTextField(labelMode: MapLabelMode): ExpressionSpecification {
-  const localName: ExpressionSpecification = ['coalesce', ['get', 'name'], '']
-  const russianName: ExpressionSpecification = [
-    'coalesce',
-    ['get', 'name:ru'],
-    ['get', 'name_ru'],
-    localName,
-  ]
-  const englishName: ExpressionSpecification = [
-    'coalesce',
-    ['get', 'name:en'],
-    ['get', 'name_en'],
-    ['get', 'name:latin'],
-    localName,
-  ]
-
-  if (labelMode === 'ru') {
-    return russianName
-  }
-
-  if (labelMode === 'en') {
-    return englishName
-  }
-
-  if (labelMode === 'dual') {
-    return [
-      'case',
-      ['==', localName, englishName],
-      localName,
-      ['concat', localName, '\n', englishName],
-    ]
-  }
-
-  return localName
-}
-
-export function applyMapStyleSettings(
-  map: maplibregl.Map,
-  settings: MapStyleSettings,
-): void {
-  const satelliteVisible =
-    settings.baseStyle === 'satellite' || settings.baseStyle === 'hybrid'
-
-  setLayerVisibility(map, OSM_LAYER_ID, settings.baseStyle === 'osm')
-  setLayerVisibility(
-    map,
-    TOPOGRAPHIC_LAYER_ID,
-    settings.baseStyle === 'topographic',
-  )
-  setLayerVisibility(map, SATELLITE_LAYER_ID, satelliteVisible)
-  setLayerVisibility(
-    map,
-    MAP_LABELS_LAYER_ID,
-    settings.baseStyle === 'hybrid',
-  )
-  setLayerVisibility(map, CONTOURS_LAYER_ID, settings.showContours)
-  setLayerVisibility(map, HILLSHADE_LAYER_ID, settings.showHillshade)
-
-  if (map.getLayer(MAP_LABELS_LAYER_ID) !== undefined) {
-    map.setLayoutProperty(
-      MAP_LABELS_LAYER_ID,
-      'text-field',
-      mapLabelTextField(settings.labelMode),
-    )
-  }
-
-  if (map.getLayer(SATELLITE_LAYER_ID) !== undefined) {
-    map.setPaintProperty(
-      SATELLITE_LAYER_ID,
-      'raster-opacity',
-      settings.satelliteOpacity / 100,
-    )
-  }
-}
 
 export default function TrackMap({
   tracks,
