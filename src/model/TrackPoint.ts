@@ -1,12 +1,15 @@
-export type TrackPointInput = {
+export type TrackPointExtensions = {
+  heartRate?: number
+  cadence?: number
+  temperature?: number
+  power?: number
+  custom?: Record<string, string>
+}
+
+export type TrackPoint = {
   lat: number
   lon: number
   ele: number | null
   time: Date | null
-  elapsedSec?: number | null
-}
-
-export type TrackPoint = Omit<TrackPointInput, 'elapsedSec'> & {
-  elapsedSec: number | null
-  distanceFromStartKm: number
+  extensions?: TrackPointExtensions
 }

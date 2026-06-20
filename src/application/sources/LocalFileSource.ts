@@ -37,7 +37,7 @@ export class LocalFileTrackSource implements TrackSource {
       const track = this.createTrackFromText(sourceText, meta)
 
       meta.track = track
-      meta.fillMissingCalculated(track)
+      meta.fillMissingFromPoints(track.getPoints())
       metas.push(meta)
     }
 
@@ -59,7 +59,7 @@ export class LocalFileTrackSource implements TrackSource {
 
     meta.track = track
     meta.loadStatus = 'ready'
-    meta.fillMissingCalculated(track)
+    meta.fillMissingFromPoints(track.getPoints())
 
     return track
   }
@@ -96,29 +96,16 @@ export class LocalFileTrackSource implements TrackSource {
       throw new Error('Track metadata is missing.')
     }
 
-    const sourceText = this.sourceTexts.get(meta.remoteId) ?? null
+    const payload = gpxConverter.serialize(track, meta.name)
 
-    if (sourceText === null) {
-      const payload = gpxConverter.serialize(track.getPoints(), meta.name)
-
-      if (typeof payload.data !== 'string') {
-        throw new Error('GPX payload must be text.')
-      }
-
-      downloadTextFile(
-        payload.data,
-        this.gpxFileName(meta.name),
-        payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
-      )
-      return
+    if (typeof payload.data !== 'string') {
+      throw new Error('GPX payload must be text.')
     }
 
-    const gpxText = gpxConverter.trimSourceToPointsCount(sourceText, track.pointsCount())
-
     downloadTextFile(
-      gpxText,
+      payload.data,
       this.gpxFileName(meta.name),
-      'application/gpx+xml;charset=utf-8',
+      payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
     )
   }
 
@@ -127,12 +114,14 @@ export class LocalFileTrackSource implements TrackSource {
   }
 
   private createTrackFromText(text: string, meta: TrackMeta): Track {
-    const geometry = gpxConverter.deserialize({
+    const tracks = gpxConverter.deserialize({
       data: text,
       mimeType: 'application/gpx+xml',
     })
 
-    return new TrackModel(geometry.points, meta)
+    const track = tracks[0] ?? TrackModel.fromPoints([], meta)
+
+    return new TrackModel([...track.getSegments()], [...track.getViewPoints()], meta)
   }
 
   private gpxFileName(fileName: string): string {

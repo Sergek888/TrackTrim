@@ -17,6 +17,7 @@ import {
   TrackDifficultyLevel,
   TrackMeta,
 } from '../src/model/TrackMeta'
+import { computeDurationSeconds, computeElevationGainMeters, computeElevationLossMeters } from '../src/model/TrackMeta'
 
 function sourceStub(): TrackSource {
   return {
@@ -115,9 +116,9 @@ test('Komoot source prepares metadata without extra requests and preserves sourc
     distanceMeters: 12345,
     coordinatesUrl: null,
     coordinates: [
-      { lat: 0, lon: 0, elevation: 100, time: null, elapsedSeconds: 0 },
-      { lat: 0, lon: 0.01, elevation: 140, time: null, elapsedSeconds: 600 },
-      { lat: 0, lon: 0.02, elevation: 110, time: null, elapsedSeconds: 1200 },
+      { lat: 0, lon: 0, elevation: 100, time: new Date('2026-02-01T08:00:00Z'), elapsedSeconds: 0 },
+      { lat: 0, lon: 0.01, elevation: 140, time: new Date('2026-02-01T08:10:00Z'), elapsedSeconds: 600 },
+      { lat: 0, lon: 0.02, elevation: 110, time: new Date('2026-02-01T08:20:00Z'), elapsedSeconds: 1200 },
     ],
     sport: 'mtb',
     kind: 'planned',
@@ -170,21 +171,18 @@ test('Komoot source prepares metadata without extra requests and preserves sourc
   assert.equal(meta?.elevationLossMeters, 30)
 })
 
-test('Track calculations use elapsed time, rebase derived tracks, and calculate elevation loss', () => {
-  const track = new Track([
-    { lat: 0, lon: 0, ele: 100, time: null, elapsedSec: 100 },
-    { lat: 0, lon: 0.01, ele: 140, time: null, elapsedSec: 160 },
-    { lat: 0, lon: 0.02, ele: 110, time: null, elapsedSec: 220 },
-  ])
+test('Track calculations use standalone functions', () => {
+  const points = [
+    { lat: 0, lon: 0, ele: 100, time: null },
+    { lat: 0, lon: 0.01, ele: 140, time: null },
+    { lat: 0, lon: 0.02, ele: 110, time: null },
+  ]
 
-  assert.equal(track.durationSec(), 120)
-  assert.equal(track.elevationGainM(), 40)
-  assert.equal(track.elevationLossM(), 30)
-  assert.ok((track.averageSpeedKmh() ?? 0) > 0)
+  const elevationGain = computeElevationGainMeters(points)
+  const elevationLoss = computeElevationLossMeters(points)
 
-  const segment = track.segmentFromIndex(1)
-  assert.deepEqual(segment.getPoints().map((point) => point.elapsedSec), [0, 60])
-  assert.equal(segment.durationSec(), 60)
+  assert.equal(elevationGain, 40)
+  assert.equal(elevationLoss, 30)
 })
 
 test('local GPX metadata keeps activity time separate from file update time', () => {
@@ -192,12 +190,12 @@ test('local GPX metadata keeps activity time separate from file update time', ()
   const sourceUpdatedAt = new Date('2026-03-02T12:00:00Z')
   const activityTime = new Date('2026-03-01T08:00:00Z')
   const meta = new TrackMeta(source, 'local', 'local.gpx', source.color, { sourceUpdatedAt })
-  const track = new Track([
+  const track = Track.fromPoints([
     { lat: 0, lon: 0, ele: 100, time: activityTime },
     { lat: 0, lon: 0.01, ele: 80, time: new Date(activityTime.getTime() + 60_000) },
   ], meta)
 
-  meta.fillMissingCalculated(track)
+  meta.fillMissingFromPoints(track.getPoints())
 
   assert.equal(meta.dateTime, activityTime)
   assert.equal(meta.sourceUpdatedAt, sourceUpdatedAt)
@@ -212,16 +210,14 @@ test('Komoot elapsed coordinates do not create 1970 timestamps in GPX', () => {
     { lat: 1, lng: 2, alt: 3, t: 0 },
     { lat: 1.1, lng: 2.1, alt: 4, t: 60000 },
   ])
-  const track = new Track(coordinates.map((point) => ({
+  const track = Track.fromPoints(coordinates.map((point) => ({
     lat: point.lat,
     lon: point.lon,
     ele: point.elevation,
     time: point.time,
-    elapsedSec: point.elapsedSeconds,
   })))
-  const payload = gpxConverter.serialize(track.getPoints(), 'Komoot')
+  const payload = gpxConverter.serialize(track, 'Komoot')
 
-  assert.equal(track.durationSec(), 60)
   assert.equal(typeof payload.data, 'string')
   assert.doesNotMatch(payload.data as string, /1970/)
   assert.doesNotMatch(payload.data as string, /<time>/)

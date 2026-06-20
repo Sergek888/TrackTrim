@@ -1,5 +1,6 @@
 import { TriangleAlert } from 'lucide-react'
 import type { TrackMeta } from '../../model/TrackMeta'
+import { computeTotalDistanceMeters } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 import Spinner from '../shared/Spinner'
 
@@ -50,7 +51,7 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
           <span title={meta.loadError ?? 'Track could not be loaded'}>
             <TriangleAlert className="track-error-icon" aria-label="Track loading failed" size={17} />
           </span>
-        ) : track !== null ? formatDistance(track.distanceKm()) : null}
+        ) : track !== null ? formatDistance(computeTotalDistanceMeters(track.getPoints()) / 1000) : null}
       </span>
     </article>
   )

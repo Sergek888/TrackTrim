@@ -1,17 +1,13 @@
-import type { TrackPointInput } from '../model/TrackPoint'
+import type { Track } from '../model/Track'
 
 export type RawPayload = {
   readonly data: string | ArrayBuffer
   readonly mimeType?: string
 }
 
-export type ParsedGeometry = {
-  readonly points: TrackPointInput[]
-}
-
 export interface TrackConverter {
   readonly format: 'gpx'
 
-  deserialize(payload: RawPayload): ParsedGeometry
-  serialize(points: readonly TrackPointInput[], name: string): RawPayload
+  deserialize(payload: RawPayload): Track[]
+  serialize(track: Track, name: string): RawPayload
 }

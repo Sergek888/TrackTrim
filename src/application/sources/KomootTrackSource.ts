@@ -8,7 +8,7 @@ import {
   TrackMeta,
   type TrackDifficulty,
 } from '../../model/TrackMeta'
-import type { TrackPointInput } from '../../model/TrackPoint'
+import type { TrackPoint } from '../../model/TrackPoint'
 import {
   type KomootApi,
   type KomootCoordinate,
@@ -97,10 +97,10 @@ export class KomootTrackSource implements TrackSource {
     meta.loadStatus = 'ready'
     meta.loadError = null
 
-    const track = new TrackModel(points.map((point) => this.trackPointInput(point)), meta)
+    const track = TrackModel.fromPoints(points.map((point) => this.trackPoint(point)), meta)
 
     meta.track = track
-    meta.fillMissingCalculated(track)
+    meta.fillMissingFromPoints(track.getPoints())
 
     return track
   }
@@ -125,7 +125,7 @@ export class KomootTrackSource implements TrackSource {
     }
 
     const meta = track.meta
-    const payload = gpxConverter.serialize(track.getPoints(), meta?.name ?? 'Komoot tour')
+    const payload = gpxConverter.serialize(track, meta?.name ?? 'Komoot tour')
 
     if (typeof payload.data !== 'string') {
       throw new Error('GPX payload must be text.')
@@ -174,23 +174,22 @@ export class KomootTrackSource implements TrackSource {
     this.summaries.set(meta, summary)
 
     if (hasGeometry) {
-      const points = summary.coordinates?.map((point) => this.trackPointInput(point)) ?? []
-      const track = new TrackModel(points, meta)
+      const points = summary.coordinates?.map((point) => this.trackPoint(point)) ?? []
+      const track = TrackModel.fromPoints(points, meta)
 
       meta.track = track
-      meta.fillMissingCalculated(track)
+      meta.fillMissingFromPoints(track.getPoints())
     }
 
     return meta
   }
 
-  private trackPointInput(point: KomootCoordinate): TrackPointInput {
+  private trackPoint(point: KomootCoordinate): TrackPoint {
     return {
       lat: point.lat,
       lon: point.lon,
       ele: point.elevation,
       time: point.time,
-      elapsedSec: point.elapsedSeconds,
     }
   }
 
