@@ -20,6 +20,7 @@ export const SATELLITE_LAYER_ID = 'satellite'
 export const HILLSHADE_LAYER_ID = 'hillshade'
 export const MAP_LABELS_LAYER_ID = 'map-labels'
 export const CONTOURS_LAYER_ID = 'contours'
+export const TERRAIN_SOURCE_ID = 'terrain-dem'
 
 export const OPENFREEMAP_LAYER_IDS = [
   OPENFREEMAP_BACKGROUND_LAYER_ID,
