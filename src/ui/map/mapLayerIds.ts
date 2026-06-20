@@ -13,7 +13,7 @@ export const HILLSHADE_LAYER_ID = 'hillshade'
 export const MAP_LABELS_LAYER_ID = 'map-labels'
 export const CONTOURS_LAYER_ID = 'contours'
 
-export const INTERACTIVE_TRACK_LAYER_IDS = [
+export const INTERACTIVE_TRACK_LAYER_IDS: string[] = [
   ACTIVE_TRACKS_LAYER_ID,
   TRACKS_LAYER_ID,
-] as const
+]
