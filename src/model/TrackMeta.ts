@@ -70,6 +70,8 @@ export type TrackMetaOptions = {
   author?: { name?: string; email?: string } | null
   links?: Array<{ href: string; text?: string; mimeType?: string }> | null
   copyright?: { author?: string; year?: number; license?: string } | null
+  startPoint?: TrackPoint | null
+  finishPoint?: TrackPoint | null
 }
 
 const EARTH_RADIUS_M = 6_371_000
@@ -177,6 +179,8 @@ export class TrackMeta {
   public author: { readonly name?: string; readonly email?: string } | null
   public links: ReadonlyArray<{ readonly href: string; readonly text?: string; readonly mimeType?: string }> | null
   public copyright: { readonly author?: string; readonly year?: number; readonly license?: string } | null
+  public startPoint: TrackPoint | null
+  public finishPoint: TrackPoint | null
 
   public constructor(
     public readonly source: TrackSource,
@@ -203,6 +207,8 @@ export class TrackMeta {
     this.author = options.author ?? null
     this.links = options.links ?? null
     this.copyright = options.copyright ?? null
+    this.startPoint = options.startPoint ?? null
+    this.finishPoint = options.finishPoint ?? null
   }
 
   public fillMissingFromPoints(points: readonly TrackPoint[]): void {
@@ -211,6 +217,8 @@ export class TrackMeta {
     this.durationSeconds ??= computeDurationSeconds(points)
     this.elevationGainMeters ??= computeElevationGainMeters(points)
     this.elevationLossMeters ??= computeElevationLossMeters(points)
+    this.startPoint ??= points[0] ?? null
+    this.finishPoint ??= points[points.length - 1] ?? null
   }
 
   public getOriginalUrl(): string | null {

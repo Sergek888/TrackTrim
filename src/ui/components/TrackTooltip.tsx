@@ -25,6 +25,8 @@ import {
 import { formatDateTime, formatDistance, formatDuration } from '../formatters'
 import IconButton from '../shared/IconButton'
 import Notice from '../shared/Notice'
+import TrackCoordinatesBlock from './geo/TrackCoordinatesBlock'
+import { copyExternalUrl } from '../external-links/copyExternalUrl'
 
 export type TrackTooltipState = {
   meta: TrackMeta
@@ -95,7 +97,7 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
     if (shareUrl === null) return
 
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await copyExternalUrl(shareUrl)
       setNotice({ kind: 'success', message: 'Link copied' })
     } catch (error) {
       setNotice({
@@ -172,6 +174,8 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
           formatElevation(meta.elevationLossMeters)
         } />
       </div>
+
+      <TrackCoordinatesBlock meta={meta} />
 
       <div className="tooltip-actions">
         {originalUrl !== null && (

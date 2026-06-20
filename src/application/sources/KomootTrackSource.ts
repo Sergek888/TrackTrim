@@ -148,6 +148,8 @@ export class KomootTrackSource implements TrackSource {
 
   private createMetaFromSummary(summary: KomootTourSummary): TrackMeta {
     const hasGeometry = summary.coordinates !== null && summary.coordinates.length > 0
+    const firstCoord = hasGeometry ? summary.coordinates![0] : null
+    const lastCoord = hasGeometry ? summary.coordinates![summary.coordinates!.length - 1] : null
     const meta = new TrackMeta(
       this,
       summary.id,
@@ -168,6 +170,8 @@ export class KomootTrackSource implements TrackSource {
         elevationGainMeters: summary.elevationUpMeters,
         elevationLossMeters: summary.elevationDownMeters,
         loadStatus: hasGeometry ? 'ready' : 'queued',
+        startPoint: firstCoord ? this.trackPoint(firstCoord) : null,
+        finishPoint: lastCoord ? this.trackPoint(lastCoord) : null,
       },
     )
 
