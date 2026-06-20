@@ -85,6 +85,14 @@ export default function MapSettingsPanel({
             />
             <span>Тени рельефа</span>
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.showTerrain3D}
+              onChange={(event) => updateSettings({ showTerrain3D: event.target.checked })}
+            />
+            <span>3D-рельеф</span>
+          </label>
         </fieldset>
 
         <fieldset disabled={!satelliteOpacityEnabled}>
