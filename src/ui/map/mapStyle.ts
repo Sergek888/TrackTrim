@@ -2,13 +2,18 @@ import maplibregl from 'maplibre-gl'
 import type { MapStyleSettings } from './mapStyleSettings'
 import { mapLabelTextField } from './mapLabels'
 import {
+  getAllBaseStyleLayerIds,
+  getBaseStyleLayerIds,
+  isLabelLayerVisibleForBaseStyle,
+} from './MapSources'
+import {
   CONTOURS_LAYER_ID,
   HILLSHADE_LAYER_ID,
   MAP_LABELS_LAYER_ID,
-  OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
-  TOPOGRAPHIC_LAYER_ID,
 } from './mapLayerIds'
+
+export { MAP_BASE_STYLE_CONFIGS, createInitialMapStyle } from './MapSources'
 
 export function setLayerVisibility(
   map: maplibregl.Map,
@@ -24,20 +29,18 @@ export function applyMapStyleSettings(
   map: maplibregl.Map,
   settings: MapStyleSettings,
 ): void {
-  const satelliteVisible =
-    settings.baseStyle === 'satellite' || settings.baseStyle === 'hybrid'
+  for (const layerId of getAllBaseStyleLayerIds()) {
+    setLayerVisibility(map, layerId, false)
+  }
 
-  setLayerVisibility(map, OSM_LAYER_ID, settings.baseStyle === 'osm')
-  setLayerVisibility(
-    map,
-    TOPOGRAPHIC_LAYER_ID,
-    settings.baseStyle === 'topographic',
-  )
-  setLayerVisibility(map, SATELLITE_LAYER_ID, satelliteVisible)
+  for (const layerId of getBaseStyleLayerIds(settings.baseStyle)) {
+    setLayerVisibility(map, layerId, true)
+  }
+
   setLayerVisibility(
     map,
     MAP_LABELS_LAYER_ID,
-    settings.baseStyle === 'hybrid',
+    isLabelLayerVisibleForBaseStyle(settings.baseStyle),
   )
   setLayerVisibility(map, CONTOURS_LAYER_ID, settings.showContours)
   setLayerVisibility(map, HILLSHADE_LAYER_ID, settings.showHillshade)
