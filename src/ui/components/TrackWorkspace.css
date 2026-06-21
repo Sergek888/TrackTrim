@@ -1,9 +1,8 @@
 .workspace {
   --mobile-sheet-collapsed: 0px;
-  --mobile-sheet-open: min(58dvh, 520px);
-  --mobile-sheet-full: calc(100dvh - env(safe-area-inset-top, 0px));
+  --mobile-sheet-open: min(50dvh, 520px);
+  --mobile-sheet-full: var(--mobile-sheet-open);
   --mobile-sheet-height: var(--mobile-sheet-collapsed);
-  --mobile-controls-bottom: calc(var(--mobile-sheet-height) + 12px);
 }
 
 .workspace[data-sidebar-mode='open'] {
@@ -64,14 +63,10 @@
   }
 
   .maplibregl-ctrl-top-right {
-    top: auto !important;
+    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
     right: 10px !important;
-    bottom: var(--mobile-controls-bottom) !important;
+    bottom: auto !important;
     left: auto !important;
-  }
-
-  .workspace[data-sidebar-mode='collapsed'] .maplibregl-ctrl-top-right {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 
   .track-tooltip {
@@ -79,10 +74,6 @@
     bottom: calc(var(--mobile-sheet-height) + 12px);
     left: 8px;
     width: auto;
-  }
-
-  .workspace[data-sidebar-mode='full'] .track-tooltip {
-    display: none;
   }
 }
 
