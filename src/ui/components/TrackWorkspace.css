@@ -42,7 +42,7 @@
 
   .sidebar.is-collapsed {
     height: 0;
-    overflow: visible;
+    overflow: hidden;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -53,7 +53,13 @@
     padding: 0;
   }
 
-  .sidebar-sheet-handle {
+  .workspace[data-sidebar-mode='open'] .sidebar,
+  .workspace[data-sidebar-mode='full'] .sidebar {
+    pointer-events: auto;
+  }
+
+  .workspace[data-sidebar-mode='open'] .sidebar-sheet-handle,
+  .workspace[data-sidebar-mode='full'] .sidebar-sheet-handle {
     display: block;
     width: 42px;
     height: 4px;
@@ -62,25 +68,6 @@
     margin: 8px 0 4px;
     border-radius: 999px;
     background: #cbd5e1;
-  }
-
-  .sidebar.is-collapsed .sidebar-sheet-handle {
-    position: absolute;
-    right: calc(50% - 21px);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-    margin: 0;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.22);
-  }
-
-  .sidebar.is-collapsed .sidebar-header,
-  .sidebar.is-collapsed .sidebar-controls,
-  .sidebar.is-collapsed .source-list {
-    display: none;
-  }
-
-  .workspace[data-sidebar-mode='open'] .sidebar,
-  .workspace[data-sidebar-mode='full'] .sidebar {
-    pointer-events: auto;
   }
 
   .workspace[data-sidebar-mode='full'] .sidebar,
