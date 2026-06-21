@@ -17,6 +17,16 @@
   display: none;
 }
 
+.panel-body,
+.settings-section {
+  align-content: start;
+}
+
+.komoot-connection-row {
+  align-items: flex-start;
+  min-height: 0;
+}
+
 @media (max-width: 767px) {
   .workspace,
   .workspace[data-right-panel='open'] {
