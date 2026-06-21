@@ -1,0 +1,103 @@
+.workspace {
+  --mobile-sheet-collapsed: 44px;
+  --mobile-sheet-open: min(58dvh, 520px);
+  --mobile-sheet-full: calc(100dvh - env(safe-area-inset-top, 0px));
+  --mobile-sheet-height: var(--mobile-sheet-collapsed);
+  --mobile-controls-bottom: calc(var(--mobile-sheet-height) + 12px);
+}
+
+.workspace[data-sidebar-mode='open'] {
+  --mobile-sheet-height: var(--mobile-sheet-open);
+}
+
+.workspace[data-sidebar-mode='full'] {
+  --mobile-sheet-height: var(--mobile-sheet-full);
+}
+
+.sidebar-sheet-handle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .workspace,
+  .workspace[data-right-panel='open'] {
+    --right-panel-width: 0px;
+    --controls-right: 0px;
+  }
+
+  .sidebar {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: var(--mobile-sheet-height);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(0);
+    transition: height 180ms ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .sidebar.is-collapsed {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: none;
+  }
+
+  .sidebar-sheet-handle {
+    display: block;
+    width: 42px;
+    height: 4px;
+    justify-self: center;
+    align-self: start;
+    margin: 8px 0 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+
+  .sidebar.is-collapsed .sidebar-header,
+  .sidebar.is-collapsed .sidebar-controls,
+  .sidebar.is-collapsed .source-list {
+    display: none;
+  }
+
+  .workspace[data-sidebar-mode='open'] .sidebar,
+  .workspace[data-sidebar-mode='full'] .sidebar {
+    pointer-events: auto;
+  }
+
+  .workspace[data-sidebar-mode='full'] .sidebar,
+  .workspace[data-sidebar-mode='full'] .panel-content {
+    border-radius: 18px 18px 0 0;
+  }
+
+  .maplibregl-ctrl-top-right {
+    top: auto !important;
+    right: 10px !important;
+    bottom: var(--mobile-controls-bottom) !important;
+    left: auto !important;
+  }
+
+  .workspace[data-sidebar-mode='collapsed'] .maplibregl-ctrl-top-right {
+    bottom: calc(var(--mobile-sheet-collapsed) + 12px) !important;
+  }
+
+  .track-tooltip {
+    right: 8px;
+    bottom: calc(var(--mobile-sheet-height) + 12px);
+    left: 8px;
+    width: auto;
+  }
+
+  .workspace[data-sidebar-mode='full'] .track-tooltip {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
