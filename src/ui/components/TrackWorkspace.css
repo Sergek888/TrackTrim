@@ -58,18 +58,6 @@
     pointer-events: auto;
   }
 
-  .workspace[data-sidebar-mode='open'] .sidebar-sheet-handle,
-  .workspace[data-sidebar-mode='full'] .sidebar-sheet-handle {
-    display: block;
-    width: 42px;
-    height: 4px;
-    justify-self: center;
-    align-self: start;
-    margin: 8px 0 4px;
-    border-radius: 999px;
-    background: #cbd5e1;
-  }
-
   .workspace[data-sidebar-mode='full'] .sidebar,
   .workspace[data-sidebar-mode='full'] .panel-content {
     border-radius: 18px 18px 0 0;
