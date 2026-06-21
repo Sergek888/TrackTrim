@@ -1,5 +1,5 @@
 .workspace {
-  --mobile-sheet-collapsed: 44px;
+  --mobile-sheet-collapsed: 0px;
   --mobile-sheet-open: min(58dvh, 520px);
   --mobile-sheet-full: calc(100dvh - env(safe-area-inset-top, 0px));
   --mobile-sheet-height: var(--mobile-sheet-collapsed);
@@ -41,9 +41,16 @@
   }
 
   .sidebar.is-collapsed {
+    height: 0;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
     transform: translateY(0);
     opacity: 1;
     pointer-events: none;
+    padding: 0;
   }
 
   .sidebar-sheet-handle {
@@ -55,6 +62,14 @@
     margin: 8px 0 4px;
     border-radius: 999px;
     background: #cbd5e1;
+  }
+
+  .sidebar.is-collapsed .sidebar-sheet-handle {
+    position: absolute;
+    right: calc(50% - 21px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    margin: 0;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.22);
   }
 
   .sidebar.is-collapsed .sidebar-header,
@@ -81,7 +96,7 @@
   }
 
   .workspace[data-sidebar-mode='collapsed'] .maplibregl-ctrl-top-right {
-    bottom: calc(var(--mobile-sheet-collapsed) + 12px) !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 
   .track-tooltip {
