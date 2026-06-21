@@ -114,7 +114,7 @@ export default function TrackWorkspace() {
       ? 'open'
       : 'collapsed'
   const isRightPanelOpen = sidebarMode !== 'collapsed'
-  const isTrackPanelVisible = sidebarMode === 'open'
+  const isTrackPanelVisible = sidebarMode !== 'collapsed' && !isWorkspacePanelOpen
 
   function handleSourceCreate(source: TrackSource): void {
     setIsAddSourceOpen(false)
