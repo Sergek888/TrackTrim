@@ -6,11 +6,16 @@ import IconButton from '../shared/IconButton'
 import EmptyState from '../shared/EmptyState'
 import SourceAccordion from './SourceAccordion'
 
+type SidebarMode = 'collapsed' | 'open' | 'full'
+
 type TrackSidebarProps = {
   library: TrackLibrary
   searchQuery: string
   collapsed: boolean
+  mode?: SidebarMode
   onSearchChange: (value: string) => void
+  onSearchFocus?: () => void
+  onSearchBlur?: () => void
   onAddSourceClick: () => void
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
@@ -35,7 +40,10 @@ export default function TrackSidebar({
   library,
   searchQuery,
   collapsed,
+  mode = collapsed ? 'collapsed' : 'open',
   onSearchChange,
+  onSearchFocus,
+  onSearchBlur,
   onAddSourceClick,
   onSourceVisibilityChange,
   onSourceExpandedChange,
@@ -54,10 +62,12 @@ export default function TrackSidebar({
       <aside
         id="track-sidebar"
         className={`sidebar${collapsed ? ' is-collapsed' : ''}`}
+        data-sidebar-mode={mode}
         aria-label="Track sources"
         aria-hidden={collapsed}
         inert={collapsed}
       >
+        <div className="sidebar-sheet-handle" aria-hidden="true" />
         <header className="sidebar-header">
           {!collapsed && (
             <div className="app-brand">
@@ -89,6 +99,8 @@ export default function TrackSidebar({
               value={searchQuery}
               placeholder="Search tracks and sources..."
               aria-label="Search tracks and sources"
+              onFocus={onSearchFocus}
+              onBlur={onSearchBlur}
               onChange={(event) => onSearchChange(event.target.value)}
             />
             {searchQuery !== '' && (

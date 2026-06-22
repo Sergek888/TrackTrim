@@ -1,0 +1,109 @@
+.workspace {
+  --mobile-sheet-collapsed: 0px;
+  --mobile-sheet-open: min(64dvh, 640px);
+  --mobile-sheet-full: var(--mobile-sheet-open);
+  --mobile-sheet-height: var(--mobile-sheet-collapsed);
+}
+
+.workspace[data-sidebar-mode='open'] {
+  --mobile-sheet-height: var(--mobile-sheet-open);
+}
+
+.workspace[data-sidebar-mode='full'] {
+  --mobile-sheet-height: var(--mobile-sheet-full);
+}
+
+.sidebar-sheet-handle {
+  display: none;
+}
+
+.panel-body,
+.settings-section {
+  align-content: start;
+}
+
+.komoot-connection-row {
+  align-items: flex-start;
+  min-height: 0;
+}
+
+@media (max-width: 767px) {
+  .workspace,
+  .workspace[data-right-panel='open'] {
+    --right-panel-width: 0px;
+    --controls-right: 0px;
+  }
+
+  .sidebar {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: var(--mobile-sheet-height);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(0);
+    transition: height 180ms ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .sidebar.is-collapsed {
+    height: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: none;
+    padding: 0;
+  }
+
+  .workspace[data-sidebar-mode='open'] .sidebar,
+  .workspace[data-sidebar-mode='full'] .sidebar {
+    pointer-events: auto;
+  }
+
+  .workspace[data-sidebar-mode='full'] .sidebar,
+  .workspace[data-sidebar-mode='full'] .panel-content {
+    border-radius: 18px 18px 0 0;
+  }
+
+  .maplibregl-ctrl-top-right {
+    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    right: 10px !important;
+    bottom: auto !important;
+    left: auto !important;
+  }
+
+  .track-tooltip {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 90;
+    display: grid;
+    grid-auto-rows: max-content;
+    align-content: start;
+    width: auto;
+    max-height: var(--mobile-sheet-open);
+    height: var(--mobile-sheet-open);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
