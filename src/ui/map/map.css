@@ -40,6 +40,19 @@
   flex-shrink: 0;
 }
 
+.map-extra-toggle[data-active] {
+  background-color: #e8f0ff !important;
+  color: var(--color-accent-strong);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.map-extra-toggle:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: -3px;
+}
+
 .map-style-toggle {
   display: grid !important;
   place-items: center;

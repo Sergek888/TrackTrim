@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PanelRightClose, PanelRightOpen, Settings } from 'lucide-react'
+import { ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
@@ -30,6 +30,13 @@ type ColorPaletteState =
       top: number
     }
 
+type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings'
+
+type WorkspacePanelState = {
+  active: WorkspacePanel | null
+  returnTo: WorkspacePanel | null
+}
+
 export default function TrackWorkspace() {
   const [library] = useState(() => new TrackLibrary())
   const [komootConnection] = useState(() => new KomootConnectionService())
@@ -38,10 +45,10 @@ export default function TrackWorkspace() {
   const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [isMapSettingsOpen, setIsMapSettingsOpen] = useState(false)
+  const [panel, setPanel] = useState<WorkspacePanelState>({
+    active: null,
+    returnTo: null,
+  })
   const [mapStyleSettings, setMapStyleSettings] = useState(
     DEFAULT_MAP_STYLE_SETTINGS,
   )
@@ -102,13 +109,23 @@ export default function TrackWorkspace() {
     () => komootConnection.state,
     [komootConnection, komootConnectionVersion],
   )
-  const isWorkspacePanelOpen =
-    isAddSourceOpen || isSettingsOpen || isMapSettingsOpen
-  const isRightPanelOpen = isSidebarOpen || isWorkspacePanelOpen
-  const isTrackPanelVisible = isSidebarOpen && !isWorkspacePanelOpen
+  const isRightPanelOpen = panel.active !== null
+
+  function openPanel(
+    active: WorkspacePanel,
+    returnTo: WorkspacePanel | null = null,
+  ): void {
+    setPanel({ active, returnTo })
+    setTooltip(null)
+    setColorPalette(null)
+  }
+
+  function closePanel(): void {
+    setPanel((current) => ({ active: current.returnTo, returnTo: null }))
+  }
 
   function handleSourceCreate(source: TrackSource): void {
-    setIsAddSourceOpen(false)
+    setPanel({ active: 'tracks', returnTo: null })
     void library.addSource(source)
   }
 
@@ -184,32 +201,36 @@ export default function TrackWorkspace() {
 
   const extraButtons = useMemo(() => [
     {
-      icon: isTrackPanelVisible
-        ? <PanelRightClose aria-hidden="true" />
-        : <PanelRightOpen aria-hidden="true" />,
-      label: isTrackPanelVisible ? 'Close navigation panel' : 'Open navigation panel',
-      title: isTrackPanelVisible ? 'Close navigation panel' : 'Open navigation panel',
+      icon: <ListTree aria-hidden="true" />,
+      label: 'Tracks',
+      title: 'Tracks',
+      active: panel.active === 'tracks',
+      controls: 'track-sidebar',
       onClick: () => {
-        setIsAddSourceOpen(false)
-        setIsSettingsOpen(false)
-        setIsMapSettingsOpen(false)
-        setIsSidebarOpen(!isTrackPanelVisible)
-        setTooltip(null)
-        setColorPalette(null)
+        if (panel.active === 'tracks') {
+          closePanel()
+          return
+        }
+
+        openPanel('tracks')
       },
     },
     {
       icon: <Settings aria-hidden="true" />,
       label: 'Settings',
       title: 'Settings',
+      active: panel.active === 'settings',
       onClick: () => {
-        setIsAddSourceOpen(false)
-        setIsMapSettingsOpen(false)
-        setIsSettingsOpen(true)
+        if (panel.active === 'settings') {
+          closePanel()
+          return
+        }
+
+        openPanel('settings', panel.active === 'tracks' ? 'tracks' : null)
         void komootConnection.refresh()
       },
     },
-  ], [isTrackPanelVisible])
+  ], [panel])
 
   return (
     <section
@@ -223,11 +244,17 @@ export default function TrackWorkspace() {
           activeTrack={activeTrack}
           focusedTrack={library.focusedTrack}
           mapStyleSettings={mapStyleSettings}
-          isMapSettingsOpen={isMapSettingsOpen}
+          isMapSettingsOpen={panel.active === 'map-settings'}
           onMapSettingsToggle={() => {
-            setIsAddSourceOpen(false)
-            setIsSettingsOpen(false)
-            setIsMapSettingsOpen((open) => !open)
+            if (panel.active === 'map-settings') {
+              closePanel()
+              return
+            }
+
+            openPanel(
+              'map-settings',
+              panel.active === 'tracks' ? 'tracks' : null,
+            )
           }}
           onTrackClick={handleMapTrackClick}
           onMapClick={() => {
@@ -249,14 +276,10 @@ export default function TrackWorkspace() {
       <TrackSidebar
         library={library}
         searchQuery={searchQuery}
-        collapsed={!isSidebarOpen || isWorkspacePanelOpen}
+        collapsed={panel.active !== 'tracks'}
         onSearchChange={setSearchQuery}
         onAddSourceClick={() => {
-          setTooltip(null)
-          setColorPalette(null)
-          setIsSettingsOpen(false)
-          setIsMapSettingsOpen(false)
-          setIsAddSourceOpen(true)
+          openPanel('add-source', 'tracks')
         }}
         onSourceVisibilityChange={handleSourceVisibilityChange}
         onSourceExpandedChange={handleSourceExpandedChange}
@@ -275,20 +298,18 @@ export default function TrackWorkspace() {
         library={library}
         komootConnection={komootConnection}
         komootState={komootState}
-        isAddSourceOpen={isAddSourceOpen}
-        isSettingsOpen={isSettingsOpen}
-        isMapSettingsOpen={isMapSettingsOpen}
+        isAddSourceOpen={panel.active === 'add-source'}
+        isSettingsOpen={panel.active === 'settings'}
+        isMapSettingsOpen={panel.active === 'map-settings'}
         mapStyleSettings={mapStyleSettings}
         colorPalette={colorPalette}
-        onAddSourceClose={() => setIsAddSourceOpen(false)}
-        onSettingsClose={() => setIsSettingsOpen(false)}
+        onAddSourceClose={closePanel}
+        onSettingsClose={closePanel}
         onSettingsOpen={() => {
-          setIsAddSourceOpen(false)
-          setIsMapSettingsOpen(false)
-          setIsSettingsOpen(true)
+          openPanel('settings', 'add-source')
           void komootConnection.refresh()
         }}
-        onMapSettingsClose={() => setIsMapSettingsOpen(false)}
+        onMapSettingsClose={closePanel}
         onMapStyleSettingsChange={setMapStyleSettings}
         onColorPaletteChange={handleColorPaletteChange}
         onSourceCreate={handleSourceCreate}

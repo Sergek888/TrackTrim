@@ -21,6 +21,7 @@
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-panel);
+  padding: 0;
 }
 
 .panel-section {
@@ -74,5 +75,25 @@
     min-width: 0;
     max-width: none;
     height: var(--mobile-sheet-height, 96px);
+    max-height: calc(100dvh - 48px);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.24);
+  }
+
+  .panel-header {
+    position: relative;
+    padding-top: 24px;
+  }
+
+  .panel-header::before {
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    content: "";
+    transform: translateX(-50%);
   }
 }

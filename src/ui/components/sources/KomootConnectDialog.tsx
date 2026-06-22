@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import type { KomootConnectionState } from '../../../application/KomootConnectionService'
 import Button from '../../shared/Button'
-import Dialog from '../../shared/Dialog'
+import Panel from '../../shared/Panel'
 import FormField from '../../shared/FormField'
 import Notice from '../../shared/Notice'
 import TextInput from '../../shared/TextInput'
@@ -51,7 +51,7 @@ export default function KomootConnectDialog({
   }
 
   return (
-    <Dialog
+    <Panel
       title="Connect Komoot"
       onClose={onCancel}
       footer={
@@ -105,6 +105,6 @@ export default function KomootConnectDialog({
 
         {errorMessage !== null && <Notice variant="error">{errorMessage}</Notice>}
       </form>
-    </Dialog>
+    </Panel>
   )
 }

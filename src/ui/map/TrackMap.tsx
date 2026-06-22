@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import type { MapStyleSettings } from './mapStyleSettings'
@@ -28,6 +28,8 @@ type ExtraButton = {
   icon: ReactNode
   label: string
   title: string
+  active?: boolean
+  controls?: string
   onClick: () => void
 }
 
@@ -77,7 +79,7 @@ export default function TrackMap({
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapStyleButtonRef = useRef<HTMLButtonElement | null>(null)
   const extraButtonsRef = useRef<HTMLButtonElement[]>([])
-  const extraButtonsRootsRef = useRef<ReturnType<typeof createRoot>[]>([])
+  const [controlsReady, setControlsReady] = useState(false)
   const latestTracksRef = useRef(tracks)
   const latestActiveTrackRef = useRef(activeTrack)
   const latestOnTrackClickRef = useRef(onTrackClick)
@@ -127,11 +129,15 @@ export default function TrackMap({
         btn.type = 'button'
         btn.setAttribute('aria-label', cfg.label)
         btn.setAttribute('title', cfg.title)
+        btn.setAttribute('aria-pressed', String(cfg.active ?? false))
+        btn.toggleAttribute('data-active', cfg.active ?? false)
+        if (cfg.controls !== undefined) btn.setAttribute('aria-controls', cfg.controls)
         btn.onclick = cfg.onClick
         navigationControlGroup.append(btn)
         buttons.push(btn)
       }
       extraButtonsRef.current = buttons
+      setControlsReady(true)
     }
 
     map.on('load', () => {
@@ -249,8 +255,6 @@ export default function TrackMap({
       )
       mapStyleButtonRef.current?.remove()
       mapStyleButtonRef.current = null
-      for (const root of extraButtonsRootsRef.current) root.unmount()
-      extraButtonsRootsRef.current = []
       for (const btn of extraButtonsRef.current) btn.onclick = null
       for (const btn of extraButtonsRef.current) btn.remove()
       extraButtonsRef.current = []
@@ -338,16 +342,25 @@ export default function TrackMap({
 
       btn.setAttribute('aria-label', cfg.label)
       btn.setAttribute('title', cfg.title)
+      btn.setAttribute('aria-pressed', String(cfg.active ?? false))
+      btn.toggleAttribute('data-active', cfg.active ?? false)
+      if (cfg.controls !== undefined) {
+        btn.setAttribute('aria-controls', cfg.controls)
+      } else {
+        btn.removeAttribute('aria-controls')
+      }
       btn.onclick = cfg.onClick
 
-      let root = extraButtonsRootsRef.current[i]
-      if (root === undefined) {
-        root = createRoot(btn)
-        extraButtonsRootsRef.current[i] = root
-      }
-      root.render(cfg.icon)
     }
   }, [extraButtons])
 
-  return <div className="track-map" ref={containerRef} aria-label="Track map" />
+  return (
+    <>
+      <div className="track-map" ref={containerRef} aria-label="Track map" />
+      {controlsReady && extraButtonsRef.current.map((button, index) => {
+        const config = extraButtons?.[index]
+        return config === undefined ? null : createPortal(config.icon, button)
+      })}
+    </>
+  )
 }

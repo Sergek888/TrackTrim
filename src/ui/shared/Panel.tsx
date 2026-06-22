@@ -40,6 +40,7 @@ export default function Panel({
         id={id}
         className={panelClasses.join(' ')}
         aria-label={ariaLabel ?? title}
+        tabIndex={-1}
       >
         <header className="panel-header">
           <h2>{title}</h2>

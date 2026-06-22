@@ -52,6 +52,7 @@ export default function TrackSidebar({
   return (
     <>
       <aside
+        id="track-sidebar"
         className={`sidebar${collapsed ? ' is-collapsed' : ''}`}
         aria-label="Track sources"
         aria-hidden={collapsed}
