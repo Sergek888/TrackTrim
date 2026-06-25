@@ -10,4 +10,6 @@ export interface MapLayerDefinition {
   defaultOpacity: number
   visualProfileId?: string
   reliability: string
+  requiresApiKey?: boolean
+  requiresProxy?: boolean
 }
