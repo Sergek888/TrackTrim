@@ -125,3 +125,18 @@
   grid-column: 1 / -1;
   width: 100%;
 }
+
+.map-setting-stack {
+  display: grid !important;
+  gap: 5px !important;
+}
+
+.map-setting-stack select {
+  min-width: 0;
+  padding: 6px;
+}
+
+.map-layer-row {
+  display: grid;
+  gap: 5px;
+}

@@ -3,8 +3,8 @@ import type { TrackLibrary } from '../../application/TrackLibrary'
 import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
-import MapSettingsPanel from '../map/MapSettingsPanel'
-import type { MapStyleSettings } from '../map/mapStyleSettings'
+import MapLayerPanel from '../../map/ui/MapLayerPanel'
+import type { MapSettings } from '../../map/model/MapRuntimeLayer'
 import AddSourcePanel from './AddSourcePanel'
 import ColorPalette from './ColorPalette'
 import SettingsPanel from './SettingsPanel'
@@ -20,13 +20,13 @@ type WorkspacePanelsProps = {
   isAddSourceOpen: boolean
   isSettingsOpen: boolean
   isMapSettingsOpen: boolean
-  mapStyleSettings: MapStyleSettings
+  mapSettings: MapSettings
   colorPalette: ColorPaletteState | null
   onAddSourceClose: () => void
   onSettingsClose: () => void
   onSettingsOpen: () => void
   onMapSettingsClose: () => void
-  onMapStyleSettingsChange: (settings: MapStyleSettings) => void
+  onMapSettingsChange: (settings: MapSettings) => void
   onColorPaletteChange: (color: string) => void
   onSourceCreate: (source: TrackSource) => void
 }
@@ -38,13 +38,13 @@ export default function WorkspacePanels({
   isAddSourceOpen,
   isSettingsOpen,
   isMapSettingsOpen,
-  mapStyleSettings,
+  mapSettings,
   colorPalette,
   onAddSourceClose,
   onSettingsClose,
   onSettingsOpen,
   onMapSettingsClose,
-  onMapStyleSettingsChange,
+  onMapSettingsChange,
   onColorPaletteChange,
   onSourceCreate,
 }: WorkspacePanelsProps) {
@@ -96,9 +96,9 @@ export default function WorkspacePanels({
       )}
 
       {isMapSettingsOpen && (
-        <MapSettingsPanel
-          settings={mapStyleSettings}
-          onChange={onMapStyleSettingsChange}
+        <MapLayerPanel
+          settings={mapSettings}
+          onChange={onMapSettingsChange}
           onClose={onMapSettingsClose}
         />
       )}

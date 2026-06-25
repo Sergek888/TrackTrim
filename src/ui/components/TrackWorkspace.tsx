@@ -8,7 +8,7 @@ import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStart
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
-import { DEFAULT_MAP_STYLE_SETTINGS } from '../map/mapStyleSettings'
+import { loadMapSettings, saveMapSettings } from '../../map/store/mapSettingsStore'
 import { defaultTrackColor } from '../trackColors'
 import Notice from '../shared/Notice'
 import TrackMap from '../map/TrackMap'
@@ -45,9 +45,7 @@ export default function TrackWorkspace() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [activePanel, setActivePanel] = useState<WorkspacePanel | null>(null)
-  const [mapStyleSettings, setMapStyleSettings] = useState(
-    DEFAULT_MAP_STYLE_SETTINGS,
-  )
+  const [mapSettings, setMapSettings] = useState(loadMapSettings)
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
   const [sourceLinkError, setSourceLinkError] = useState<string | null>(null)
 
@@ -61,6 +59,8 @@ export default function TrackWorkspace() {
     }),
     [library],
   )
+
+  useEffect(() => saveMapSettings(mapSettings), [mapSettings])
 
   useEffect(
     () => komootConnection.subscribe(
@@ -244,7 +244,7 @@ export default function TrackWorkspace() {
           tracks={visibleTracks}
           activeTrack={activeTrack}
           focusedTrack={library.focusedTrack}
-          mapStyleSettings={mapStyleSettings}
+          mapSettings={mapSettings}
           isMapSettingsOpen={activePanel === 'map-settings'}
           onMapSettingsToggle={() => {
             if (activePanel === 'map-settings') {
@@ -302,7 +302,7 @@ export default function TrackWorkspace() {
         isAddSourceOpen={activePanel === 'add-source'}
         isSettingsOpen={activePanel === 'settings'}
         isMapSettingsOpen={activePanel === 'map-settings'}
-        mapStyleSettings={mapStyleSettings}
+        mapSettings={mapSettings}
         colorPalette={colorPalette}
         onAddSourceClose={closePanel}
         onSettingsClose={closePanel}
@@ -311,7 +311,7 @@ export default function TrackWorkspace() {
           void komootConnection.refresh()
         }}
         onMapSettingsClose={closePanel}
-        onMapStyleSettingsChange={setMapStyleSettings}
+        onMapSettingsChange={setMapSettings}
         onColorPaletteChange={handleColorPaletteChange}
         onSourceCreate={handleSourceCreate}
       />
