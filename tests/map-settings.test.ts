@@ -1,16 +1,33 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mapLayers } from '../src/map/mapLayers'
+import { defaultAvailableMapLayerIds, mapLayers } from '../src/map/mapLayers'
 import { DEFAULT_MAP_SETTINGS, loadMapSettings, normalizeMapSettings, saveMapSettings } from '../src/map/mapSettings'
 
-test('map layer catalog exposes the first-stage layers in stable order', () => {
+test('map layer catalog includes the GPX Studio world layer set first', () => {
   assert.deepEqual(
-    [...mapLayers].sort((a, b) => a.order - b.order).map(({ id }) => id),
-    ['osm', 'opentopomap', 'cyclosm', 'esri-satellite', 'mapterhorn-hillshade', 'waymarked-hiking', 'waymarked-cycling', 'osm-gps-traces'],
+    [...mapLayers].sort((a, b) => a.order - b.order).slice(0, 10).map(({ id }) => id),
+    ['liberty-topo', 'liberty-satellite', 'gpx-osm', 'gpx-osm-topo', 'osm', 'opentopomap', 'open-hiking-map', 'cyclosm', 'utagawa-vtt', 'esri-satellite'],
   )
 })
 
-test('normalizing unavailable active layers falls back without retaining a stale preset', () => {
+test('default available map layers mirror the limited GPX Studio visible layer set', () => {
+  assert.deepEqual(defaultAvailableMapLayerIds, [
+    'liberty-topo',
+    'liberty-satellite',
+    'gpx-osm',
+    'gpx-osm-topo',
+    'osm',
+    'opentopomap',
+    'open-hiking-map',
+    'cyclosm',
+    'utagawa-vtt',
+    'waymarked-hiking',
+    'waymarked-cycling',
+    'waymarked-mtb',
+  ])
+})
+
+test('normalizing unavailable active layers falls back without retaining stale layers', () => {
   const settings = normalizeMapSettings({
     layerAvailability: {
       ...DEFAULT_MAP_SETTINGS.layerAvailability,
@@ -21,13 +38,11 @@ test('normalizing unavailable active layers falls back without retaining a stale
       overlayLayerIds: ['waymarked-hiking'],
       terrainLayerIds: ['mapterhorn-hillshade'],
       opacityByLayerId: {},
-      activePresetId: 'satellite-hiking',
     },
   })
 
   assert.equal(settings.activeLayerState.baseLayerId, 'osm')
   assert.deepEqual(settings.activeLayerState.overlayLayerIds, [])
-  assert.equal(settings.activeLayerState.activePresetId, undefined)
 })
 
 test('normalizing map settings uses the first available base layer when osm is disabled', () => {
@@ -44,7 +59,7 @@ test('normalizing map settings uses the first available base layer when osm is d
     },
   })
 
-  assert.equal(settings.activeLayerState.baseLayerId, 'opentopomap')
+  assert.equal(settings.activeLayerState.baseLayerId, 'liberty-topo')
 })
 
 test('normalizing map settings removes duplicate layers and clamps opacity values', () => {
@@ -63,7 +78,7 @@ test('normalizing map settings removes duplicate layers and clamps opacity value
 
   assert.deepEqual(settings.activeLayerState.overlayLayerIds, ['waymarked-hiking'])
   assert.equal(settings.activeLayerState.opacityByLayerId['waymarked-hiking'], 1)
-  assert.equal(settings.activeLayerState.opacityByLayerId['mapterhorn-hillshade'], 0)
+  assert.equal(settings.activeLayerState.opacityByLayerId['mapterhorn-hillshade'], undefined)
   assert.equal(settings.activeLayerState.opacityByLayerId.unknown, undefined)
 })
 
