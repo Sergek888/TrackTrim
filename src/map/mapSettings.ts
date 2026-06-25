@@ -1,11 +1,10 @@
-import { mapLayerGroups, mapLayerPresets, mapLayers } from './mapLayers'
+import { defaultAvailableMapLayerIds, mapLayerGroups, mapLayers } from './mapLayers'
 
 export interface ActiveMapLayerState {
   baseLayerId: string
   overlayLayerIds: string[]
   terrainLayerIds: string[]
   opacityByLayerId: Record<string, number>
-  activePresetId?: string
 }
 
 export interface MapLayerAvailabilitySettings {
@@ -19,7 +18,10 @@ export interface MapSettings {
   layerAvailability: MapLayerAvailabilitySettings
 }
 
-type MapSettingsStorage = Pick<Storage, 'getItem' | 'setItem'>
+type MapSettingsStorage = {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+}
 
 const STORAGE_KEY = 'trackviewer.map-settings.v1'
 const DEFAULT_BASE_LAYER_ID = 'osm'
@@ -32,7 +34,7 @@ export const DEFAULT_MAP_SETTINGS: MapSettings = {
     opacityByLayerId: {},
   },
   layerAvailability: {
-    availableLayerIds: mapLayers.filter((layer) => layer.reliability !== 'broken').map((layer) => layer.id),
+    availableLayerIds: defaultAvailableMapLayerIds,
     showExperimentalLayers: false,
     showFragileLayers: false,
   },
@@ -69,10 +71,6 @@ export function normalizeMapSettings(settings: Partial<MapSettings>): MapSetting
       .filter(([id, opacity]) => available.has(id) && Number.isFinite(opacity))
       .map(([id, opacity]) => [id, clampOpacity(opacity)]),
   )
-  const preset = mapLayerPresets.find(({ id }) => id === active?.activePresetId)
-  const activePresetId = preset !== undefined && preset.baseLayerId === baseLayerId && sameIds(preset.enabledOverlayLayerIds, overlayLayerIds) && sameIds(preset.enabledTerrainLayerIds, terrainLayerIds)
-    ? preset.id
-    : undefined
 
   return {
     layerAvailability,
@@ -81,7 +79,6 @@ export function normalizeMapSettings(settings: Partial<MapSettings>): MapSetting
       overlayLayerIds,
       terrainLayerIds,
       opacityByLayerId,
-      activePresetId,
     },
   }
 }
@@ -149,16 +146,11 @@ function clampOpacity(opacity: number): number {
   return Math.max(0, Math.min(1, opacity))
 }
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) return false
-  const rightIds = new Set(right)
-  return left.every((id) => rightIds.has(id))
-}
-
 function cloneDefaultMapSettings(): MapSettings {
   return structuredClone(DEFAULT_MAP_SETTINGS) as MapSettings
 }
 
 function getMapSettingsStorage(): MapSettingsStorage | null {
-  return typeof globalThis.localStorage === 'undefined' ? null : globalThis.localStorage
+  const storage = globalThis.localStorage
+  return storage === undefined ? null : storage
 }
