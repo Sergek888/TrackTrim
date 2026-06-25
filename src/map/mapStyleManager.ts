@@ -1,13 +1,18 @@
 import type maplibregl from 'maplibre-gl'
-import type { LayerSpecification, StyleSpecification } from 'maplibre-gl'
+import type { LayerSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl'
 import { mapVisualProfiles, type MapLayerData } from './mapLayers'
 import type { ActiveMapLayerState } from './mapSettings'
 import { getMapLayer } from './mapSettings'
 
 type MapLayerDefinition = MapLayerData
-type StyleComposition = {
-  style: StyleSpecification
+type RuntimeLayerComposition = {
+  sources: StyleSpecification['sources']
+  layers: LayerSpecification[]
   paintLayerIdsByLayerId: Map<string, string[]>
+}
+
+type BaseStyleComposition = RuntimeLayerComposition & {
+  style: StyleSpecification
 }
 
 const MAP_LAYER_ANCHORS = {
@@ -35,32 +40,36 @@ export class MapStyleManager {
   async applyState(state: ActiveMapLayerState): Promise<void> {
     const version = ++this.applyVersion
     const base = getMapLayer(state.baseLayerId) ?? getMapLayer('osm')
-    if (base === null) throw new Error('No default base map is registered')
+    if (base === null || base.role !== 'base') throw new Error('No default base map is registered')
 
-    const layers = resolveLayerStack(base, state)
-    const layerStackKey = layers.map((layer) => layer.id).join('|')
+    const runtimeLayers = resolveRuntimeLayerStack(state)
+    const layerStackKey = [base.id, ...runtimeLayers.map((layer) => layer.id)].join('|')
 
     if (this.currentLayerStackKey === layerStackKey && this.map.isStyleLoaded()) {
-      this.applyLayerOpacities(layers, state)
+      this.applyLayerOpacities(runtimeLayers, state)
       return
     }
 
-    const composition = this.compose(layers, state)
+    const runtimeComposition = this.composeRuntimeLayers(runtimeLayers, state)
+    const baseStyle = base.kind === 'vector-base'
+      ? base.styleUrl
+      : this.composeRasterBaseStyle(base, runtimeComposition, state)
+
     if (version !== this.applyVersion) return
 
     await new Promise<void>((resolve) => {
       this.map.once('style.load', () => {
         if (version === this.applyVersion) {
-          this.currentLayerStackKey = layerStackKey
-          this.paintLayerIdsByLayerId.clear()
-          for (const [layerId, paintLayerIds] of composition.paintLayerIdsByLayerId) {
-            this.paintLayerIdsByLayerId.set(layerId, paintLayerIds)
+          if (base.kind === 'vector-base') {
+            this.addRuntimeComposition(runtimeComposition)
           }
+          this.currentLayerStackKey = layerStackKey
+          this.rememberPaintLayerIds(runtimeComposition.paintLayerIdsByLayerId)
           this.restoreRuntimeLayers()
         }
         resolve()
       })
-      this.map.setStyle(composition.style)
+      this.map.setStyle(baseStyle)
     })
   }
 
@@ -70,26 +79,58 @@ export class MapStyleManager {
     if (layer?.type === 'hillshade') this.map.setPaintProperty(layerId, 'hillshade-exaggeration', clampOpacity(opacity) * 0.35)
   }
 
-  private compose(layers: MapLayerDefinition[], state: ActiveMapLayerState): StyleComposition {
+  private composeRasterBaseStyle(base: Extract<MapLayerDefinition, { kind: 'raster-base' }>, runtimeComposition: RuntimeLayerComposition, state: ActiveMapLayerState): StyleSpecification {
+    const baseComposition = this.composeRuntimeLayers([base], state)
+
+    return {
+      version: 8,
+      sources: {
+        ...baseComposition.sources,
+        ...runtimeComposition.sources,
+      },
+      layers: [
+        ...baseComposition.layers,
+        ...runtimeComposition.layers,
+        ...createAnchorLayers(),
+      ],
+    }
+  }
+
+  private composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): RuntimeLayerComposition {
     const sources: StyleSpecification['sources'] = {}
     const styleLayers: LayerSpecification[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
 
     for (const layer of layers) {
-      const raw = this.readStyle(layer)
+      if (layer.kind === 'vector-base') continue
+      const raw = this.readInlineStyle(layer)
       const styled = this.applyVisualProfile(raw, layer, state.opacityByLayerId[layer.id])
       Object.assign(sources, styled.sources)
       styleLayers.push(...(styled.layers ?? []))
       paintLayerIdsByLayerId.set(layer.id, managedPaintLayerIds(styled.layers ?? []))
     }
 
-    return {
-      style: {
-        version: 8,
-        sources,
-        layers: [...styleLayers, ...createAnchorLayers()],
-      },
-      paintLayerIdsByLayerId,
+    return { sources, layers: styleLayers, paintLayerIdsByLayerId }
+  }
+
+  private addRuntimeComposition(composition: RuntimeLayerComposition): void {
+    for (const [sourceId, source] of Object.entries(composition.sources ?? {})) {
+      if (this.map.getSource(sourceId) === undefined) {
+        this.map.addSource(sourceId, source as SourceSpecification)
+      }
+    }
+
+    for (const layer of [...composition.layers, ...createAnchorLayers()]) {
+      if (this.map.getLayer(layer.id) === undefined) {
+        this.map.addLayer(layer)
+      }
+    }
+  }
+
+  private rememberPaintLayerIds(next: Map<string, string[]>): void {
+    this.paintLayerIdsByLayerId.clear()
+    for (const [layerId, paintLayerIds] of next) {
+      this.paintLayerIdsByLayerId.set(layerId, paintLayerIds)
     }
   }
 
@@ -157,7 +198,7 @@ export class MapStyleManager {
     return { ...style, layers }
   }
 
-  private readStyle(layer: MapLayerDefinition): StyleSpecification {
+  private readInlineStyle(layer: Exclude<MapLayerDefinition, { kind: 'vector-base' }>): StyleSpecification {
     const cached = this.styleCache.get(layer.id)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
 
@@ -167,9 +208,8 @@ export class MapStyleManager {
   }
 }
 
-function resolveLayerStack(base: MapLayerDefinition, state: ActiveMapLayerState): MapLayerDefinition[] {
+function resolveRuntimeLayerStack(state: ActiveMapLayerState): MapLayerDefinition[] {
   return [
-    base,
     ...state.terrainLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'terrain'),
     ...state.overlayLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'overlay'),
   ].sort((a, b) => a.order - b.order)
