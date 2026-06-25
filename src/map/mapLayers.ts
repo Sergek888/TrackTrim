@@ -1,0 +1,230 @@
+export const mapVisualProfiles = {
+  cleanRaster: { id: 'cleanRaster', title: 'Clean raster', raster: { opacity: 1, brightnessMin: 0, brightnessMax: 1, saturation: 0, contrast: 0, resampling: 'linear' } },
+  readableTopo: { id: 'readableTopo', title: 'Readable topo', raster: { opacity: 1, brightnessMin: 0.02, brightnessMax: 0.98, saturation: 0.05, contrast: 0.12, resampling: 'linear' } },
+  satelliteForTracks: { id: 'satelliteForTracks', title: 'Satellite for tracks', raster: { opacity: 1, brightnessMin: 0, brightnessMax: 0.9, saturation: -0.08, contrast: 0.08, resampling: 'linear' } },
+  softHillshade: { id: 'softHillshade', title: 'Soft hillshade', hillshade: { exaggeration: 0.35, illuminationDirection: 315, illuminationAnchor: 'viewport' } },
+} as const
+
+export const mapLayers = [
+  {
+    id: 'osm',
+    title: 'OpenStreetMap',
+    role: 'base',
+    sourceType: 'raster',
+    groupId: 'base',
+    order: 100,
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: [
+            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          ],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: '© OpenStreetMap contributors',
+        },
+      },
+      layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+    },
+    attribution: '© OpenStreetMap contributors',
+    defaultOpacity: 1,
+    visualProfileId: 'cleanRaster',
+    reliability: 'normal',
+  },
+  {
+    id: 'opentopomap',
+    title: 'OpenTopoMap',
+    role: 'base',
+    sourceType: 'raster',
+    groupId: 'topo',
+    order: 200,
+    style: {
+      version: 8,
+      sources: {
+        opentopomap: {
+          type: 'raster',
+          tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          maxzoom: 17,
+          attribution: '© OpenTopoMap, © OpenStreetMap contributors',
+        },
+      },
+      layers: [{ id: 'opentopomap', type: 'raster', source: 'opentopomap' }],
+    },
+    attribution: '© OpenTopoMap, © OpenStreetMap contributors',
+    defaultOpacity: 1,
+    visualProfileId: 'readableTopo',
+    reliability: 'normal',
+  },
+  {
+    id: 'cyclosm',
+    title: 'CyclOSM',
+    role: 'base',
+    sourceType: 'raster',
+    groupId: 'base',
+    order: 300,
+    style: {
+      version: 8,
+      sources: {
+        cyclosm: {
+          type: 'raster',
+          tiles: [
+            'https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+            'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+            'https://c.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+          ],
+          tileSize: 256,
+          maxzoom: 18,
+          attribution: '© CyclOSM, © OpenStreetMap contributors',
+        },
+      },
+      layers: [{ id: 'cyclosm', type: 'raster', source: 'cyclosm' }],
+    },
+    attribution: '© CyclOSM, © OpenStreetMap contributors',
+    defaultOpacity: 1,
+    visualProfileId: 'readableTopo',
+    reliability: 'normal',
+  },
+  {
+    id: 'esri-satellite',
+    title: 'ESRI Satellite',
+    role: 'base',
+    sourceType: 'raster',
+    groupId: 'satellite',
+    order: 400,
+    style: {
+      version: 8,
+      sources: {
+        esriSatellite: {
+          type: 'raster',
+          tiles: ['https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/tile/1.0.0/World_Imagery/default/default028mm/{z}/{y}/{x}.jpg'],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: '© Esri and contributors',
+        },
+      },
+      layers: [{ id: 'esriSatellite', type: 'raster', source: 'esriSatellite' }],
+    },
+    attribution: '© Esri and contributors',
+    defaultOpacity: 1,
+    visualProfileId: 'satelliteForTracks',
+    reliability: 'stable',
+  },
+  {
+    id: 'mapterhorn-hillshade',
+    title: 'Soft Hillshade',
+    role: 'terrain',
+    sourceType: 'hillshade',
+    groupId: 'relief',
+    order: 700,
+    style: {
+      version: 8,
+      sources: {
+        'mapterhorn-hillshade': {
+          type: 'raster-dem',
+          url: 'https://tiles.mapterhorn.com/tilejson.json',
+        },
+      },
+      layers: [{ id: 'mapterhorn-hillshade', type: 'hillshade', source: 'mapterhorn-hillshade', paint: { 'hillshade-exaggeration': 0.35 } }],
+    },
+    attribution: '© Mapterhorn',
+    defaultOpacity: 0.18,
+    visualProfileId: 'softHillshade',
+    reliability: 'normal',
+  },
+  {
+    id: 'waymarked-hiking',
+    title: 'Waymarked Hiking Trails',
+    role: 'overlay',
+    sourceType: 'raster',
+    groupId: 'routes',
+    order: 1000,
+    style: {
+      version: 8,
+      sources: {
+        waymarkedHiking: {
+          type: 'raster',
+          tiles: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          maxzoom: 18,
+          attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+        },
+      },
+      layers: [{ id: 'waymarkedHiking', type: 'raster', source: 'waymarkedHiking' }],
+    },
+    attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+    defaultOpacity: 0.85,
+    visualProfileId: 'cleanRaster',
+    reliability: 'normal',
+  },
+  {
+    id: 'waymarked-cycling',
+    title: 'Waymarked Cycling Trails',
+    role: 'overlay',
+    sourceType: 'raster',
+    groupId: 'routes',
+    order: 1010,
+    style: {
+      version: 8,
+      sources: {
+        waymarkedCycling: {
+          type: 'raster',
+          tiles: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          maxzoom: 18,
+          attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+        },
+      },
+      layers: [{ id: 'waymarkedCycling', type: 'raster', source: 'waymarkedCycling' }],
+    },
+    attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+    defaultOpacity: 0.8,
+    visualProfileId: 'cleanRaster',
+    reliability: 'normal',
+  },
+  {
+    id: 'osm-gps-traces',
+    title: 'OpenStreetMap GPS Traces',
+    role: 'overlay',
+    sourceType: 'raster',
+    groupId: 'activity',
+    order: 1200,
+    style: {
+      version: 8,
+      sources: {
+        osmGpsTraces: {
+          type: 'raster',
+          tiles: ['https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          maxzoom: 18,
+          attribution: '© OpenStreetMap public GPS traces',
+        },
+      },
+      layers: [{ id: 'osmGpsTraces', type: 'raster', source: 'osmGpsTraces' }],
+    },
+    attribution: '© OpenStreetMap public GPS traces',
+    defaultOpacity: 0.5,
+    visualProfileId: 'cleanRaster',
+    reliability: 'normal',
+  },
+] as const
+
+export const mapLayerGroups = [
+  { id: 'base', title: 'Основные карты', order: 100 },
+  { id: 'topo', title: 'Топографические карты', order: 200 },
+  { id: 'satellite', title: 'Спутник', order: 300 },
+  { id: 'relief', title: 'Рельеф', order: 400 },
+  { id: 'routes', title: 'Маршруты и тропы', order: 500 },
+  { id: 'activity', title: 'Следы активности', order: 600 },
+] as const
+
+export const mapLayerPresets = [
+  { id: 'clean-osm', title: 'OSM чистая', baseLayerId: 'osm', enabledOverlayLayerIds: [], enabledTerrainLayerIds: [], trackVisualMode: 'lightBase' },
+  { id: 'hiking-osm', title: 'OSM + тропы', baseLayerId: 'osm', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.85 }, trackVisualMode: 'lightBase' },
+  { id: 'topo-hiking', title: 'Топо для похода', baseLayerId: 'opentopomap', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.75 }, trackVisualMode: 'topo' },
+  { id: 'satellite-hiking', title: 'Спутник + тропы', baseLayerId: 'esri-satellite', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: ['mapterhorn-hillshade'], layerOpacityOverrides: { 'waymarked-hiking': 0.9, 'mapterhorn-hillshade': 0.25 }, trackVisualMode: 'satellite' },
+] as const
