@@ -45,7 +45,7 @@ export class MapStyleManager {
       return
     }
 
-    const composition = await this.compose(layers, state)
+    const composition = this.compose(layers, state)
     if (version !== this.applyVersion) return
 
     await new Promise<void>((resolve) => {
@@ -70,18 +70,13 @@ export class MapStyleManager {
     if (layer?.type === 'hillshade') this.map.setPaintProperty(layerId, 'hillshade-exaggeration', clampOpacity(opacity) * 0.35)
   }
 
-  private async compose(layers: MapLayerDefinition[], state: ActiveMapLayerState): Promise<StyleComposition> {
+  private compose(layers: MapLayerDefinition[], state: ActiveMapLayerState): StyleComposition {
     const sources: StyleSpecification['sources'] = {}
     const styleLayers: LayerSpecification[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
-    let glyphs: StyleSpecification['glyphs'] | undefined
-    let sprite: StyleSpecification['sprite'] | undefined
 
     for (const layer of layers) {
-      const raw = await this.readStyle(layer)
-      if (glyphs === undefined && raw.glyphs !== undefined) glyphs = raw.glyphs
-      if (sprite === undefined && raw.sprite !== undefined) sprite = raw.sprite
-
+      const raw = this.readStyle(layer)
       const styled = this.applyVisualProfile(raw, layer, state.opacityByLayerId[layer.id])
       Object.assign(sources, styled.sources)
       styleLayers.push(...(styled.layers ?? []))
@@ -91,8 +86,6 @@ export class MapStyleManager {
     return {
       style: {
         version: 8,
-        ...(glyphs === undefined ? {} : { glyphs }),
-        ...(sprite === undefined ? {} : { sprite }),
         sources,
         layers: [...styleLayers, ...createAnchorLayers()],
       },
@@ -164,20 +157,13 @@ export class MapStyleManager {
     return { ...style, layers }
   }
 
-  private async readStyle(layer: MapLayerDefinition): Promise<StyleSpecification> {
+  private readStyle(layer: MapLayerDefinition): StyleSpecification {
     const cached = this.styleCache.get(layer.id)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
 
-    const style = await this.loadStyle(layer)
+    const style = structuredClone(layer.style) as StyleSpecification
     this.styleCache.set(layer.id, style)
     return structuredClone(style) as StyleSpecification
-  }
-
-  private async loadStyle(layer: MapLayerDefinition): Promise<StyleSpecification> {
-    if (typeof layer.style !== 'string') return structuredClone(layer.style) as StyleSpecification
-    const response = await fetch(layer.style)
-    if (!response.ok) throw new Error(`Map style ${layer.id} failed: ${response.status}`)
-    return await response.json() as StyleSpecification
   }
 }
 
