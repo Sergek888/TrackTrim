@@ -33,6 +33,7 @@ export default function MapLayerPanel({ settings, onChange, onClose }: Props) {
                       }}
                     />
                     <span>{layer.title}</span>
+                    <span className="map-layer-kind">{layer.kind}</span>
                   </label>
                   {layer.role !== 'base' && checked && (
                     <label className="map-style-range">
