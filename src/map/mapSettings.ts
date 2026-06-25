@@ -23,8 +23,8 @@ type MapSettingsStorage = {
   setItem(key: string, value: string): void
 }
 
-const STORAGE_KEY = 'trackviewer.map-settings.v1'
-const DEFAULT_BASE_LAYER_ID = 'osm'
+const STORAGE_KEY = 'trackviewer.map-settings.v2'
+const DEFAULT_BASE_LAYER_ID = 'liberty-topo'
 
 export const DEFAULT_MAP_SETTINGS: MapSettings = {
   activeLayerState: {
