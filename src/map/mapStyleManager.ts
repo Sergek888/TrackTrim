@@ -74,9 +74,14 @@ export class MapStyleManager {
     const sources: StyleSpecification['sources'] = {}
     const styleLayers: LayerSpecification[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
+    let glyphs: StyleSpecification['glyphs'] | undefined
+    let sprite: StyleSpecification['sprite'] | undefined
 
     for (const layer of layers) {
       const raw = await this.readStyle(layer)
+      if (glyphs === undefined && raw.glyphs !== undefined) glyphs = raw.glyphs
+      if (sprite === undefined && raw.sprite !== undefined) sprite = raw.sprite
+
       const styled = this.applyVisualProfile(raw, layer, state.opacityByLayerId[layer.id])
       Object.assign(sources, styled.sources)
       styleLayers.push(...(styled.layers ?? []))
@@ -86,6 +91,8 @@ export class MapStyleManager {
     return {
       style: {
         version: 8,
+        ...(glyphs === undefined ? {} : { glyphs }),
+        ...(sprite === undefined ? {} : { sprite }),
         sources,
         layers: [...styleLayers, ...createAnchorLayers()],
       },
