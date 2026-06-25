@@ -3,23 +3,27 @@ import test from 'node:test'
 import { defaultAvailableMapLayerIds, mapLayers } from '../src/map/mapLayers'
 import { DEFAULT_MAP_SETTINGS, loadMapSettings, normalizeMapSettings, saveMapSettings } from '../src/map/mapSettings'
 
-test('map layer catalog starts with the working world raster layer set', () => {
-  assert.deepEqual(
-    [...mapLayers].sort((a, b) => a.order - b.order).slice(0, 5).map(({ id }) => id),
-    ['osm', 'opentopomap', 'open-hiking-map', 'cyclosm', 'esri-satellite'],
-  )
+test('map layer catalog separates vector base maps from raster base maps', () => {
+  const layersById = new Map(mapLayers.map((layer) => [layer.id, layer]))
+
+  assert.equal(layersById.get('liberty-topo')?.kind, 'vector-base')
+  assert.equal(layersById.get('liberty-satellite')?.kind, 'vector-base')
+  assert.equal(layersById.get('osm')?.kind, 'raster-base')
+  assert.equal(layersById.get('opentopomap')?.kind, 'raster-base')
+  assert.equal(layersById.get('waymarked-hiking')?.kind, 'raster-overlay')
+  assert.equal(layersById.get('mapterhorn-hillshade')?.kind, 'terrain')
 })
 
-test('map layer catalog does not expose duplicate GPX Studio vector styles as separate base maps', () => {
+test('map layer catalog avoids duplicate GPX Studio OSM aliases', () => {
   const ids = mapLayers.map(({ id }) => id)
   assert.equal(ids.includes('gpx-osm'), false)
   assert.equal(ids.includes('gpx-osm-topo'), false)
-  assert.equal(ids.includes('liberty-topo'), false)
-  assert.equal(ids.includes('liberty-satellite'), false)
 })
 
-test('default available map layers mirror the limited visible raster layer set', () => {
+test('default available map layers mirror the limited visible layer set', () => {
   assert.deepEqual(defaultAvailableMapLayerIds, [
+    'liberty-topo',
+    'liberty-satellite',
     'osm',
     'opentopomap',
     'open-hiking-map',
@@ -62,7 +66,7 @@ test('normalizing map settings uses the first available base layer when osm is d
     },
   })
 
-  assert.equal(settings.activeLayerState.baseLayerId, 'opentopomap')
+  assert.equal(settings.activeLayerState.baseLayerId, 'liberty-topo')
 })
 
 test('normalizing map settings removes duplicate layers and clamps opacity values', () => {
