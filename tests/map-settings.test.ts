@@ -34,6 +34,10 @@ test('default available map layers mirror the limited visible layer set', () => 
   ])
 })
 
+test('default settings use the visible vector topo base map', () => {
+  assert.equal(DEFAULT_MAP_SETTINGS.activeLayerState.baseLayerId, 'liberty-topo')
+})
+
 test('normalizing unavailable active layers falls back without retaining stale layers', () => {
   const settings = normalizeMapSettings({
     layerAvailability: {
@@ -48,7 +52,7 @@ test('normalizing unavailable active layers falls back without retaining stale l
     },
   })
 
-  assert.equal(settings.activeLayerState.baseLayerId, 'osm')
+  assert.equal(settings.activeLayerState.baseLayerId, 'liberty-topo')
   assert.deepEqual(settings.activeLayerState.overlayLayerIds, [])
 })
 
