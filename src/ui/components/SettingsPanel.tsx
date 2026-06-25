@@ -2,6 +2,7 @@ import type {
   KomootConnectionService,
   KomootConnectionState,
 } from '../../application/KomootConnectionService'
+import Button from '../shared/Button'
 import Panel from '../shared/Panel'
 import KomootSourceCard from './sources/KomootSourceCard'
 
@@ -10,6 +11,7 @@ type SettingsPanelProps = {
   onClose: () => void
   onKomootConnect: KomootConnectionService['connect']
   onKomootDisconnect: KomootConnectionService['disconnect']
+  onOpenAvailability: () => void
 }
 
 export default function SettingsPanel({
@@ -17,6 +19,7 @@ export default function SettingsPanel({
   onClose,
   onKomootConnect,
   onKomootDisconnect,
+  onOpenAvailability,
 }: SettingsPanelProps) {
   return (
     <Panel
@@ -31,6 +34,13 @@ export default function SettingsPanel({
           onConnect={onKomootConnect}
           onDisconnect={onKomootDisconnect}
         />
+      </section>
+
+      <section className="settings-section">
+        <h3>Map Layers</h3>
+        <Button variant="secondary" onClick={onOpenAvailability}>
+          Настройка доступности слоёв
+        </Button>
       </section>
     </Panel>
   )

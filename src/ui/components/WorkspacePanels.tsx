@@ -7,6 +7,7 @@ import type { MapSettings } from '../../map/mapSettings'
 import MapLayerPanel from '../map/MapLayerPanel'
 import AddSourcePanel from './AddSourcePanel'
 import ColorPalette from './ColorPalette'
+import LayerAvailabilityPanel from './LayerAvailabilityPanel'
 import SettingsPanel from './SettingsPanel'
 
 type ColorPaletteState =
@@ -20,6 +21,7 @@ type WorkspacePanelsProps = {
   isAddSourceOpen: boolean
   isSettingsOpen: boolean
   isMapSettingsOpen: boolean
+  isLayerAvailabilityOpen: boolean
   mapSettings: MapSettings
   colorPalette: ColorPaletteState | null
   onAddSourceClose: () => void
@@ -27,6 +29,8 @@ type WorkspacePanelsProps = {
   onSettingsOpen: () => void
   onMapSettingsClose: () => void
   onMapSettingsChange: (settings: MapSettings) => void
+  onLayerAvailabilityClose: () => void
+  onLayerAvailabilityOpen: () => void
   onColorPaletteChange: (color: string) => void
   onSourceCreate: (source: TrackSource) => void
 }
@@ -38,6 +42,7 @@ export default function WorkspacePanels({
   isAddSourceOpen,
   isSettingsOpen,
   isMapSettingsOpen,
+  isLayerAvailabilityOpen,
   mapSettings,
   colorPalette,
   onAddSourceClose,
@@ -45,6 +50,8 @@ export default function WorkspacePanels({
   onSettingsOpen,
   onMapSettingsClose,
   onMapSettingsChange,
+  onLayerAvailabilityClose,
+  onLayerAvailabilityOpen,
   onColorPaletteChange,
   onSourceCreate,
 }: WorkspacePanelsProps) {
@@ -92,6 +99,15 @@ export default function WorkspacePanels({
           onClose={onSettingsClose}
           onKomootConnect={(email, password) => komootConnection.connect(email, password)}
           onKomootDisconnect={() => komootConnection.disconnect()}
+          onOpenAvailability={onLayerAvailabilityOpen}
+        />
+      )}
+
+      {isLayerAvailabilityOpen && (
+        <LayerAvailabilityPanel
+          settings={mapSettings}
+          onChange={onMapSettingsChange}
+          onClose={onLayerAvailabilityClose}
         />
       )}
 

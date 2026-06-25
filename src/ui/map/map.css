@@ -66,67 +66,14 @@
 
 .map-settings {
   display: grid;
-  gap: 14px;
-}
-
-.map-settings-section {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.map-settings-section-muted {
-  background: #f8fafc;
-}
-
-.map-settings-section-header {
-  display: grid;
-  gap: 3px;
-}
-
-.map-settings-section-header h3 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 13px;
-  font-weight: 850;
-  letter-spacing: -0.01em;
-}
-
-.map-settings-section-header p,
-.map-settings-hint {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.map-settings fieldset {
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  min-width: 0;
-  margin: 0;
-  border: 0;
-  padding: 0;
-}
-
-.map-settings-fieldset + .map-settings-fieldset {
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border);
-}
-
-.map-settings legend {
-  margin-bottom: 7px;
-  color: var(--color-text);
-  font-size: 12px;
-  font-weight: 850;
+  gap: 12px;
 }
 
 .map-settings label {
+  display: flex;
+  align-items: center;
   min-width: 0;
+  gap: 7px;
   color: #334155;
   cursor: pointer;
   font-size: 12px;
@@ -138,27 +85,10 @@
   margin: 0;
 }
 
-.map-settings fieldset:disabled {
-  opacity: 0.45;
-}
-
-.map-settings fieldset:disabled label {
-  cursor: not-allowed;
-}
-
-.map-layer-choice {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
 .map-style-range {
   display: grid !important;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px !important;
-  padding-left: 22px;
-  color: var(--color-muted) !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px !important;
 }
 
 .map-style-range output {
@@ -167,32 +97,11 @@
 }
 
 .map-style-range input {
+  grid-column: 1 / -1;
   width: 100%;
-}
-
-.map-setting-stack {
-  display: grid !important;
-  gap: 5px !important;
-}
-
-.map-setting-stack select {
-  min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 9px;
-  background: #fff;
-  color: var(--color-text);
-  font: inherit;
 }
 
 .map-layer-row {
   display: grid;
   gap: 5px;
-}
-
-.map-availability-list {
-  display: grid;
-  gap: 7px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border);
 }

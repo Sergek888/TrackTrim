@@ -31,7 +31,7 @@ type ColorPaletteState =
       top: number
     }
 
-type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings'
+type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings' | 'layer-availability'
 
 type SidebarMode = 'collapsed' | 'open' | 'full'
 
@@ -302,6 +302,7 @@ export default function TrackWorkspace() {
         isAddSourceOpen={activePanel === 'add-source'}
         isSettingsOpen={activePanel === 'settings'}
         isMapSettingsOpen={activePanel === 'map-settings'}
+        isLayerAvailabilityOpen={activePanel === 'layer-availability'}
         mapSettings={mapSettings}
         colorPalette={colorPalette}
         onAddSourceClose={closePanel}
@@ -312,6 +313,8 @@ export default function TrackWorkspace() {
         }}
         onMapSettingsClose={closePanel}
         onMapSettingsChange={setMapSettings}
+        onLayerAvailabilityClose={closePanel}
+        onLayerAvailabilityOpen={() => openPanel('layer-availability')}
         onColorPaletteChange={handleColorPaletteChange}
         onSourceCreate={handleSourceCreate}
       />
