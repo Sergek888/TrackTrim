@@ -1,2 +1,3 @@
-export { mapVisualProfiles } from '../mapLayers'
+import { mapVisualProfiles as profiles } from '../mapLayers'
 
+export const mapVisualProfiles = profiles as Record<string, unknown>
