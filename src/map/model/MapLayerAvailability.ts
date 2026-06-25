@@ -1,7 +1,5 @@
 export interface MapLayerAvailabilitySettings {
-  enabledLayerIds: string[]
-  hiddenLayerIds: string[]
-  enabledGroupIds: string[]
+  availableLayerIds: string[]
   showExperimentalLayers: boolean
   showFragileLayers: boolean
 }
