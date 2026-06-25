@@ -11,10 +11,6 @@ type RuntimeLayerComposition = {
   paintLayerIdsByLayerId: Map<string, string[]>
 }
 
-type BaseStyleComposition = RuntimeLayerComposition & {
-  style: StyleSpecification
-}
-
 const MAP_LAYER_ANCHORS = {
   baseEnd: 'anchor-base-end',
   reliefEnd: 'anchor-relief-end',
