@@ -22,7 +22,6 @@ export interface MapVisualProfile {
     casingWidth: number
     selectedLineWidth: number
     selectedCasingWidth: number
-    casingColorLight: string
-    casingColorDark: string
+    casingColor: string
   }
 }
