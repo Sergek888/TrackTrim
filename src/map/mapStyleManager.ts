@@ -19,12 +19,16 @@ export const MAP_LAYER_ANCHORS = {
 } as const
 
 export class MapStyleManager {
+  private readonly styleCache = new Map<string, StyleSpecification>()
+  private applyVersion = 0
+
   constructor(
     private map: maplibregl.Map,
     private restoreRuntimeLayers: () => void,
   ) {}
 
   async applyState(state: ActiveMapLayerState): Promise<void> {
+    const version = ++this.applyVersion
     const base = getMapLayer(state.baseLayerId) ?? getMapLayer('osm')
     if (base === null) throw new Error('No default base map is registered')
 
@@ -35,9 +39,11 @@ export class MapStyleManager {
     ].sort((a, b) => a.order - b.order)
 
     const style = await this.compose(layers, state)
+    if (version !== this.applyVersion) return
+
     await new Promise<void>((resolve) => {
       this.map.once('style.load', () => {
-        this.restoreRuntimeLayers()
+        if (version === this.applyVersion) this.restoreRuntimeLayers()
         resolve()
       })
       this.map.setStyle(style)
@@ -110,6 +116,15 @@ export class MapStyleManager {
   }
 
   private async readStyle(layer: MapLayerDefinition): Promise<StyleSpecification> {
+    const cached = this.styleCache.get(layer.id)
+    if (cached !== undefined) return structuredClone(cached) as StyleSpecification
+
+    const style = await this.loadStyle(layer)
+    this.styleCache.set(layer.id, style)
+    return structuredClone(style) as StyleSpecification
+  }
+
+  private async loadStyle(layer: MapLayerDefinition): Promise<StyleSpecification> {
     if (typeof layer.style !== 'string') return structuredClone(layer.style) as StyleSpecification
     const response = await fetch(layer.style)
     if (!response.ok) throw new Error(`Map style ${layer.id} failed: ${response.status}`)
