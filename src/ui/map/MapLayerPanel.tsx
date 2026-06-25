@@ -1,6 +1,4 @@
-import FormField from '../shared/FormField'
 import Panel from '../shared/Panel'
-import { mapLayerPresets } from '../../map/mapLayers'
 import { getAvailableMapLayerGroups, normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
 
 type Props = { settings: MapSettings; onChange: (settings: MapSettings) => void; onClose: () => void }
@@ -9,35 +7,12 @@ export default function MapLayerPanel({ settings, onChange, onClose }: Props) {
   const groups = getAvailableMapLayerGroups(settings.layerAvailability)
   const active = settings.activeLayerState
   const update = (next: MapSettings) => onChange(normalizeMapSettings(next))
-  const setActive = (change: Partial<MapSettings['activeLayerState']>) => update({ ...settings, activeLayerState: { ...active, ...change, activePresetId: change.activePresetId } })
+  const setActive = (change: Partial<MapSettings['activeLayerState']>) => update({ ...settings, activeLayerState: { ...active, ...change } })
   const toggle = (ids: readonly string[], id: string, enabled: boolean) => enabled ? [...new Set([...ids, id])] : ids.filter((value) => value !== id)
 
   return (
     <Panel id="map-settings-panel" title="Map layers" onClose={onClose} closeLabel="Close map settings">
       <div className="map-settings">
-        <FormField label="Пресет">
-          <select
-            className="text-input"
-            value={active.activePresetId ?? ''}
-            onChange={(event) => {
-              const preset = mapLayerPresets.find(({ id }) => id === event.target.value)
-              if (preset === undefined) return
-              setActive({
-                baseLayerId: preset.baseLayerId,
-                overlayLayerIds: [...preset.enabledOverlayLayerIds],
-                terrainLayerIds: [...preset.enabledTerrainLayerIds],
-                opacityByLayerId: { ...active.opacityByLayerId, ...preset.layerOpacityOverrides },
-                activePresetId: preset.id,
-              })
-            }}
-          >
-            <option value="">Пользовательский</option>
-            {mapLayerPresets.map((preset) => (
-              <option key={preset.id} value={preset.id}>{preset.title}</option>
-            ))}
-          </select>
-        </FormField>
-
         {groups.map(({ group, layers }) => (
           <div className="panel-section" key={group.id}>
             <h3>{group.title}</h3>
