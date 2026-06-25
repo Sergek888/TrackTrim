@@ -1,5 +1,5 @@
-import type { MapSettings } from '../../map/mapSettings'
 import { mapLayers } from '../../map/mapLayers'
+import { normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
 import Panel from '../shared/Panel'
 
 type Props = {
@@ -14,7 +14,7 @@ export default function LayerAvailabilityPanel({ settings, onChange, onClose }: 
     enabled ? [...new Set([...ids, id])] : ids.filter((value) => value !== id)
 
   function updateAvailability(patch: Partial<typeof availability>) {
-    onChange({ ...settings, layerAvailability: { ...availability, ...patch } })
+    onChange(normalizeMapSettings({ ...settings, layerAvailability: { ...availability, ...patch } }))
   }
 
   return (
