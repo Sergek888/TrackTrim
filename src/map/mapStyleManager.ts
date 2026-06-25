@@ -1,13 +1,12 @@
 import type maplibregl from 'maplibre-gl'
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl'
-import { mapLayers, mapVisualProfiles } from './mapLayers'
+import { mapVisualProfiles, type MapLayerData } from './mapLayers'
 import type { ActiveMapLayerState } from './mapSettings'
 import { getMapLayer } from './mapSettings'
 
-export type MapLayerDefinition = (typeof mapLayers)[number]
-export type MapVisualProfile = (typeof mapVisualProfiles)[keyof typeof mapVisualProfiles]
+type MapLayerDefinition = MapLayerData
 
-export const MAP_LAYER_ANCHORS = {
+const MAP_LAYER_ANCHORS = {
   baseEnd: 'anchor-base-end',
   reliefEnd: 'anchor-relief-end',
   overlayEnd: 'anchor-overlay-end',

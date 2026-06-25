@@ -1,26 +1,51 @@
-export const mapVisualProfiles = {
-  cleanRaster: {
-    id: 'cleanRaster',
-    title: 'Clean raster',
-    raster: { opacity: 1, brightnessMin: 0, brightnessMax: 1, saturation: 0, contrast: 0, resampling: 'linear' },
-    track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(255,255,255,0.9)' },
-  },
-  readableTopo: {
-    id: 'readableTopo',
-    title: 'Readable topo',
-    raster: { opacity: 1, brightnessMin: 0.02, brightnessMax: 0.98, saturation: 0.05, contrast: 0.12, resampling: 'linear' },
-    track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(255,255,255,0.92)' },
-  },
-  satelliteForTracks: {
-    id: 'satelliteForTracks',
-    title: 'Satellite for tracks',
-    raster: { opacity: 1, brightnessMin: 0, brightnessMax: 0.9, saturation: -0.08, contrast: 0.08, resampling: 'linear' },
-    track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(0,0,0,0.68)' },
-  },
-  softHillshade: { id: 'softHillshade', title: 'Soft hillshade', hillshade: { exaggeration: 0.35, illuminationDirection: 315, illuminationAnchor: 'viewport' } },
-} as const
+import type { StyleSpecification } from 'maplibre-gl'
 
-export const mapLayers = [
+export interface MapLayerData {
+  id: string
+  title: string
+  role: string
+  sourceType: string
+  groupId: string
+  order: number
+  style: StyleSpecification | string
+  attribution: string
+  defaultOpacity: number
+  visualProfileId?: string
+  reliability: string
+}
+
+export interface MapVisualProfileData {
+  id: string
+  title: string
+  raster?: { opacity?: number; brightnessMin?: number; brightnessMax?: number; saturation?: number; contrast?: number; resampling?: string }
+  track?: { lineWidth?: number; casingWidth?: number; selectedLineWidth?: number; selectedCasingWidth?: number; casingColor?: string }
+  hillshade?: { exaggeration?: number; shadowColor?: string; highlightColor?: string; accentColor?: string; illuminationDirection?: number; illuminationAnchor?: string }
+}
+
+export interface MapLayerGroupData {
+  id: string
+  title: string
+  order: number
+}
+
+export interface MapLayerPresetData {
+  id: string
+  title: string
+  baseLayerId: string
+  enabledOverlayLayerIds: string[]
+  enabledTerrainLayerIds: string[]
+  layerOpacityOverrides?: Record<string, number>
+  trackVisualMode: string
+}
+
+export const mapVisualProfiles: Record<string, MapVisualProfileData> = {
+  cleanRaster: { id: 'cleanRaster', title: 'Clean raster', raster: { opacity: 1, brightnessMin: 0, brightnessMax: 1, saturation: 0, contrast: 0, resampling: 'linear' }, track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(255,255,255,0.9)' } },
+  readableTopo: { id: 'readableTopo', title: 'Readable topo', raster: { opacity: 1, brightnessMin: 0.02, brightnessMax: 0.98, saturation: 0.05, contrast: 0.12, resampling: 'linear' }, track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(255,255,255,0.92)' } },
+  satelliteForTracks: { id: 'satelliteForTracks', title: 'Satellite for tracks', raster: { opacity: 1, brightnessMin: 0, brightnessMax: 0.9, saturation: -0.08, contrast: 0.08, resampling: 'linear' }, track: { lineWidth: 4, casingWidth: 7, selectedLineWidth: 6, selectedCasingWidth: 10, casingColor: 'rgba(0,0,0,0.68)' } },
+  softHillshade: { id: 'softHillshade', title: 'Soft hillshade', hillshade: { exaggeration: 0.35, illuminationDirection: 315, illuminationAnchor: 'viewport' } },
+}
+
+export const mapLayers: MapLayerData[] = [
   {
     id: 'osm',
     title: 'OpenStreetMap',
@@ -40,12 +65,12 @@ export const mapLayers = [
           ],
           tileSize: 256,
           maxzoom: 19,
-          attribution: '© OpenStreetMap contributors',
+          attribution: '\u00a9 OpenStreetMap contributors',
         },
       },
       layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-    },
-    attribution: '© OpenStreetMap contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 OpenStreetMap contributors',
     defaultOpacity: 1,
     visualProfileId: 'cleanRaster',
     reliability: 'normal',
@@ -65,12 +90,12 @@ export const mapLayers = [
           tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
           tileSize: 256,
           maxzoom: 17,
-          attribution: '© OpenTopoMap, © OpenStreetMap contributors',
+          attribution: '\u00a9 OpenTopoMap, \u00a9 OpenStreetMap contributors',
         },
       },
       layers: [{ id: 'opentopomap', type: 'raster', source: 'opentopomap' }],
-    },
-    attribution: '© OpenTopoMap, © OpenStreetMap contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 OpenTopoMap, \u00a9 OpenStreetMap contributors',
     defaultOpacity: 1,
     visualProfileId: 'readableTopo',
     reliability: 'normal',
@@ -94,12 +119,12 @@ export const mapLayers = [
           ],
           tileSize: 256,
           maxzoom: 18,
-          attribution: '© CyclOSM, © OpenStreetMap contributors',
+          attribution: '\u00a9 CyclOSM, \u00a9 OpenStreetMap contributors',
         },
       },
       layers: [{ id: 'cyclosm', type: 'raster', source: 'cyclosm' }],
-    },
-    attribution: '© CyclOSM, © OpenStreetMap contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 CyclOSM, \u00a9 OpenStreetMap contributors',
     defaultOpacity: 1,
     visualProfileId: 'readableTopo',
     reliability: 'normal',
@@ -119,12 +144,12 @@ export const mapLayers = [
           tiles: ['https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/tile/1.0.0/World_Imagery/default/default028mm/{z}/{y}/{x}.jpg'],
           tileSize: 256,
           maxzoom: 19,
-          attribution: '© Esri and contributors',
+          attribution: '\u00a9 Esri and contributors',
         },
       },
       layers: [{ id: 'esriSatellite', type: 'raster', source: 'esriSatellite' }],
-    },
-    attribution: '© Esri and contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 Esri and contributors',
     defaultOpacity: 1,
     visualProfileId: 'satelliteForTracks',
     reliability: 'stable',
@@ -145,8 +170,8 @@ export const mapLayers = [
         },
       },
       layers: [{ id: 'mapterhorn-hillshade', type: 'hillshade', source: 'mapterhorn-hillshade', paint: { 'hillshade-exaggeration': 0.35 } }],
-    },
-    attribution: '© Mapterhorn',
+    } as StyleSpecification,
+    attribution: '\u00a9 Mapterhorn',
     defaultOpacity: 0.18,
     visualProfileId: 'softHillshade',
     reliability: 'normal',
@@ -166,12 +191,12 @@ export const mapLayers = [
           tiles: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'],
           tileSize: 256,
           maxzoom: 18,
-          attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+          attribution: '\u00a9 Waymarked Trails, \u00a9 OpenStreetMap contributors',
         },
       },
       layers: [{ id: 'waymarkedHiking', type: 'raster', source: 'waymarkedHiking' }],
-    },
-    attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 Waymarked Trails, \u00a9 OpenStreetMap contributors',
     defaultOpacity: 0.85,
     visualProfileId: 'cleanRaster',
     reliability: 'normal',
@@ -191,12 +216,12 @@ export const mapLayers = [
           tiles: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'],
           tileSize: 256,
           maxzoom: 18,
-          attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+          attribution: '\u00a9 Waymarked Trails, \u00a9 OpenStreetMap contributors',
         },
       },
       layers: [{ id: 'waymarkedCycling', type: 'raster', source: 'waymarkedCycling' }],
-    },
-    attribution: '© Waymarked Trails, © OpenStreetMap contributors',
+    } as StyleSpecification,
+    attribution: '\u00a9 Waymarked Trails, \u00a9 OpenStreetMap contributors',
     defaultOpacity: 0.8,
     visualProfileId: 'cleanRaster',
     reliability: 'normal',
@@ -216,30 +241,30 @@ export const mapLayers = [
           tiles: ['https://gps.tile.openstreetmap.org/lines/{z}/{x}/{y}.png'],
           tileSize: 256,
           maxzoom: 18,
-          attribution: '© OpenStreetMap public GPS traces',
+          attribution: '\u00a9 OpenStreetMap public GPS traces',
         },
       },
       layers: [{ id: 'osmGpsTraces', type: 'raster', source: 'osmGpsTraces' }],
-    },
-    attribution: '© OpenStreetMap public GPS traces',
+    } as StyleSpecification,
+    attribution: '\u00a9 OpenStreetMap public GPS traces',
     defaultOpacity: 0.5,
     visualProfileId: 'cleanRaster',
     reliability: 'normal',
   },
-] as const
+]
 
-export const mapLayerGroups = [
-  { id: 'base', title: 'Основные карты', order: 100 },
-  { id: 'topo', title: 'Топографические карты', order: 200 },
-  { id: 'satellite', title: 'Спутник', order: 300 },
-  { id: 'relief', title: 'Рельеф', order: 400 },
-  { id: 'routes', title: 'Маршруты и тропы', order: 500 },
-  { id: 'activity', title: 'Следы активности', order: 600 },
-] as const
+export const mapLayerGroups: MapLayerGroupData[] = [
+  { id: 'base', title: '\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u043a\u0430\u0440\u0442\u044b', order: 100 },
+  { id: 'topo', title: '\u0422\u043e\u043f\u043e\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043a\u0430\u0440\u0442\u044b', order: 200 },
+  { id: 'satellite', title: '\u0421\u043f\u0443\u0442\u043d\u0438\u043a', order: 300 },
+  { id: 'relief', title: '\u0420\u0435\u043b\u044c\u0435\u0444', order: 400 },
+  { id: 'routes', title: '\u041c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u0438 \u0442\u0440\u043e\u043f\u044b', order: 500 },
+  { id: 'activity', title: '\u0421\u043b\u0435\u0434\u044b \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0441\u0442\u0438', order: 600 },
+]
 
-export const mapLayerPresets = [
-  { id: 'clean-osm', title: 'OSM чистая', baseLayerId: 'osm', enabledOverlayLayerIds: [], enabledTerrainLayerIds: [], trackVisualMode: 'lightBase' },
-  { id: 'hiking-osm', title: 'OSM + тропы', baseLayerId: 'osm', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.85 }, trackVisualMode: 'lightBase' },
-  { id: 'topo-hiking', title: 'Топо для похода', baseLayerId: 'opentopomap', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.75 }, trackVisualMode: 'topo' },
-  { id: 'satellite-hiking', title: 'Спутник + тропы', baseLayerId: 'esri-satellite', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: ['mapterhorn-hillshade'], layerOpacityOverrides: { 'waymarked-hiking': 0.9, 'mapterhorn-hillshade': 0.25 }, trackVisualMode: 'satellite' },
-] as const
+export const mapLayerPresets: MapLayerPresetData[] = [
+  { id: 'clean-osm', title: 'OSM \u0447\u0438\u0441\u0442\u0430\u044f', baseLayerId: 'osm', enabledOverlayLayerIds: [], enabledTerrainLayerIds: [], trackVisualMode: 'lightBase' },
+  { id: 'hiking-osm', title: 'OSM + \u0442\u0440\u043e\u043f\u044b', baseLayerId: 'osm', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.85 }, trackVisualMode: 'lightBase' },
+  { id: 'topo-hiking', title: '\u0422\u043e\u043f\u043e \u0434\u043b\u044f \u043f\u043e\u0445\u043e\u0434\u0430', baseLayerId: 'opentopomap', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: [], layerOpacityOverrides: { 'waymarked-hiking': 0.75 }, trackVisualMode: 'topo' },
+  { id: 'satellite-hiking', title: '\u0421\u043f\u0443\u0442\u043d\u0438\u043a + \u0442\u0440\u043e\u043f\u044b', baseLayerId: 'esri-satellite', enabledOverlayLayerIds: ['waymarked-hiking'], enabledTerrainLayerIds: ['mapterhorn-hillshade'], layerOpacityOverrides: { 'waymarked-hiking': 0.9, 'mapterhorn-hillshade': 0.25 }, trackVisualMode: 'satellite' },
+]

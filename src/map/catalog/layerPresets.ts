@@ -1,2 +1,0 @@
-export { mapLayerPresets } from '../mapLayers'
-
