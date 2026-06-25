@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defaultMapLayerAvailability } from '../src/map/catalog/defaultLayerAvailability'
-import { mapLayerRegistry } from '../src/map/engine/registry'
-import { normalizeMapSettings } from '../src/map/store/mapSettingsStore'
+import { mapLayers } from '../src/map/mapLayers'
+import { DEFAULT_MAP_SETTINGS, normalizeMapSettings } from '../src/map/mapSettings'
 
-test('map layer registry exposes the first-stage catalog in stable order', () => {
+test('map layer catalog exposes the first-stage layers in stable order', () => {
   assert.deepEqual(
-    mapLayerRegistry.getAllLayers().map(({ id }) => id),
+    [...mapLayers].sort((a, b) => a.order - b.order).map(({ id }) => id),
     ['osm', 'opentopomap', 'cyclosm', 'esri-satellite', 'mapterhorn-hillshade', 'waymarked-hiking', 'waymarked-cycling', 'osm-gps-traces'],
   )
 })
@@ -14,8 +13,8 @@ test('map layer registry exposes the first-stage catalog in stable order', () =>
 test('normalizing unavailable active layers falls back without retaining a stale preset', () => {
   const settings = normalizeMapSettings({
     layerAvailability: {
-      ...defaultMapLayerAvailability,
-      hiddenLayerIds: ['esri-satellite', 'waymarked-hiking'],
+      ...DEFAULT_MAP_SETTINGS.layerAvailability,
+      availableLayerIds: DEFAULT_MAP_SETTINGS.layerAvailability.availableLayerIds.filter((id) => id !== 'esri-satellite' && id !== 'waymarked-hiking'),
     },
     activeLayerState: {
       baseLayerId: 'esri-satellite',
