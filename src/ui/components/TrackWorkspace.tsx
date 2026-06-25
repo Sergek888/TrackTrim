@@ -8,7 +8,7 @@ import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStart
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
-import { loadMapSettings, saveMapSettings } from '../../map/store/mapSettingsStore'
+import { loadMapSettings, saveMapSettings } from '../../map/mapSettings'
 import { defaultTrackColor } from '../trackColors'
 import Notice from '../shared/Notice'
 import TrackMap from '../map/TrackMap'
