@@ -2,10 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
-import type { MapSettings } from '../../map/model/MapRuntimeLayer'
-import { LayerComposer } from '../../map/engine/LayerComposer'
-import { MapStyleEngine } from '../../map/engine/MapStyleEngine'
-import { mapLayerRegistry } from '../../map/engine/registry'
+import type { MapSettings } from '../../map/mapSettings'
+import { MapStyleManager } from '../../map/mapStyleManager'
 import { activeTrackToMarkerFeatureCollectionGeoJson, tracksToFeatureCollectionGeoJson, type TrackMarkersFeatureCollectionGeoJson, type TracksFeatureCollectionGeoJson } from '../../formats/geojson/trackToGeoJson'
 import { allTracksBounds, trackBounds } from './mapBounds'
 import { createMapStyleButton, createTrackMarkerImage } from './mapIcons'
@@ -25,7 +23,7 @@ const ACTIVE_TRACK_CASING_LAYER_ID = 'active-track-lines-casing'
 export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isMapSettingsOpen, onMapSettingsToggle, onTrackClick, onMapClick, extraButtons }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const engineRef = useRef<MapStyleEngine | null>(null)
+  const styleManagerRef = useRef<MapStyleManager | null>(null)
   const styleButtonRef = useRef<HTMLButtonElement | null>(null)
   const extraButtonRefs = useRef<HTMLButtonElement[]>([])
   const [controlsReady, setControlsReady] = useState(false)
@@ -60,15 +58,15 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
       if (!map.hasImage(TRACK_FINISH_IMAGE_ID)) map.addImage(TRACK_FINISH_IMAGE_ID, createTrackMarkerImage('finish'), { pixelRatio: 2 })
       if (map.getLayer(TRACK_MARKERS_LAYER_ID) === undefined) map.addLayer({ id: TRACK_MARKERS_LAYER_ID, type: 'symbol', source: TRACK_MARKERS_SOURCE_ID, minzoom: 8, layout: { 'icon-image': ['case', ['==', ['get', 'kind'], 'start'], TRACK_START_IMAGE_ID, TRACK_FINISH_IMAGE_ID], 'icon-allow-overlap': true } })
     }
-    engineRef.current = new MapStyleEngine(map, mapLayerRegistry, new LayerComposer(), restoreRuntime)
-    map.on('load', () => { readyRef.current = true; void engineRef.current?.applyState(latest.current.mapSettings.activeLayerState).then(() => { const bounds = allTracksBounds(latest.current.tracks); if (bounds !== null) { map.fitBounds(bounds, { padding: 64, duration: 0, maxZoom: 16 }); fittedRef.current = true } }) })
+    styleManagerRef.current = new MapStyleManager(map, restoreRuntime)
+    map.on('load', () => { readyRef.current = true; void styleManagerRef.current?.applyState(latest.current.mapSettings.activeLayerState).then(() => { const bounds = allTracksBounds(latest.current.tracks); if (bounds !== null) { map.fitBounds(bounds, { padding: 64, duration: 0, maxZoom: 16 }); fittedRef.current = true } }) })
     map.on('mousemove', (event) => queryTrackFeatures(map, event.point).length > 0 ? setInteractiveCursor(map) : resetInteractiveCursor(map))
     map.on('click', (event) => { const index = queryTrackFeatures(map, event.point)[0]?.properties?.featureIndex; const track = typeof index === 'number' ? latest.current.tracks[index] : undefined; if (track === undefined) latest.current.onMapClick(); else latest.current.onTrackClick(track, { latitude: event.lngLat.lat, longitude: event.lngLat.lng, x: event.point.x, y: event.point.y }) })
-    return () => { map.remove(); mapRef.current = null; engineRef.current = null; readyRef.current = false }
+    return () => { map.remove(); mapRef.current = null; styleManagerRef.current = null; readyRef.current = false }
   }, [])
 
   useEffect(() => { styleButtonRef.current?.setAttribute('aria-expanded', String(isMapSettingsOpen)) }, [isMapSettingsOpen])
-  useEffect(() => { if (readyRef.current) void engineRef.current?.applyState(mapSettings.activeLayerState) }, [mapSettings.activeLayerState])
+  useEffect(() => { if (readyRef.current) void styleManagerRef.current?.applyState(mapSettings.activeLayerState) }, [mapSettings.activeLayerState])
   useEffect(() => { const map = mapRef.current; if (map === null || !readyRef.current) return; (map.getSource(TRACKS_SOURCE_ID) as GeoJSONSource | undefined)?.setData(tracks.length === 0 ? EMPTY_TRACKS : tracksToFeatureCollectionGeoJson(tracks, activeTrack)); (map.getSource(TRACK_MARKERS_SOURCE_ID) as GeoJSONSource | undefined)?.setData(activeTrack === null ? EMPTY_MARKERS : activeTrackToMarkerFeatureCollectionGeoJson(activeTrack)); if (!fittedRef.current) { const bounds = allTracksBounds(tracks); if (bounds !== null) { map.fitBounds(bounds, { padding: 64, duration: 0, maxZoom: 16 }); fittedRef.current = true } } }, [tracks, activeTrack])
   useEffect(() => { const map = mapRef.current; if (map === null || focusedTrack === null) return; const bounds = trackBounds(focusedTrack.track); if (bounds !== null) map.fitBounds(bounds, { padding: 80, duration: 450, maxZoom: 16 }) }, [focusedTrack])
   useEffect(() => { extraButtonRefs.current.forEach((button, index) => { const cfg = extraButtons?.[index]; if (cfg === undefined) return; button.setAttribute('aria-label', cfg.label); button.setAttribute('title', cfg.title); button.setAttribute('aria-pressed', String(cfg.active ?? false)); button.toggleAttribute('data-active', cfg.active ?? false); if (cfg.controls !== undefined) button.setAttribute('aria-controls', cfg.controls); button.onclick = cfg.onClick }) }, [extraButtons])
