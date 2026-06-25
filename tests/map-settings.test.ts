@@ -3,24 +3,27 @@ import test from 'node:test'
 import { defaultAvailableMapLayerIds, mapLayers } from '../src/map/mapLayers'
 import { DEFAULT_MAP_SETTINGS, loadMapSettings, normalizeMapSettings, saveMapSettings } from '../src/map/mapSettings'
 
-test('map layer catalog includes the GPX Studio world layer set first', () => {
+test('map layer catalog starts with the working world raster layer set', () => {
   assert.deepEqual(
-    [...mapLayers].sort((a, b) => a.order - b.order).slice(0, 10).map(({ id }) => id),
-    ['liberty-topo', 'liberty-satellite', 'gpx-osm', 'gpx-osm-topo', 'osm', 'opentopomap', 'open-hiking-map', 'cyclosm', 'utagawa-vtt', 'esri-satellite'],
+    [...mapLayers].sort((a, b) => a.order - b.order).slice(0, 5).map(({ id }) => id),
+    ['osm', 'opentopomap', 'open-hiking-map', 'cyclosm', 'esri-satellite'],
   )
 })
 
-test('default available map layers mirror the limited GPX Studio visible layer set', () => {
+test('map layer catalog does not expose duplicate GPX Studio vector styles as separate base maps', () => {
+  const ids = mapLayers.map(({ id }) => id)
+  assert.equal(ids.includes('gpx-osm'), false)
+  assert.equal(ids.includes('gpx-osm-topo'), false)
+  assert.equal(ids.includes('liberty-topo'), false)
+  assert.equal(ids.includes('liberty-satellite'), false)
+})
+
+test('default available map layers mirror the limited visible raster layer set', () => {
   assert.deepEqual(defaultAvailableMapLayerIds, [
-    'liberty-topo',
-    'liberty-satellite',
-    'gpx-osm',
-    'gpx-osm-topo',
     'osm',
     'opentopomap',
     'open-hiking-map',
     'cyclosm',
-    'utagawa-vtt',
     'waymarked-hiking',
     'waymarked-cycling',
     'waymarked-mtb',
@@ -59,7 +62,7 @@ test('normalizing map settings uses the first available base layer when osm is d
     },
   })
 
-  assert.equal(settings.activeLayerState.baseLayerId, 'liberty-topo')
+  assert.equal(settings.activeLayerState.baseLayerId, 'opentopomap')
 })
 
 test('normalizing map settings removes duplicate layers and clamps opacity values', () => {
