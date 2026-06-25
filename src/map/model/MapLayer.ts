@@ -1,11 +1,12 @@
 export interface MapLayerDefinition {
   id: string
   title: string
-  role: string
-  sourceType: string
+  role?: string
+  kind?: string
+  sourceType?: string
   groupId: string
   order: number
-  style: unknown
+  style: any
   attribution: string
   defaultOpacity: number
   visualProfileId?: string
