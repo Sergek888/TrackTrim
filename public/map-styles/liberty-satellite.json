@@ -1,0 +1,28 @@
+{
+  "version": 8,
+  "name": "TrackViewer Satellite",
+  "glyphs": "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+  "sources": {
+    "esriSatellite": {
+      "type": "raster",
+      "tiles": ["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/tile/1.0.0/World_Imagery/default/default028mm/{z}/{y}/{x}.jpg"],
+      "tileSize": 256,
+      "maxzoom": 19,
+      "attribution": "© Esri and contributors"
+    },
+    "openmaptiles": {
+      "type": "vector",
+      "tiles": ["https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf"],
+      "maxzoom": 14,
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    { "id": "satellite", "type": "raster", "source": "esriSatellite", "paint": { "raster-brightness-max": 0.92, "raster-saturation": -0.08 } },
+    { "id": "roads-casing", "type": "line", "source": "openmaptiles", "source-layer": "transportation", "minzoom": 8, "paint": { "line-color": "rgba(0,0,0,0.75)", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.8, 14, 5] } },
+    { "id": "roads", "type": "line", "source": "openmaptiles", "source-layer": "transportation", "minzoom": 8, "paint": { "line-color": "rgba(255,255,255,0.9)", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 14, 3] } },
+    { "id": "boundary", "type": "line", "source": "openmaptiles", "source-layer": "boundary", "minzoom": 4, "paint": { "line-color": "rgba(255,255,255,0.65)", "line-width": 1, "line-dasharray": [3, 2] } },
+    { "id": "place-labels", "type": "symbol", "source": "openmaptiles", "source-layer": "place", "minzoom": 3, "layout": { "text-field": ["coalesce", ["get", "name:en"], ["get", "name"]], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 8, 12, 12, 16], "text-anchor": "center" }, "paint": { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.8)", "text-halo-width": 1.5 } },
+    { "id": "poi-labels", "type": "symbol", "source": "openmaptiles", "source-layer": "poi", "minzoom": 14, "layout": { "text-field": ["coalesce", ["get", "name:en"], ["get", "name"]], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-anchor": "top", "text-offset": [0, 0.6] }, "paint": { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.8)", "text-halo-width": 1.2 } }
+  ]
+}
