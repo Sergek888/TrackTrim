@@ -6,6 +6,7 @@ import { getMapLayer } from './mapSettings'
 
 type MapLayerDefinition = MapLayerData
 type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' | 'vector-overlay' }>
+type PaintableLayerType = Exclude<LayerSpecification['type'], 'custom'>
 
 type RuntimeLayerComposition = {
   sources: StyleSpecification['sources']
@@ -143,7 +144,7 @@ export class MapStyleManager {
 
   private applyManagedLayerOpacity(styleLayerId: string, layer: MapLayerDefinition | null, opacity: number): void {
     const styleLayer = this.map.getLayer(styleLayerId)
-    if (styleLayer === undefined) return
+    if (styleLayer === undefined || styleLayer.type === 'custom') return
     applyPaintOpacity((property, value) => this.map.setPaintProperty(styleLayerId, property, value), styleLayer.type, opacity, layer)
   }
 
@@ -152,6 +153,8 @@ export class MapStyleManager {
     const opacity = opacityOverride ?? layer.defaultOpacity
     const layers = (style.layers ?? []).map((entry) => {
       const next = structuredClone(entry) as LayerSpecification
+      if (next.type === 'custom') return next
+
       next.paint = { ...(next.paint ?? {}) }
       applyPaintOpacity((property, value) => {
         ;(next.paint as Record<string, unknown>)[property] = value
@@ -227,11 +230,15 @@ function mergeStyle(target: StyleSpecification, source: StyleSpecification): voi
 
 function managedPaintLayerIds(layers: readonly LayerSpecification[]): string[] {
   return layers
-    .filter((layer) => ['raster', 'hillshade', 'line', 'fill', 'circle', 'symbol'].includes(layer.type))
+    .filter((layer) => layer.type !== 'custom' && isPaintableLayerType(layer.type))
     .map((layer) => layer.id)
 }
 
-function applyPaintOpacity(set: (property: string, value: unknown) => void, type: LayerSpecification['type'], opacity: number, layer: MapLayerDefinition | null): void {
+function isPaintableLayerType(type: LayerSpecification['type']): type is PaintableLayerType {
+  return ['raster', 'hillshade', 'line', 'fill', 'circle', 'symbol'].includes(type)
+}
+
+function applyPaintOpacity(set: (property: string, value: unknown) => void, type: PaintableLayerType, opacity: number, layer: MapLayerDefinition | null): void {
   const value = clampOpacity(opacity)
   if (type === 'raster') set('raster-opacity', value)
   if (type === 'hillshade') {
