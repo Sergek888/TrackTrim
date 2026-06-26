@@ -149,8 +149,7 @@ export class MapStyleManager {
   private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
     const cached = this.styleCache.get(layerId)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
-    const proxyUrl = `/api/map/style?url=${encodeURIComponent(styleUrl)}`
-    const response = await fetch(proxyUrl, { cache: 'force-cache' })
+    const response = await fetch(styleUrl, { cache: 'force-cache' })
     if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
     const style = normalizeRemoteStyle(await response.json() as StyleSpecification, styleUrl)
     this.styleCache.set(layerId, style)
@@ -169,7 +168,7 @@ function ensureApplicationAnchors(style: StyleSpecification): void {
 }
 
 function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string): StyleSpecification {
-  const base = new URL(styleUrl)
+  const base = new URL(styleUrl, window.location.href)
   const copy = structuredClone(style) as StyleSpecification
   if (typeof copy.sprite === 'string') copy.sprite = resolveRelativeUrl(copy.sprite, base)
   if (typeof copy.glyphs === 'string') copy.glyphs = resolveRelativeUrl(copy.glyphs, base)
