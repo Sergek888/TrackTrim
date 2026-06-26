@@ -12,8 +12,11 @@ export function resetInteractiveCursor(map: maplibregl.Map): void {
 }
 
 export function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point) {
+  const layers = INTERACTIVE_TRACK_LAYER_IDS.filter((layerId) => map.getLayer(layerId) !== undefined)
+  if (layers.length === 0) return []
+
   const directFeatures = map.queryRenderedFeatures(point, {
-    layers: INTERACTIVE_TRACK_LAYER_IDS,
+    layers,
   })
 
   if (directFeatures.length > 0) {
@@ -26,7 +29,7 @@ export function queryTrackFeatures(map: maplibregl.Map, point: maplibregl.Point)
       [point.x + TRACK_HIT_TOLERANCE, point.y + TRACK_HIT_TOLERANCE],
     ],
     {
-      layers: INTERACTIVE_TRACK_LAYER_IDS,
+      layers,
     },
   )
 }

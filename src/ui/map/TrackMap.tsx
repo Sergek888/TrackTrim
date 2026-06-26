@@ -28,7 +28,7 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
 
   useEffect(() => {
     if (containerRef.current === null) return
-    const map = new maplibregl.Map({ container: containerRef.current, style: { version: 8, sources: {}, layers: [] }, center: [0, 0], zoom: 1 })
+    const map = new maplibregl.Map({ container: containerRef.current, style: { version: 8, sources: {}, layers: [] }, center: [10, 45], zoom: 4 })
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     const group = containerRef.current.querySelector<HTMLElement>('.maplibregl-ctrl-top-right .maplibregl-ctrl-group')

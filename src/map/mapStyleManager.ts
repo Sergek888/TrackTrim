@@ -6,11 +6,12 @@ import { getMapLayer } from './mapSettings'
 
 type MapLayerDefinition = MapLayerData
 type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' | 'vector-overlay' }>
-type PaintableLayerType = Exclude<LayerSpecification['type'], 'custom'>
+type PaintableLayerType = Extract<LayerSpecification['type'], 'raster' | 'hillshade' | 'line' | 'fill' | 'circle' | 'symbol'>
+type RuntimeStyleLayer = { layer: LayerSpecification; beforeId: string }
 
 type RuntimeLayerComposition = {
   sources: StyleSpecification['sources']
-  layers: LayerSpecification[]
+  layers: RuntimeStyleLayer[]
   paintLayerIdsByLayerId: Map<string, string[]>
 }
 
@@ -26,6 +27,11 @@ export class MapStyleManager {
 
   constructor(private map: maplibregl.Map, private restoreRuntimeLayers: () => void) {
     this.map.on('error', (event) => console.warn('[map-style]', event.error ?? event))
+    this.map.on('styleimagemissing', (event) => {
+      const id = (event as { id?: string }).id
+      if (id === undefined || this.map.hasImage(id)) return
+      this.map.addImage(id, { width: 1, height: 1, data: new Uint8Array([0, 0, 0, 0]) })
+    })
   }
 
   async applyState(state: ActiveMapLayerState): Promise<void> {
@@ -72,15 +78,16 @@ export class MapStyleManager {
 
   private async composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): Promise<RuntimeLayerComposition> {
     const sources: StyleSpecification['sources'] = {}
-    const styleLayers: LayerSpecification[] = []
+    const styleLayers: RuntimeStyleLayer[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
 
     for (const layer of layers) {
       if (layer.kind === 'vector-base') continue
       const raw = layer.kind === 'vector-overlay' ? await this.readRemoteStyle(layer.id, layer.styleUrl) : this.readInlineStyle(layer)
-      const styled = this.applyVisualProfile(raw, layer, state.opacityByLayerId[layer.id])
+      const styled = this.applyVisualProfile(namespaceRuntimeStyle(raw, layer.id), layer, state.opacityByLayerId[layer.id])
       Object.assign(sources, styled.sources)
-      styleLayers.push(...(styled.layers ?? []))
+      const beforeId = layer.role === 'terrain' ? MAP_LAYER_ANCHORS.reliefEnd : MAP_LAYER_ANCHORS.overlayEnd
+      styleLayers.push(...(styled.layers ?? []).map((styleLayer) => ({ layer: styleLayer, beforeId })))
       paintLayerIdsByLayerId.set(layer.id, managedPaintLayerIds(styled.layers ?? []))
     }
 
@@ -89,7 +96,7 @@ export class MapStyleManager {
 
   private addRuntimeComposition(composition: RuntimeLayerComposition): void {
     for (const [sourceId, source] of Object.entries(composition.sources ?? {})) if (this.map.getSource(sourceId) === undefined) this.map.addSource(sourceId, source as SourceSpecification)
-    for (const layer of composition.layers) if (this.map.getLayer(layer.id) === undefined) this.map.addLayer(layer, MAP_LAYER_ANCHORS.overlayEnd)
+    for (const { layer, beforeId } of composition.layers) if (this.map.getLayer(layer.id) === undefined) this.map.addLayer(layer, beforeId)
   }
 
   private rememberPaintLayerIds(next: Map<string, string[]>): void {
@@ -106,7 +113,7 @@ export class MapStyleManager {
 
   private applyManagedLayerOpacity(styleLayerId: string, layer: MapLayerDefinition | null, opacity: number): void {
     const styleLayer = this.map.getLayer(styleLayerId)
-    if (styleLayer === undefined || styleLayer.type === 'custom') return
+    if (styleLayer === undefined || !isPaintableLayerType(styleLayer.type)) return
     applyPaintOpacity((property, value) => this.map.setPaintProperty(styleLayerId, property, value), styleLayer.type, opacity, layer)
   }
 
@@ -115,7 +122,7 @@ export class MapStyleManager {
     const opacity = opacityOverride ?? layer.defaultOpacity
     const layers = (style.layers ?? []).map((entry) => {
       const next = structuredClone(entry) as LayerSpecification
-      if (next.type === 'custom') return next
+      if (!isPaintableLayerType(next.type)) return next
       next.paint = { ...(next.paint ?? {}) }
       applyPaintOpacity((property, value) => { ;(next.paint as Record<string, unknown>)[property] = value }, next.type, opacity, layer)
       if (next.type === 'raster') {
@@ -150,7 +157,7 @@ export class MapStyleManager {
     const resolvedStyleUrl = resolveProjectOwnedStyleUrl(styleUrl)
     const cached = this.styleCache.get(layerId)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
-    const response = await fetch(resolvedStyleUrl, { cache: 'force-cache' })
+    const response = await fetch(resolvedStyleUrl, { cache: 'no-cache' })
     if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
     const style = normalizeRemoteStyle(await response.json() as StyleSpecification, resolvedStyleUrl)
     this.styleCache.set(layerId, style)
@@ -164,8 +171,15 @@ function resolveRuntimeLayerStack(state: ActiveMapLayerState): MapLayerDefinitio
 
 function ensureApplicationAnchors(style: StyleSpecification): void {
   style.sources = { ...(style.sources ?? {}), [EMPTY_SOURCE_ID]: emptySource }
-  const ids = new Set((style.layers ?? []).map((layer) => layer.id))
-  style.layers = [...(style.layers ?? []), ...createAnchorLayers().filter((layer) => !ids.has(layer.id))]
+  const layers = [...(style.layers ?? [])]
+  const ids = new Set(layers.map((layer) => layer.id))
+  const anchors = createAnchorLayers().filter((layer) => !ids.has(layer.id))
+  const reliefAnchor = anchors.find((layer) => layer.id === MAP_LAYER_ANCHORS.reliefEnd)
+  const tailAnchors = anchors.filter((layer) => layer.id !== MAP_LAYER_ANCHORS.reliefEnd)
+
+  if (reliefAnchor !== undefined) layers.splice(resolveReliefAnchorIndex(layers), 0, reliefAnchor)
+  layers.push(...tailAnchors)
+  style.layers = layers
 }
 
 function resolveProjectOwnedStyleUrl(styleUrl: string): string {
@@ -195,11 +209,32 @@ function resolveRelativeUrl(value: string, base: URL): string {
   return new URL(value, base).toString()
 }
 
-function managedPaintLayerIds(layers: readonly LayerSpecification[]): string[] {
-  return layers.filter((layer) => layer.type !== 'custom' && isPaintableLayerType(layer.type)).map((layer) => layer.id)
+function resolveReliefAnchorIndex(layers: readonly LayerSpecification[]): number {
+  const firstContentLayerIndex = layers.findIndex((layer) => layer.type !== 'background')
+  return firstContentLayerIndex === -1 ? layers.length : firstContentLayerIndex
 }
 
-function isPaintableLayerType(type: LayerSpecification['type']): type is PaintableLayerType {
+function namespaceRuntimeStyle(style: StyleSpecification, layerId: string): StyleSpecification {
+  const prefix = `${layerId}:`
+  const sourceIds = new Set(Object.keys(style.sources ?? {}))
+  const sources = Object.fromEntries(
+    Object.entries(style.sources ?? {}).map(([sourceId, source]) => [`${prefix}${sourceId}`, source]),
+  )
+  const layers = (style.layers ?? []).map((entry) => {
+    const next = structuredClone(entry) as LayerSpecification
+    if ('source' in next && typeof next.source === 'string' && sourceIds.has(next.source)) next.source = `${prefix}${next.source}`
+    next.id = `${prefix}${next.id}`
+    return next
+  })
+
+  return { ...style, sources, layers }
+}
+
+function managedPaintLayerIds(layers: readonly LayerSpecification[]): string[] {
+  return layers.filter((layer) => isPaintableLayerType(layer.type)).map((layer) => layer.id)
+}
+
+function isPaintableLayerType(type: string): type is PaintableLayerType {
   return ['raster', 'hillshade', 'line', 'fill', 'circle', 'symbol'].includes(type)
 }
 
