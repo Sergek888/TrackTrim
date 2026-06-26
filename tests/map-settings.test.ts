@@ -44,8 +44,9 @@ test('default available map layers mirror the visible world layer set', () => {
   ])
 })
 
-test('default settings use the visible vector topo base map', () => {
+test('default settings use the visible vector topo base map and hillshade terrain', () => {
   assert.equal(DEFAULT_MAP_SETTINGS.activeLayerState.baseLayerId, 'liberty-topo')
+  assert.deepEqual(DEFAULT_MAP_SETTINGS.activeLayerState.terrainLayerIds, ['mapterhorn-hillshade'])
 })
 
 test('normalizing unavailable active layers falls back without retaining stale layers', () => {
