@@ -149,7 +149,8 @@ export class MapStyleManager {
   private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
     const cached = this.styleCache.get(layerId)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
-    const response = await fetch(styleUrl, { cache: 'force-cache' })
+    const proxyUrl = `/api/map/style?url=${encodeURIComponent(styleUrl)}`
+    const response = await fetch(proxyUrl, { cache: 'force-cache' })
     if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
     const style = normalizeRemoteStyle(await response.json() as StyleSpecification, styleUrl)
     this.styleCache.set(layerId, style)
