@@ -19,6 +19,10 @@ const komootDevRoutes = new Map([
   ['/tours/upload', '/api/komoot/tours/upload.ts'],
 ])
 
+const devRoutes = new Map([
+  ['/api/map/style', '/api/map/style.ts'],
+])
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const komootSessionSecret = env.KOMOOT_SESSION_SECRET
@@ -27,7 +31,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       {
-        name: 'komoot-api-dev',
+        name: 'api-dev',
         configureServer(server) {
           server.middlewares.use('/api/komoot', async (request, response) => {
             const url = new URL(request.url ?? '/', 'http://localhost')
@@ -55,6 +59,27 @@ export default defineConfig(({ mode }) => {
             if (dynamicRoute?.[1] !== undefined) {
               devRequest.query.id = dynamicRoute[1]
             }
+
+            const apiModule = await server.ssrLoadModule(route) as {
+              default: VercelApiHandler
+            }
+
+            await apiModule.default(request, response)
+          })
+
+          server.middlewares.use('/api/map', async (request, response) => {
+            const url = new URL(request.url ?? '/', 'http://localhost')
+            const path = `/api/map${url.pathname}`.replace(/\/+$/, '')
+            const route = devRoutes.get(path)
+
+            if (route === undefined) {
+              response.statusCode = 404
+              response.end(JSON.stringify({ error: 'Map API route was not found.' }))
+              return
+            }
+
+            const devRequest = request as DevApiRequest
+            devRequest.query = Object.fromEntries(url.searchParams.entries())
 
             const apiModule = await server.ssrLoadModule(route) as {
               default: VercelApiHandler
