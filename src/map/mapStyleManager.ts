@@ -5,22 +5,32 @@ import type { ActiveMapLayerState } from './mapSettings'
 import { getMapLayer } from './mapSettings'
 
 type MapLayerDefinition = MapLayerData
+type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' }>
+
 type RuntimeLayerComposition = {
   sources: StyleSpecification['sources']
   layers: LayerSpecification[]
   paintLayerIdsByLayerId: Map<string, string[]>
 }
 
+const EMPTY_SOURCE_ID = 'empty-source'
+
 const MAP_LAYER_ANCHORS = {
-  baseEnd: 'anchor-base-end',
   reliefEnd: 'anchor-relief-end',
   overlayEnd: 'anchor-overlay-end',
-  routeOverlayEnd: 'anchor-route-overlay-end',
   trackEnd: 'anchor-track-end',
   markerEnd: 'anchor-marker-end',
   interactionEnd: 'anchor-interaction-end',
   tooltipEnd: 'anchor-tooltip-end',
 } as const
+
+const emptySource: maplibregl.GeoJSONSourceSpecification = {
+  type: 'geojson',
+  data: {
+    type: 'FeatureCollection',
+    features: [],
+  },
+}
 
 export class MapStyleManager {
   private readonly styleCache = new Map<string, StyleSpecification>()
@@ -46,19 +56,15 @@ export class MapStyleManager {
       return
     }
 
-    const runtimeComposition = this.composeRuntimeLayers(runtimeLayers, state)
-    const baseStyle = base.kind === 'vector-base'
-      ? base.styleUrl
-      : this.composeRasterBaseStyle(base, runtimeComposition, state)
+    const runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
+    const baseStyle = await this.buildBaseStyle(base, state)
 
     if (version !== this.applyVersion) return
 
     await new Promise<void>((resolve) => {
       this.map.once('style.load', () => {
         if (version === this.applyVersion) {
-          if (base.kind === 'vector-base') {
-            this.addRuntimeComposition(runtimeComposition)
-          }
+          this.addRuntimeComposition(runtimeComposition)
           this.currentLayerStackKey = layerStackKey
           this.rememberPaintLayerIds(runtimeComposition.paintLayerIdsByLayerId)
           this.restoreRuntimeLayers()
@@ -72,27 +78,21 @@ export class MapStyleManager {
   setLayerOpacity(layerId: string, opacity: number): void {
     const layer = this.map.getLayer(layerId)
     if (layer?.type === 'raster') this.map.setPaintProperty(layerId, 'raster-opacity', clampOpacity(opacity))
-    if (layer?.type === 'hillshade') this.map.setPaintProperty(layerId, 'hillshade-exaggeration', clampOpacity(opacity) * 0.35)
+    if (layer?.type === 'hillshade') this.map.setPaintProperty(layerId, 'hillshade-exaggeration', clampOpacity(opacity) * 0.5)
   }
 
-  private composeRasterBaseStyle(base: Extract<MapLayerDefinition, { kind: 'raster-base' }>, runtimeComposition: RuntimeLayerComposition, state: ActiveMapLayerState): StyleSpecification {
-    const baseComposition = this.composeRuntimeLayers([base], state)
+  private async buildBaseStyle(base: Extract<MapLayerDefinition, { role: 'base' }>, state: ActiveMapLayerState): Promise<StyleSpecification> {
+    const style = createEmptyApplicationStyle()
+    const baseStyle = base.kind === 'vector-base'
+      ? await this.readRemoteStyle(base.id, base.styleUrl)
+      : this.applyVisualProfile(this.readInlineStyle(base), base, state.opacityByLayerId[base.id])
 
-    return {
-      version: 8,
-      sources: {
-        ...baseComposition.sources,
-        ...runtimeComposition.sources,
-      },
-      layers: [
-        ...baseComposition.layers,
-        ...runtimeComposition.layers,
-        ...createAnchorLayers(),
-      ],
-    }
+    mergeStyle(style, baseStyle)
+    style.layers.push(...createAnchorLayers())
+    return style
   }
 
-  private composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): RuntimeLayerComposition {
+  private async composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): Promise<RuntimeLayerComposition> {
     const sources: StyleSpecification['sources'] = {}
     const styleLayers: LayerSpecification[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
@@ -116,9 +116,9 @@ export class MapStyleManager {
       }
     }
 
-    for (const layer of [...composition.layers, ...createAnchorLayers()]) {
+    for (const layer of composition.layers) {
       if (this.map.getLayer(layer.id) === undefined) {
-        this.map.addLayer(layer)
+        this.map.addLayer(layer, MAP_LAYER_ANCHORS.overlayEnd)
       }
     }
   }
@@ -149,7 +149,7 @@ export class MapStyleManager {
     if (styleLayer?.type === 'hillshade') {
       const profile = layer.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
       const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
-      this.map.setPaintProperty(styleLayerId, 'hillshade-exaggeration', (hillshade?.exaggeration ?? 0.35) * clampOpacity(opacity))
+      this.map.setPaintProperty(styleLayerId, 'hillshade-exaggeration', (hillshade?.exaggeration ?? 0.5) * clampOpacity(opacity))
     }
   }
 
@@ -178,7 +178,7 @@ export class MapStyleManager {
           ...entry,
           paint: {
             ...entry.paint,
-            'hillshade-exaggeration': (hillshade?.exaggeration ?? 0.35) * clampOpacity(opacity),
+            'hillshade-exaggeration': (hillshade?.exaggeration ?? 0.5) * clampOpacity(opacity),
             'hillshade-shadow-color': hillshade?.shadowColor ?? 'rgba(30, 41, 59, 0.55)',
             'hillshade-highlight-color': hillshade?.highlightColor ?? 'rgba(255, 255, 255, 0.45)',
             'hillshade-accent-color': hillshade?.accentColor ?? 'rgba(100, 116, 139, 0.25)',
@@ -194,12 +194,23 @@ export class MapStyleManager {
     return { ...style, layers }
   }
 
-  private readInlineStyle(layer: Exclude<MapLayerDefinition, { kind: 'vector-base' }>): StyleSpecification {
+  private readInlineStyle(layer: InlineStyleLayer): StyleSpecification {
     const cached = this.styleCache.get(layer.id)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
 
     const style = structuredClone(layer.style) as StyleSpecification
     this.styleCache.set(layer.id, style)
+    return structuredClone(style) as StyleSpecification
+  }
+
+  private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
+    const cached = this.styleCache.get(layerId)
+    if (cached !== undefined) return structuredClone(cached) as StyleSpecification
+
+    const response = await fetch(styleUrl, { cache: 'force-cache' })
+    if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
+    const style = await response.json() as StyleSpecification
+    this.styleCache.set(layerId, style)
     return structuredClone(style) as StyleSpecification
   }
 }
@@ -209,6 +220,23 @@ function resolveRuntimeLayerStack(state: ActiveMapLayerState): MapLayerDefinitio
     ...state.terrainLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'terrain'),
     ...state.overlayLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'overlay'),
   ].sort((a, b) => a.order - b.order)
+}
+
+function createEmptyApplicationStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: { [EMPTY_SOURCE_ID]: emptySource },
+    layers: [],
+  }
+}
+
+function mergeStyle(target: StyleSpecification, source: StyleSpecification): void {
+  Object.assign(target.sources, source.sources)
+  target.layers.push(...(source.layers ?? []))
+  if (target.sprite === undefined && source.sprite !== undefined) target.sprite = source.sprite
+  if (target.glyphs === undefined && source.glyphs !== undefined) target.glyphs = source.glyphs
+  if (target.projection === undefined && source.projection !== undefined) target.projection = source.projection
+  if (target.terrain === undefined && source.terrain !== undefined) target.terrain = source.terrain
 }
 
 function managedPaintLayerIds(layers: readonly LayerSpecification[]): string[] {
@@ -224,7 +252,7 @@ function clampOpacity(opacity: number): number {
 function createAnchorLayers(): LayerSpecification[] {
   return Object.values(MAP_LAYER_ANCHORS).map((id) => ({
     id,
-    type: 'background',
-    paint: { 'background-opacity': 0 },
+    type: 'symbol',
+    source: EMPTY_SOURCE_ID,
   }))
 }
