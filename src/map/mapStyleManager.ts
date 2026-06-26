@@ -147,11 +147,12 @@ export class MapStyleManager {
   }
 
   private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
+    const resolvedStyleUrl = resolveProjectOwnedStyleUrl(styleUrl)
     const cached = this.styleCache.get(layerId)
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
-    const response = await fetch(styleUrl, { cache: 'force-cache' })
+    const response = await fetch(resolvedStyleUrl, { cache: 'force-cache' })
     if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
-    const style = normalizeRemoteStyle(await response.json() as StyleSpecification, styleUrl)
+    const style = normalizeRemoteStyle(await response.json() as StyleSpecification, resolvedStyleUrl)
     this.styleCache.set(layerId, style)
     return structuredClone(style) as StyleSpecification
   }
@@ -165,6 +166,14 @@ function ensureApplicationAnchors(style: StyleSpecification): void {
   style.sources = { ...(style.sources ?? {}), [EMPTY_SOURCE_ID]: emptySource }
   const ids = new Set((style.layers ?? []).map((layer) => layer.id))
   style.layers = [...(style.layers ?? []), ...createAnchorLayers().filter((layer) => !ids.has(layer.id))]
+}
+
+function resolveProjectOwnedStyleUrl(styleUrl: string): string {
+  if (styleUrl === 'https://styles.gpx.studio/liberty-topo.json') return '/map-styles/liberty-topo.json'
+  if (styleUrl === 'https://styles.gpx.studio/liberty-satellite.json') return '/map-styles/liberty-satellite.json'
+  if (styleUrl === 'https://styles.gpx.studio/osm.json') return '/map-styles/osm-vector.json'
+  if (styleUrl === 'https://styles.gpx.studio/osm-topo.json') return '/map-styles/osm-topo-vector.json'
+  return styleUrl
 }
 
 function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string): StyleSpecification {
