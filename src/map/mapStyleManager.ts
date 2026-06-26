@@ -58,13 +58,16 @@ export class MapStyleManager {
     }
 
     const runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
-    const baseStyle = await this.buildBaseStyle(base, state)
+    const baseStyle = base.kind === 'vector-base'
+      ? base.styleUrl
+      : this.buildRasterBaseStyle(base, state)
 
     if (version !== this.applyVersion) return
 
     await new Promise<void>((resolve) => {
       this.map.once('style.load', () => {
         if (version === this.applyVersion) {
+          this.ensureApplicationAnchors()
           this.addRuntimeComposition(runtimeComposition)
           this.currentLayerStackKey = layerStackKey
           this.rememberPaintLayerIds(runtimeComposition.paintLayerIdsByLayerId)
@@ -82,12 +85,9 @@ export class MapStyleManager {
     }
   }
 
-  private async buildBaseStyle(base: Extract<MapLayerDefinition, { role: 'base' }>, state: ActiveMapLayerState): Promise<StyleSpecification> {
+  private buildRasterBaseStyle(base: Extract<MapLayerDefinition, { kind: 'raster-base' }>, state: ActiveMapLayerState): StyleSpecification {
     const style = createEmptyApplicationStyle()
-    const baseStyle = base.kind === 'vector-base'
-      ? await this.readRemoteStyle(base.id, base.styleUrl)
-      : this.applyVisualProfile(this.readInlineStyle(base), base, state.opacityByLayerId[base.id])
-
+    const baseStyle = this.applyVisualProfile(this.readInlineStyle(base), base, state.opacityByLayerId[base.id])
     mergeStyle(style, baseStyle)
     style.layers.push(...createAnchorLayers())
     return style
@@ -110,6 +110,18 @@ export class MapStyleManager {
     }
 
     return { sources, layers: styleLayers, paintLayerIdsByLayerId }
+  }
+
+  private ensureApplicationAnchors(): void {
+    if (this.map.getSource(EMPTY_SOURCE_ID) === undefined) {
+      this.map.addSource(EMPTY_SOURCE_ID, emptySource)
+    }
+
+    for (const layer of createAnchorLayers()) {
+      if (this.map.getLayer(layer.id) === undefined) {
+        this.map.addLayer(layer)
+      }
+    }
   }
 
   private addRuntimeComposition(composition: RuntimeLayerComposition): void {
