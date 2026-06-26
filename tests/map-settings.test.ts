@@ -44,9 +44,9 @@ test('default available map layers mirror the visible world layer set', () => {
   ])
 })
 
-test('default settings use the visible vector topo base map and hillshade terrain', () => {
+test('default settings use the visible vector topo base map without default terrain', () => {
   assert.equal(DEFAULT_MAP_SETTINGS.activeLayerState.baseLayerId, 'liberty-topo')
-  assert.deepEqual(DEFAULT_MAP_SETTINGS.activeLayerState.terrainLayerIds, ['mapterhorn-hillshade'])
+  assert.deepEqual(DEFAULT_MAP_SETTINGS.activeLayerState.terrainLayerIds, [])
 })
 
 test('normalizing unavailable active layers falls back without retaining stale layers', () => {
@@ -99,6 +99,7 @@ test('normalizing map settings removes duplicate layers and clamps opacity value
   })
 
   assert.deepEqual(settings.activeLayerState.overlayLayerIds, ['waymarked-hiking'])
+  assert.equal(settings.activeLayerState.opacityByLayerId['waymarked-hillshade'], undefined)
   assert.equal(settings.activeLayerState.opacityByLayerId['waymarked-hiking'], 1)
   assert.equal(settings.activeLayerState.opacityByLayerId['mapterhorn-hillshade'], 0)
   assert.equal(settings.activeLayerState.opacityByLayerId.unknown, undefined)
