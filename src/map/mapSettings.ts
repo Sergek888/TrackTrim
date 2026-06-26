@@ -92,7 +92,7 @@ export function getAvailableMapLayers(availability: MapLayerAvailabilitySettings
       if (!availableIds.has(layer.id)) return false
       if (layer.reliability === 'broken') return false
       if (layer.reliability === 'experimental' && !availability.showExperimentalLayers) return false
-      if (layer.reliability === 'fragile' && !availability.showFragileLayers) return false
+      if (layer.reliability === 'fragile' && !availability.showFragileLayers && !layer.defaultVisible) return false
       return true
     })
 }
