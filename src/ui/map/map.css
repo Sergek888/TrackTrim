@@ -85,17 +85,6 @@
   margin: 0;
 }
 
-.map-layer-kind {
-  margin-left: auto;
-  border-radius: 999px;
-  background: #e2e8f0;
-  color: #475569;
-  padding: 2px 6px;
-  font-size: 10px;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
 .map-style-range {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto;
