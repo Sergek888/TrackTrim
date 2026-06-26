@@ -23,15 +23,14 @@ type MapSettingsStorage = {
   setItem(key: string, value: string): void
 }
 
-const STORAGE_KEY = 'trackviewer.map-settings.v3'
+const STORAGE_KEY = 'trackviewer.map-settings.v4'
 const DEFAULT_BASE_LAYER_ID = 'liberty-topo'
-const DEFAULT_TERRAIN_LAYER_ID = 'mapterhorn-hillshade'
 
 export const DEFAULT_MAP_SETTINGS: MapSettings = {
   activeLayerState: {
     baseLayerId: DEFAULT_BASE_LAYER_ID,
     overlayLayerIds: [],
-    terrainLayerIds: [DEFAULT_TERRAIN_LAYER_ID],
+    terrainLayerIds: [],
     opacityByLayerId: {},
   },
   layerAvailability: {
