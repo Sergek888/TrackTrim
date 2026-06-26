@@ -5,7 +5,7 @@ import type { ActiveMapLayerState } from './mapSettings'
 import { getMapLayer } from './mapSettings'
 
 type MapLayerDefinition = MapLayerData
-type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' }>
+type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' | 'vector-overlay' }>
 
 type RuntimeLayerComposition = {
   sources: StyleSpecification['sources']
@@ -45,7 +45,7 @@ export class MapStyleManager {
 
   async applyState(state: ActiveMapLayerState): Promise<void> {
     const version = ++this.applyVersion
-    const base = getMapLayer(state.baseLayerId) ?? getMapLayer('osm')
+    const base = getMapLayer(state.baseLayerId) ?? getMapLayer('liberty-topo') ?? getMapLayer('osm-raster')
     if (base === null || base.role !== 'base') throw new Error('No default base map is registered')
 
     const runtimeLayers = resolveRuntimeLayerStack(state)
@@ -76,9 +76,9 @@ export class MapStyleManager {
   }
 
   setLayerOpacity(layerId: string, opacity: number): void {
-    const layer = this.map.getLayer(layerId)
-    if (layer?.type === 'raster') this.map.setPaintProperty(layerId, 'raster-opacity', clampOpacity(opacity))
-    if (layer?.type === 'hillshade') this.map.setPaintProperty(layerId, 'hillshade-exaggeration', clampOpacity(opacity) * 0.5)
+    for (const styleLayerId of this.paintLayerIdsByLayerId.get(layerId) ?? [layerId]) {
+      this.applyManagedLayerOpacity(styleLayerId, null, opacity)
+    }
   }
 
   private async buildBaseStyle(base: Extract<MapLayerDefinition, { role: 'base' }>, state: ActiveMapLayerState): Promise<StyleSpecification> {
@@ -99,7 +99,9 @@ export class MapStyleManager {
 
     for (const layer of layers) {
       if (layer.kind === 'vector-base') continue
-      const raw = this.readInlineStyle(layer)
+      const raw = layer.kind === 'vector-overlay'
+        ? await this.readRemoteStyle(layer.id, layer.styleUrl)
+        : this.readInlineStyle(layer)
       const styled = this.applyVisualProfile(raw, layer, state.opacityByLayerId[layer.id])
       Object.assign(sources, styled.sources)
       styleLayers.push(...(styled.layers ?? []))
@@ -139,56 +141,40 @@ export class MapStyleManager {
     }
   }
 
-  private applyManagedLayerOpacity(styleLayerId: string, layer: MapLayerDefinition, opacity: number): void {
+  private applyManagedLayerOpacity(styleLayerId: string, layer: MapLayerDefinition | null, opacity: number): void {
     const styleLayer = this.map.getLayer(styleLayerId)
-    if (styleLayer?.type === 'raster') {
-      this.map.setPaintProperty(styleLayerId, 'raster-opacity', clampOpacity(opacity))
-      return
-    }
-
-    if (styleLayer?.type === 'hillshade') {
-      const profile = layer.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
-      const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
-      this.map.setPaintProperty(styleLayerId, 'hillshade-exaggeration', (hillshade?.exaggeration ?? 0.5) * clampOpacity(opacity))
-    }
+    if (styleLayer === undefined) return
+    applyPaintOpacity((property, value) => this.map.setPaintProperty(styleLayerId, property, value), styleLayer.type, opacity, layer)
   }
 
   private applyVisualProfile(style: StyleSpecification, layer: MapLayerDefinition, opacityOverride?: number): StyleSpecification {
     const profile = layer.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
     const opacity = opacityOverride ?? layer.defaultOpacity
     const layers = (style.layers ?? []).map((entry) => {
-      if (entry.type === 'raster') {
-        return {
-          ...entry,
-          paint: {
-            ...entry.paint,
-            'raster-opacity': clampOpacity(opacity),
-            'raster-contrast': profile !== undefined && 'raster' in profile ? profile.raster?.contrast ?? 0 : 0,
-            'raster-saturation': profile !== undefined && 'raster' in profile ? profile.raster?.saturation ?? 0 : 0,
-            'raster-brightness-min': profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMin ?? 0 : 0,
-            'raster-brightness-max': profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMax ?? 1 : 1,
-            'raster-resampling': profile !== undefined && 'raster' in profile ? profile.raster?.resampling ?? 'linear' : 'linear',
-          },
-        } as LayerSpecification
+      const next = structuredClone(entry) as LayerSpecification
+      next.paint = { ...(next.paint ?? {}) }
+      applyPaintOpacity((property, value) => {
+        ;(next.paint as Record<string, unknown>)[property] = value
+      }, next.type, opacity, layer)
+
+      if (next.type === 'raster') {
+        ;(next.paint as Record<string, unknown>)['raster-contrast'] = profile !== undefined && 'raster' in profile ? profile.raster?.contrast ?? 0 : 0
+        ;(next.paint as Record<string, unknown>)['raster-saturation'] = profile !== undefined && 'raster' in profile ? profile.raster?.saturation ?? 0 : 0
+        ;(next.paint as Record<string, unknown>)['raster-brightness-min'] = profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMin ?? 0 : 0
+        ;(next.paint as Record<string, unknown>)['raster-brightness-max'] = profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMax ?? 1 : 1
+        ;(next.paint as Record<string, unknown>)['raster-resampling'] = profile !== undefined && 'raster' in profile ? profile.raster?.resampling ?? 'linear' : 'linear'
       }
 
-      if (entry.type === 'hillshade') {
+      if (next.type === 'hillshade') {
         const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
-        return {
-          ...entry,
-          paint: {
-            ...entry.paint,
-            'hillshade-exaggeration': (hillshade?.exaggeration ?? 0.5) * clampOpacity(opacity),
-            'hillshade-shadow-color': hillshade?.shadowColor ?? 'rgba(30, 41, 59, 0.55)',
-            'hillshade-highlight-color': hillshade?.highlightColor ?? 'rgba(255, 255, 255, 0.45)',
-            'hillshade-accent-color': hillshade?.accentColor ?? 'rgba(100, 116, 139, 0.25)',
-            'hillshade-illumination-direction': hillshade?.illuminationDirection ?? 315,
-            'hillshade-illumination-anchor': hillshade?.illuminationAnchor ?? 'viewport',
-          },
-        } as LayerSpecification
+        ;(next.paint as Record<string, unknown>)['hillshade-shadow-color'] = hillshade?.shadowColor ?? 'rgba(30, 41, 59, 0.55)'
+        ;(next.paint as Record<string, unknown>)['hillshade-highlight-color'] = hillshade?.highlightColor ?? 'rgba(255, 255, 255, 0.45)'
+        ;(next.paint as Record<string, unknown>)['hillshade-accent-color'] = hillshade?.accentColor ?? 'rgba(100, 116, 139, 0.25)'
+        ;(next.paint as Record<string, unknown>)['hillshade-illumination-direction'] = hillshade?.illuminationDirection ?? 315
+        ;(next.paint as Record<string, unknown>)['hillshade-illumination-anchor'] = hillshade?.illuminationAnchor ?? 'viewport'
       }
 
-      return entry
+      return next
     })
 
     return { ...style, layers }
@@ -241,8 +227,25 @@ function mergeStyle(target: StyleSpecification, source: StyleSpecification): voi
 
 function managedPaintLayerIds(layers: readonly LayerSpecification[]): string[] {
   return layers
-    .filter((layer) => layer.type === 'raster' || layer.type === 'hillshade')
+    .filter((layer) => ['raster', 'hillshade', 'line', 'fill', 'circle', 'symbol'].includes(layer.type))
     .map((layer) => layer.id)
+}
+
+function applyPaintOpacity(set: (property: string, value: unknown) => void, type: LayerSpecification['type'], opacity: number, layer: MapLayerDefinition | null): void {
+  const value = clampOpacity(opacity)
+  if (type === 'raster') set('raster-opacity', value)
+  if (type === 'hillshade') {
+    const profile = layer?.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
+    const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
+    set('hillshade-exaggeration', (hillshade?.exaggeration ?? 0.5) * value)
+  }
+  if (type === 'line') set('line-opacity', value)
+  if (type === 'fill') set('fill-opacity', value)
+  if (type === 'circle') set('circle-opacity', value)
+  if (type === 'symbol') {
+    set('icon-opacity', value)
+    set('text-opacity', value)
+  }
 }
 
 function clampOpacity(opacity: number): number {
