@@ -1,5 +1,5 @@
 import Panel from '../shared/Panel'
-import { DEFAULT_MAP_SETTINGS, normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
+import { normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
 import type { MapLayerStatusState } from '../../map/mapLayerStatus'
 import { getAvailableMapLayerGroups, mapLayerTree, type MapLayerTreeNode } from '../../map/mapLayerRegistry'
 import BaseLayerSection from './mapLayerPanel/BaseLayerSection'
@@ -13,12 +13,10 @@ export default function MapLayerPanel({ settings, layerStatus, onChange, onClose
   const active = settings.activeLayerState
   const update = (next: MapSettings) => onChange(normalizeMapSettings(next))
   const setActive = (change: Partial<MapSettings['activeLayerState']>) => update({ ...settings, activeLayerState: { ...active, ...change } })
-  const resetActiveLayers = () => update({ ...settings, activeLayerState: structuredClone(DEFAULT_MAP_SETTINGS.activeLayerState) as MapSettings['activeLayerState'] })
 
   return (
     <Panel id="map-settings-panel" title="Map layers" onClose={onClose} closeLabel="Close map settings">
       <div className="map-settings">
-        <button className="map-layer-reset" type="button" onClick={resetActiveLayers}>Reset layers</button>
         {groups.map(({ group, layers }) => {
           const depth = getTreeDepth(mapLayerTree, group.id)
           const baseLayers = layers.filter((l) => l.role === 'base')
