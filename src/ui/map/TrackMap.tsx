@@ -56,11 +56,11 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     setControlGroup(containerRef.current.querySelector<HTMLElement>('.maplibregl-ctrl-top-right .maplibregl-ctrl-group'))
 
-    const restoreRuntime = () => restoreTrackRuntimeLayers(
+    const restoreRuntime = (appliedBaseLayerId: string) => restoreTrackRuntimeLayers(
       map,
       latest.current.tracks,
       latest.current.activeTrack,
-      latest.current.mapSettings.activeLayerState.baseLayerId,
+      appliedBaseLayerId,
     )
     styleManagerRef.current = new MapStyleManager(map, restoreRuntime, (layerId, status) => latest.current.onLayerStatus?.(layerId, status))
 
@@ -92,12 +92,12 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
       })
     })
 
-    bindMapEvents(map, {
+    const unbindMapEvents = bindMapEvents(map, {
       onTrackClick: (track, point) => latest.current.onTrackClick(track, point),
       onMapClick: () => latest.current.onMapClick(),
     }, () => latest.current.tracks)
 
-    return () => { map.remove(); mapRef.current = null; styleManagerRef.current = null; readyRef.current = false; initialFittedRef.current = false; programmaticMoveRef.current = false }
+    return () => { unbindMapEvents(); map.remove(); mapRef.current = null; styleManagerRef.current = null; readyRef.current = false; initialFittedRef.current = false; programmaticMoveRef.current = false }
   }, [])
 
   useEffect(() => {

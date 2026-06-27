@@ -1,5 +1,5 @@
 import Panel from '../shared/Panel'
-import { normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
+import { DEFAULT_MAP_SETTINGS, normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
 import type { MapLayerStatusState } from '../../map/mapLayerStatus'
 import { getAvailableMapLayerGroups, mapLayerTree, type MapLayerTreeNode } from '../../map/mapLayerRegistry'
 import BaseLayerSection from './mapLayerPanel/BaseLayerSection'
@@ -13,10 +13,12 @@ export default function MapLayerPanel({ settings, layerStatus, onChange, onClose
   const active = settings.activeLayerState
   const update = (next: MapSettings) => onChange(normalizeMapSettings(next))
   const setActive = (change: Partial<MapSettings['activeLayerState']>) => update({ ...settings, activeLayerState: { ...active, ...change } })
+  const resetActiveLayers = () => update({ ...settings, activeLayerState: structuredClone(DEFAULT_MAP_SETTINGS.activeLayerState) as MapSettings['activeLayerState'] })
 
   return (
     <Panel id="map-settings-panel" title="Map layers" onClose={onClose} closeLabel="Close map settings">
       <div className="map-settings">
+        <button className="map-layer-reset" type="button" onClick={resetActiveLayers}>Reset layers</button>
         {groups.map(({ group, layers }) => {
           const depth = getTreeDepth(mapLayerTree, group.id)
           const baseLayers = layers.filter((l) => l.role === 'base')
@@ -24,12 +26,12 @@ export default function MapLayerPanel({ settings, layerStatus, onChange, onClose
           const terrainLayers = layers.filter((l) => l.role === 'terrain')
 
           return (
-            <div className="panel-section" key={group.id} style={depth > 0 ? { marginLeft: depth * 12 } : undefined}>
-              <h3>{group.title}</h3>
+            <details className="panel-section map-layer-group" key={group.id} open style={depth > 0 ? { marginLeft: depth * 12 } : undefined}>
+              <summary>{group.title}</summary>
               <BaseLayerSection layers={baseLayers} active={active} layerStatus={layerStatus} onChange={setActive} />
               <OverlaySection layers={overlayLayers} active={active} layerStatus={layerStatus} onChange={setActive} />
               <TerrainSection layers={terrainLayers} active={active} layerStatus={layerStatus} onChange={setActive} />
-            </div>
+            </details>
           )
         })}
       </div>

@@ -18,7 +18,7 @@ type RuntimeLayerComposition = {
 }
 
 const EMPTY_SOURCE_ID = 'empty-source'
-const MAP_LAYER_ANCHORS = { reliefEnd: 'anchor-relief-end', overlayEnd: 'anchor-overlay-end', trackEnd: 'anchor-track-end', markerEnd: 'anchor-marker-end', interactionEnd: 'anchor-interaction-end', tooltipEnd: 'anchor-tooltip-end' } as const
+export const MAP_LAYER_ANCHORS = { reliefEnd: 'anchor-relief-end', overlayEnd: 'anchor-overlay-end', trackEnd: 'anchor-track-end', markerEnd: 'anchor-marker-end', interactionEnd: 'anchor-interaction-end', tooltipEnd: 'anchor-tooltip-end' } as const
 const emptySource: maplibregl.GeoJSONSourceSpecification = { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
 
 export class MapStyleManager {
@@ -32,7 +32,7 @@ export class MapStyleManager {
 
   constructor(
     private map: maplibregl.Map,
-    private restoreRuntimeLayers: () => void,
+    private restoreRuntimeLayers: (appliedBaseLayerId: string) => void,
     private onStatusChange?: (layerId: string, status: MapLayerLoadStatus) => void,
   ) {
     this.map.on('error', (event) => console.warn('[map-style]', event.error ?? event))
@@ -48,22 +48,24 @@ export class MapStyleManager {
   // 2. Overlay/terrain changed, base same → applyOverlayDiff (incremental add/remove, no setStyle)
   // 3. Base changed → full setStyle rebuild
   async applyState(state: ActiveMapLayerState, language?: string): Promise<void> {
-    if (language !== undefined) this.currentLanguage = language
+    const nextLanguage = language ?? this.currentLanguage
+    const languageChanged = nextLanguage !== this.currentLanguage
+    this.currentLanguage = nextLanguage
     const version = ++this.applyVersion
-    const base = findMapLayer(state.baseLayerId) ?? findMapLayer('liberty-topo') ?? findMapLayer('osm-raster')
-    if (base === null || base.role !== 'base') throw new Error('No default base map is registered')
+    const requestedBase = findMapLayer(state.baseLayerId) ?? findMapLayer('liberty-topo') ?? findMapLayer('osm-raster')
+    if (requestedBase === null || requestedBase.role !== 'base') throw new Error('No default base map is registered')
 
     const runtimeLayers = resolveRuntimeLayerStack(state)
     const nextRuntimeIds = new Set(runtimeLayers.map((l) => l.id))
-    const baseChanged = this.currentBaseId !== base.id
+    const baseChanged = this.currentBaseId !== requestedBase.id
     const runtimeChanged = !setsEqual(this.currentRuntimeIds, nextRuntimeIds)
 
-    if (!baseChanged && !runtimeChanged && this.map.isStyleLoaded()) {
+    if (!baseChanged && !runtimeChanged && !languageChanged && this.map.isStyleLoaded()) {
       this.applyLayerOpacities(runtimeLayers, state)
       return
     }
 
-    if (!baseChanged && runtimeChanged && this.currentBaseId !== null && this.map.isStyleLoaded()) {
+    if (!baseChanged && !languageChanged && runtimeChanged && this.currentBaseId !== null && this.map.isStyleLoaded()) {
       const removed = setDifference(this.currentRuntimeIds, nextRuntimeIds)
       const added = runtimeLayers.filter((l) => !this.currentRuntimeIds.has(l.id))
       await this.applyOverlayDiff(state, added, removed, runtimeLayers, version)
@@ -72,15 +74,17 @@ export class MapStyleManager {
 
     let baseStyle: StyleSpecification
     let runtimeComposition: RuntimeLayerComposition
+    let appliedBase = requestedBase
     try {
       runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
-      baseStyle = await this.buildBaseStyle(base, state)
+      baseStyle = await this.buildBaseStyle(requestedBase, state)
     } catch (error) {
       console.warn('[map-style] Failed to load style, falling back to osm-raster:', error)
       const fallback = findMapLayer('osm-raster')
       if (fallback === null || fallback.role !== 'base') return
       runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
       baseStyle = await this.buildBaseStyle(fallback, state)
+      appliedBase = fallback
     }
     if (version !== this.applyVersion) return
 
@@ -88,10 +92,10 @@ export class MapStyleManager {
       this.map.once('style.load', () => {
         if (version === this.applyVersion) {
           this.addRuntimeComposition(runtimeComposition)
-          this.currentBaseId = base.id
+          this.currentBaseId = appliedBase.id
           this.currentRuntimeIds = nextRuntimeIds
           this.rememberComposition(runtimeComposition)
-          this.restoreRuntimeLayers()
+          this.restoreRuntimeLayers(appliedBase.id)
         }
         resolve()
       })
@@ -122,7 +126,7 @@ export class MapStyleManager {
 
     this.currentRuntimeIds = new Set(runtimeLayers.map((l) => l.id))
     this.applyLayerOpacities(runtimeLayers, state)
-    this.restoreRuntimeLayers()
+    this.restoreRuntimeLayers(this.currentBaseId ?? state.baseLayerId)
   }
 
   private removeOverlayLayers(layerId: string): void {
@@ -237,7 +241,8 @@ export class MapStyleManager {
   }
 
   private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
-    const cached = this.styleCache.get(layerId)
+    const cacheKey = `${layerId}:${this.currentLanguage}`
+    const cached = this.styleCache.get(cacheKey)
     if (cached !== undefined) return cached
     this.emitStatus(layerId, 'loading')
     try {
@@ -245,7 +250,7 @@ export class MapStyleManager {
       const response = await fetch(fetchUrl)
       if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
       const style = normalizeRemoteStyle(await response.json() as StyleSpecification, styleUrl, this.currentLanguage)
-      this.styleCache.set(layerId, style)
+      this.styleCache.set(cacheKey, style)
       this.emitStatus(layerId, 'ready')
       return style
     } catch (error) {
@@ -285,7 +290,8 @@ function resolveProjectOwnedStyleUrl(styleUrl: string): string {
 }
 
 function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string, lang: string): StyleSpecification {
-  const base = new URL(styleUrl, window.location.href)
+  const baseHref = typeof window === 'undefined' ? 'http://localhost/' : window.location.href
+  const base = new URL(styleUrl, baseHref)
   const copy = { ...style, sources: { ...(style.sources ?? {}) }, layers: [...(style.layers ?? [])] } as StyleSpecification
   if (typeof copy.sprite === 'string') copy.sprite = resolveRelativeUrl(copy.sprite, base)
   if (typeof copy.glyphs === 'string') copy.glyphs = resolveRelativeUrl(copy.glyphs, base)

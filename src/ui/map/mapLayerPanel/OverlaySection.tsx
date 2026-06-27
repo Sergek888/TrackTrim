@@ -14,6 +14,7 @@ export default function OverlaySection({ layers, active, layerStatus, onChange }
   if (layers.length === 0) return null
   return (
     <div className="map-layer-section">
+      <h4>Overlays</h4>
       {layers.map((layer) => (
         <LayerRow key={layer.id} layer={layer} active={active} status={layerStatus?.[layer.id]} onChange={onChange} />
       ))}

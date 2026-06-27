@@ -1,7 +1,7 @@
 import maplibregl, { type LngLatBoundsLike } from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 
-export function trackBounds(track: Track): LngLatBoundsLike | null {
+export function trackBounds(track: Track): maplibregl.LngLatBounds | null {
   const points = track.getPoints()
   const firstPoint = points[0] ?? null
 

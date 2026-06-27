@@ -1,5 +1,6 @@
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import { findMapLayer, resolveLayerDefaults } from '../../map/mapLayerRegistry'
+import { MAP_LAYER_ANCHORS } from '../../map/mapStyleManager'
 import { mapVisualProfiles } from '../../map/mapVisualProfiles'
 import type { Track } from '../../model/Track'
 import {
@@ -72,7 +73,7 @@ export function restoreTrackRuntimeLayers(
         'icon-image': ['case', ['==', ['get', 'kind'], 'start'], TRACK_START_IMAGE_ID, TRACK_FINISH_IMAGE_ID],
         'icon-allow-overlap': true,
       },
-    })
+    }, MAP_LAYER_ANCHORS.markerEnd)
   }
 }
 
@@ -105,7 +106,7 @@ function ensureTrackCasingLayer(map: maplibregl.Map, trackStyle: typeof DEFAULT_
     source: TRACKS_SOURCE_ID,
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: { 'line-color': trackStyle.casingColor, 'line-width': trackStyle.casingWidth, 'line-opacity': 0.9 },
-  })
+  }, MAP_LAYER_ANCHORS.trackEnd)
 }
 
 function ensureTrackLineLayer(map: maplibregl.Map, trackStyle: typeof DEFAULT_TRACK_STYLE): void {
@@ -119,7 +120,7 @@ function ensureTrackLineLayer(map: maplibregl.Map, trackStyle: typeof DEFAULT_TR
     source: TRACKS_SOURCE_ID,
     layout: { 'line-join': 'round', 'line-cap': 'round', 'line-sort-key': ['get', 'featureIndex'] },
     paint: { 'line-color': ['get', 'color'], 'line-width': trackStyle.lineWidth, 'line-opacity': 0.82 },
-  })
+  }, MAP_LAYER_ANCHORS.trackEnd)
 }
 
 function ensureActiveTrackCasingLayer(map: maplibregl.Map, trackStyle: typeof DEFAULT_TRACK_STYLE): void {
@@ -135,7 +136,7 @@ function ensureActiveTrackCasingLayer(map: maplibregl.Map, trackStyle: typeof DE
     filter: ['==', ['get', 'active'], true],
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: { 'line-color': trackStyle.casingColor, 'line-width': trackStyle.selectedCasingWidth, 'line-opacity': 0.95 },
-  })
+  }, MAP_LAYER_ANCHORS.trackEnd)
 }
 
 function ensureActiveTrackLineLayer(map: maplibregl.Map, trackStyle: typeof DEFAULT_TRACK_STYLE): void {
@@ -150,5 +151,5 @@ function ensureActiveTrackLineLayer(map: maplibregl.Map, trackStyle: typeof DEFA
     filter: ['==', ['get', 'active'], true],
     layout: { 'line-join': 'round', 'line-cap': 'round', 'line-sort-key': ['get', 'featureIndex'] },
     paint: { 'line-color': ['get', 'color'], 'line-width': trackStyle.selectedLineWidth, 'line-opacity': 1 },
-  })
+  }, MAP_LAYER_ANCHORS.trackEnd)
 }
