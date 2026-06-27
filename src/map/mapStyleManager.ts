@@ -13,6 +13,7 @@ type RuntimeLayerComposition = {
   sources: StyleSpecification['sources']
   layers: RuntimeStyleLayer[]
   paintLayerIdsByLayerId: Map<string, string[]>
+  sourceIdsByLayerId: Map<string, string[]>
 }
 
 const EMPTY_SOURCE_ID = 'empty-source'
@@ -22,8 +23,11 @@ const emptySource: maplibregl.GeoJSONSourceSpecification = { type: 'geojson', da
 export class MapStyleManager {
   private readonly styleCache = new Map<string, StyleSpecification>()
   private readonly paintLayerIdsByLayerId = new Map<string, string[]>()
-  private currentLayerStackKey: string | null = null
+  private readonly sourceIdsByLayerId = new Map<string, string[]>()
+  private currentBaseId: string | null = null
+  private currentRuntimeIds = new Set<string>()
   private applyVersion = 0
+  private currentLanguage = 'en'
 
   constructor(private map: maplibregl.Map, private restoreRuntimeLayers: () => void) {
     this.map.on('error', (event) => console.warn('[map-style]', event.error ?? event))
@@ -34,28 +38,50 @@ export class MapStyleManager {
     })
   }
 
-  async applyState(state: ActiveMapLayerState): Promise<void> {
+  async applyState(state: ActiveMapLayerState, language?: string): Promise<void> {
+    if (language !== undefined) this.currentLanguage = language
     const version = ++this.applyVersion
     const base = getMapLayer(state.baseLayerId) ?? getMapLayer('liberty-topo') ?? getMapLayer('osm-raster')
     if (base === null || base.role !== 'base') throw new Error('No default base map is registered')
 
     const runtimeLayers = resolveRuntimeLayerStack(state)
-    const layerStackKey = [base.id, ...runtimeLayers.map((layer) => layer.id)].join('|')
-    if (this.currentLayerStackKey === layerStackKey && this.map.isStyleLoaded()) {
+    const nextRuntimeIds = new Set(runtimeLayers.map((l) => l.id))
+    const baseChanged = this.currentBaseId !== base.id
+    const runtimeChanged = !setsEqual(this.currentRuntimeIds, nextRuntimeIds)
+
+    if (!baseChanged && !runtimeChanged && this.map.isStyleLoaded()) {
       this.applyLayerOpacities(runtimeLayers, state)
       return
     }
 
-    const runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
-    const baseStyle = await this.buildBaseStyle(base, state)
+    if (!baseChanged && runtimeChanged && this.currentBaseId !== null && this.map.isStyleLoaded()) {
+      const removed = setDifference(this.currentRuntimeIds, nextRuntimeIds)
+      const added = runtimeLayers.filter((l) => !this.currentRuntimeIds.has(l.id))
+      await this.applyOverlayDiff(state, added, removed, runtimeLayers, version)
+      return
+    }
+
+    let baseStyle: StyleSpecification
+    let runtimeComposition: RuntimeLayerComposition
+    try {
+      runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
+      baseStyle = await this.buildBaseStyle(base, state)
+    } catch (error) {
+      console.warn('[map-style] Failed to load style, falling back to osm-raster:', error)
+      const fallback = getMapLayer('osm-raster')
+      if (fallback === null || fallback.role !== 'base') return
+      runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
+      baseStyle = await this.buildBaseStyle(fallback, state)
+    }
     if (version !== this.applyVersion) return
 
     await new Promise<void>((resolve) => {
       this.map.once('style.load', () => {
         if (version === this.applyVersion) {
           this.addRuntimeComposition(runtimeComposition)
-          this.currentLayerStackKey = layerStackKey
-          this.rememberPaintLayerIds(runtimeComposition.paintLayerIdsByLayerId)
+          this.currentBaseId = base.id
+          this.currentRuntimeIds = nextRuntimeIds
+          this.rememberComposition(runtimeComposition)
           this.restoreRuntimeLayers()
         }
         resolve()
@@ -68,6 +94,39 @@ export class MapStyleManager {
     for (const styleLayerId of this.paintLayerIdsByLayerId.get(layerId) ?? [layerId]) this.applyManagedLayerOpacity(styleLayerId, null, opacity)
   }
 
+  private async applyOverlayDiff(
+    state: ActiveMapLayerState,
+    added: readonly MapLayerDefinition[],
+    removed: ReadonlySet<string>,
+    runtimeLayers: readonly MapLayerDefinition[],
+    version: number,
+  ): Promise<void> {
+    for (const layerId of removed) this.removeOverlayLayers(layerId)
+
+    if (added.length > 0) {
+      const addedComposition = await this.composeRuntimeLayers(added, state, true)
+      if (version !== this.applyVersion) return
+      this.addRuntimeComposition(addedComposition)
+      for (const [layerId, paintIds] of addedComposition.paintLayerIdsByLayerId) this.paintLayerIdsByLayerId.set(layerId, paintIds)
+      for (const [layerId, sourceIds] of addedComposition.sourceIdsByLayerId) this.sourceIdsByLayerId.set(layerId, sourceIds)
+    }
+
+    this.currentRuntimeIds = new Set(runtimeLayers.map((l) => l.id))
+    this.applyLayerOpacities(runtimeLayers, state)
+    this.restoreRuntimeLayers()
+  }
+
+  private removeOverlayLayers(layerId: string): void {
+    for (const styleLayerId of this.paintLayerIdsByLayerId.get(layerId) ?? []) {
+      if (this.map.getLayer(styleLayerId) !== undefined) this.map.removeLayer(styleLayerId)
+    }
+    for (const sourceId of this.sourceIdsByLayerId.get(layerId) ?? []) {
+      if (this.map.getSource(sourceId) !== undefined) this.map.removeSource(sourceId)
+    }
+    this.paintLayerIdsByLayerId.delete(layerId)
+    this.sourceIdsByLayerId.delete(layerId)
+  }
+
   private async buildBaseStyle(base: Extract<MapLayerDefinition, { role: 'base' }>, state: ActiveMapLayerState): Promise<StyleSpecification> {
     const style = base.kind === 'vector-base'
       ? await this.readRemoteStyle(base.id, base.styleUrl)
@@ -76,22 +135,32 @@ export class MapStyleManager {
     return style
   }
 
-  private async composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): Promise<RuntimeLayerComposition> {
+  private async composeRuntimeLayers(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState, safe = false): Promise<RuntimeLayerComposition> {
     const sources: StyleSpecification['sources'] = {}
     const styleLayers: RuntimeStyleLayer[] = []
     const paintLayerIdsByLayerId = new Map<string, string[]>()
+    const sourceIdsByLayerId = new Map<string, string[]>()
 
     for (const layer of layers) {
       if (layer.kind === 'vector-base') continue
-      const raw = layer.kind === 'vector-overlay' ? await this.readRemoteStyle(layer.id, layer.styleUrl) : this.readInlineStyle(layer)
-      const styled = this.applyVisualProfile(namespaceRuntimeStyle(raw, layer.id), layer, state.opacityByLayerId[layer.id])
-      Object.assign(sources, styled.sources)
-      const beforeId = layer.role === 'terrain' ? MAP_LAYER_ANCHORS.reliefEnd : MAP_LAYER_ANCHORS.overlayEnd
-      styleLayers.push(...(styled.layers ?? []).map((styleLayer) => ({ layer: styleLayer, beforeId })))
-      paintLayerIdsByLayerId.set(layer.id, managedPaintLayerIds(styled.layers ?? []))
+      const process = async () => {
+        const raw = layer.kind === 'vector-overlay' ? await this.readRemoteStyle(layer.id, layer.styleUrl) : this.readInlineStyle(layer)
+        const styled = this.applyVisualProfile(namespaceRuntimeStyle(raw, layer.id), layer, state.opacityByLayerId[layer.id])
+        const layerSourceIds = Object.keys(styled.sources)
+        Object.assign(sources, styled.sources)
+        const beforeId = layer.role === 'terrain' ? MAP_LAYER_ANCHORS.reliefEnd : MAP_LAYER_ANCHORS.overlayEnd
+        styleLayers.push(...(styled.layers ?? []).map((styleLayer) => ({ layer: styleLayer, beforeId })))
+        paintLayerIdsByLayerId.set(layer.id, managedPaintLayerIds(styled.layers ?? []))
+        sourceIdsByLayerId.set(layer.id, layerSourceIds)
+      }
+      if (safe) {
+        try { await process() } catch (error) { console.warn(`[map-style] Skipping layer ${layer.id}:`, error) }
+      } else {
+        await process()
+      }
     }
 
-    return { sources, layers: styleLayers, paintLayerIdsByLayerId }
+    return { sources, layers: styleLayers, paintLayerIdsByLayerId, sourceIdsByLayerId }
   }
 
   private addRuntimeComposition(composition: RuntimeLayerComposition): void {
@@ -99,9 +168,11 @@ export class MapStyleManager {
     for (const { layer, beforeId } of composition.layers) if (this.map.getLayer(layer.id) === undefined) this.map.addLayer(layer, beforeId)
   }
 
-  private rememberPaintLayerIds(next: Map<string, string[]>): void {
+  private rememberComposition(composition: RuntimeLayerComposition): void {
     this.paintLayerIdsByLayerId.clear()
-    for (const [layerId, paintLayerIds] of next) this.paintLayerIdsByLayerId.set(layerId, paintLayerIds)
+    for (const [layerId, paintIds] of composition.paintLayerIdsByLayerId) this.paintLayerIdsByLayerId.set(layerId, paintIds)
+    this.sourceIdsByLayerId.clear()
+    for (const [layerId, sourceIds] of composition.sourceIdsByLayerId) this.sourceIdsByLayerId.set(layerId, sourceIds)
   }
 
   private applyLayerOpacities(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): void {
@@ -118,27 +189,30 @@ export class MapStyleManager {
   }
 
   private applyVisualProfile(style: StyleSpecification, layer: MapLayerDefinition, opacityOverride?: number): StyleSpecification {
-    const profile = layer.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
+    const profile = resolveVisualProfile(layer)
     const opacity = opacityOverride ?? layer.defaultOpacity
+    const rasterProfile = getRasterProfile(profile)
+    const hillshadeProfile = getHillshadeProfile(profile)
     const layers = (style.layers ?? []).map((entry) => {
       const next = structuredClone(entry) as LayerSpecification
       if (!isPaintableLayerType(next.type)) return next
       next.paint = { ...(next.paint ?? {}) }
       applyPaintOpacity((property, value) => { ;(next.paint as Record<string, unknown>)[property] = value }, next.type, opacity, layer)
-      if (next.type === 'raster') {
-        ;(next.paint as Record<string, unknown>)['raster-contrast'] = profile !== undefined && 'raster' in profile ? profile.raster?.contrast ?? 0 : 0
-        ;(next.paint as Record<string, unknown>)['raster-saturation'] = profile !== undefined && 'raster' in profile ? profile.raster?.saturation ?? 0 : 0
-        ;(next.paint as Record<string, unknown>)['raster-brightness-min'] = profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMin ?? 0 : 0
-        ;(next.paint as Record<string, unknown>)['raster-brightness-max'] = profile !== undefined && 'raster' in profile ? profile.raster?.brightnessMax ?? 1 : 1
-        ;(next.paint as Record<string, unknown>)['raster-resampling'] = profile !== undefined && 'raster' in profile ? profile.raster?.resampling ?? 'linear' : 'linear'
+      if (next.type === 'raster' && rasterProfile !== undefined) {
+        const p = next.paint as Record<string, unknown>
+        p['raster-contrast'] = rasterProfile.contrast ?? 0
+        p['raster-saturation'] = rasterProfile.saturation ?? 0
+        p['raster-brightness-min'] = rasterProfile.brightnessMin ?? 0
+        p['raster-brightness-max'] = rasterProfile.brightnessMax ?? 1
+        p['raster-resampling'] = rasterProfile.resampling ?? 'linear'
       }
-      if (next.type === 'hillshade') {
-        const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
-        ;(next.paint as Record<string, unknown>)['hillshade-shadow-color'] = hillshade?.shadowColor ?? 'rgba(30, 41, 59, 0.55)'
-        ;(next.paint as Record<string, unknown>)['hillshade-highlight-color'] = hillshade?.highlightColor ?? 'rgba(255, 255, 255, 0.45)'
-        ;(next.paint as Record<string, unknown>)['hillshade-accent-color'] = hillshade?.accentColor ?? 'rgba(100, 116, 139, 0.25)'
-        ;(next.paint as Record<string, unknown>)['hillshade-illumination-direction'] = hillshade?.illuminationDirection ?? 315
-        ;(next.paint as Record<string, unknown>)['hillshade-illumination-anchor'] = hillshade?.illuminationAnchor ?? 'viewport'
+      if (next.type === 'hillshade' && hillshadeProfile !== undefined) {
+        const p = next.paint as Record<string, unknown>
+        p['hillshade-shadow-color'] = hillshadeProfile.shadowColor ?? 'rgba(30, 41, 59, 0.55)'
+        p['hillshade-highlight-color'] = hillshadeProfile.highlightColor ?? 'rgba(255, 255, 255, 0.45)'
+        p['hillshade-accent-color'] = hillshadeProfile.accentColor ?? 'rgba(100, 116, 139, 0.25)'
+        p['hillshade-illumination-direction'] = hillshadeProfile.illuminationDirection ?? 315
+        p['hillshade-illumination-anchor'] = hillshadeProfile.illuminationAnchor ?? 'viewport'
       }
       return next
     })
@@ -159,7 +233,7 @@ export class MapStyleManager {
     if (cached !== undefined) return structuredClone(cached) as StyleSpecification
     const response = await fetch(resolvedStyleUrl, { cache: 'no-cache' })
     if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
-    const style = normalizeRemoteStyle(await response.json() as StyleSpecification, resolvedStyleUrl)
+    const style = normalizeRemoteStyle(await response.json() as StyleSpecification, resolvedStyleUrl, this.currentLanguage)
     this.styleCache.set(layerId, style)
     return structuredClone(style) as StyleSpecification
   }
@@ -184,13 +258,12 @@ function ensureApplicationAnchors(style: StyleSpecification): void {
 
 function resolveProjectOwnedStyleUrl(styleUrl: string): string {
   if (styleUrl === 'https://styles.gpx.studio/liberty-topo.json') return '/map-styles/liberty-topo.json'
-  if (styleUrl === 'https://styles.gpx.studio/liberty-satellite.json') return '/map-styles/liberty-satellite.json'
   if (styleUrl === 'https://styles.gpx.studio/osm.json') return '/map-styles/osm-vector.json'
   if (styleUrl === 'https://styles.gpx.studio/osm-topo.json') return '/map-styles/osm-topo-vector.json'
   return styleUrl
 }
 
-function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string): StyleSpecification {
+function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string, lang: string): StyleSpecification {
   const base = new URL(styleUrl, window.location.href)
   const copy = structuredClone(style) as StyleSpecification
   if (typeof copy.sprite === 'string') copy.sprite = resolveRelativeUrl(copy.sprite, base)
@@ -201,12 +274,49 @@ function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string): Styl
     if (typeof item.url === 'string') item.url = resolveRelativeUrl(item.url, base)
     if (Array.isArray(item.tiles)) item.tiles = item.tiles.map((tile) => typeof tile === 'string' ? resolveRelativeUrl(tile, base) : tile)
   }
+  if (lang !== 'en') applyLanguageToLabels(copy, lang)
   return copy
 }
 
 function resolveRelativeUrl(value: string, base: URL): string {
   if (value.includes('://') || value.startsWith('//') || value.includes('{')) return value
   return new URL(value, base).toString()
+}
+
+function applyLanguageToLabels(style: StyleSpecification, lang: string): void {
+  for (const layer of style.layers ?? []) {
+    if (layer.type !== 'symbol') continue
+    const layout = layer.layout as Record<string, unknown> | undefined
+    if (layout === undefined) continue
+    const textField = layout['text-field']
+    if (!Array.isArray(textField)) continue
+    layout['text-field'] = rewriteTextFieldForLang(textField, lang)
+  }
+}
+
+function rewriteTextFieldForLang(textField: unknown[], lang: string): unknown[] {
+  if (textField.length === 4 && Array.isArray(textField[3])) {
+    const inner = textField[3]
+    if (inner[0] === 'coalesce' && Array.isArray(inner[1]) && inner[1][0] === 'get' && typeof inner[1][1] === 'string' && inner[1][1].startsWith('name')) {
+      return ['coalesce', ['get', `name:${lang}`], ['get', 'name']]
+    }
+  }
+  if (textField.length === 3 && textField[0] === 'coalesce' && Array.isArray(textField[1]) && textField[1][0] === 'get' && typeof textField[1][1] === 'string' && textField[1][1].startsWith('name')) {
+    return ['coalesce', ['get', `name:${lang}`], ['get', 'name']]
+  }
+  return textField
+}
+
+function resolveVisualProfile(layer: MapLayerDefinition | null) {
+  return layer?.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
+}
+
+function getRasterProfile(profile: ReturnType<typeof resolveVisualProfile>) {
+  return profile !== undefined && 'raster' in profile ? profile.raster : undefined
+}
+
+function getHillshadeProfile(profile: ReturnType<typeof resolveVisualProfile>) {
+  return profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
 }
 
 function resolveReliefAnchorIndex(layers: readonly LayerSpecification[]): number {
@@ -240,20 +350,46 @@ function isPaintableLayerType(type: string): type is PaintableLayerType {
 
 function applyPaintOpacity(set: (property: string, value: unknown) => void, type: PaintableLayerType, opacity: number, layer: MapLayerDefinition | null): void {
   const value = clampOpacity(opacity)
-  if (type === 'raster') set('raster-opacity', value)
-  if (type === 'hillshade') {
-    const profile = layer?.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
-    const hillshade = profile !== undefined && 'hillshade' in profile ? profile.hillshade : undefined
-    set('hillshade-exaggeration', (hillshade?.exaggeration ?? 0.5) * value)
+  switch (type) {
+    case 'raster':
+      set('raster-opacity', value)
+      break
+    case 'hillshade': {
+      const profile = resolveVisualProfile(layer)
+      const hillshade = getHillshadeProfile(profile)
+      set('hillshade-exaggeration', (hillshade?.exaggeration ?? 0.5) * value)
+      break
+    }
+    case 'line':
+      set('line-opacity', value)
+      break
+    case 'fill':
+      set('fill-opacity', value)
+      break
+    case 'circle':
+      set('circle-opacity', value)
+      break
+    case 'symbol':
+      set('icon-opacity', value)
+      set('text-opacity', value)
+      break
   }
-  if (type === 'line') set('line-opacity', value)
-  if (type === 'fill') set('fill-opacity', value)
-  if (type === 'circle') set('circle-opacity', value)
-  if (type === 'symbol') { set('icon-opacity', value); set('text-opacity', value) }
 }
 
 function clampOpacity(opacity: number): number { return Math.max(0, Math.min(1, opacity)) }
 
 function createAnchorLayers(): LayerSpecification[] {
   return Object.values(MAP_LAYER_ANCHORS).map((id) => ({ id, type: 'symbol', source: EMPTY_SOURCE_ID }))
+}
+
+function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const item of a) if (!b.has(item)) return false
+  return true
+}
+
+function setDifference(a: ReadonlySet<string>, b: ReadonlySet<string>): Set<string> {
+  const result = new Set<string>()
+  for (const item of a) if (!b.has(item)) result.add(item)
+  return result
 }
