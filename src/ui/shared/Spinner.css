@@ -1,6 +1,6 @@
 .spinner {
   display: block;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--color-spinner-track);
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spinner-rotate 0.75s linear infinite;

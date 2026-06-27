@@ -1,4 +1,5 @@
 :root {
+  /* ── Semantic colors ── */
   --color-page: #f4f5f8;
   --color-panel: #ffffff;
   --color-panel-soft: #f8fafc;
@@ -8,12 +9,66 @@
   --color-accent: #2563eb;
   --color-accent-strong: #1d4ed8;
   --color-danger: #b42318;
+  --color-warning: #d97706;
+  --color-success: #059669;
   --color-link: #2563eb;
+  --color-ghost-hover: #e2e8f0;
+  --color-ghost-text: #475569;
+  --color-focus-ring: rgba(37, 99, 235, 0.25);
+  --color-danger-bg: #fef2f2;
+  --color-success-bg: #ecfdf5;
+  --color-warning-bg: #fffbeb;
+  --color-info-bg: #eff6ff;
+  --color-danger-border: #fecaca;
+  --color-spinner-track: #cbd5e1;
+
+  /* ── Radius ── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 999px;
+  --radius-surface: var(--radius-md);
+
+  /* ── Component sizes ── */
+  --size-sm: 28px;
+  --size-md: 32px;
+  --size-lg: 36px;
+
+  /* ── Font sizes ── */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+
+  /* ── Font weights ── */
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ── Spacing (4px increments) ── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* ── Shadows ── */
   --shadow-panel: 0 18px 45px rgba(15, 23, 42, 0.18);
-  --radius-surface: 0px;
+  --shadow-button: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 3px var(--color-focus-ring);
+
+  /* ── Surfaces ── */
   --surface-border-color: rgba(226, 232, 240, 0.9);
-  --surface-bg: rgba(255, 255, 255, 0.96);
-  --surface-blur: blur(14px);
+  --surface-bg: rgba(255, 255, 255, 0.92);
+  --surface-blur: blur(20px);
+
+  /* ── Disabled ── */
+  --disabled-opacity: 0.38;
+
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -43,14 +98,14 @@ select {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.38;
+  opacity: var(--disabled-opacity);
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.18);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -93,7 +148,7 @@ a:focus-visible {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: #dfe7eb;
+  background: var(--color-page);
 }
 
 .workspace[data-right-panel='open'] {
@@ -111,14 +166,14 @@ a:focus-visible {
 
 .app-brand {
   display: grid;
-  gap: 4px;
+  gap: var(--sp-1);
   min-width: 0;
 }
 
 .app-brand h1 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-extrabold);
   line-height: 1.2;
 }
 
@@ -127,69 +182,22 @@ a:focus-visible {
 .empty-source {
   margin: 0;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
 /* ── Sidebar overlay ── */
 
-.sidebar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
-  width: var(--right-panel-width);
-  min-width: 300px;
-  max-width: 520px;
-  overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(14px);
-  transition: transform 180ms ease, opacity 140ms ease;
-}
-
-.sidebar.is-collapsed {
-  transform: translateX(100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.sidebar-header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  border-bottom: 1px solid var(--color-border);
-  padding: 15px 16px 12px;
-}
-
-.app-brand h1 {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.sidebar-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
-
 .sidebar-action-button {
   display: grid;
   place-items: center;
-  border-color: var(--color-border);
-  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   background: var(--color-panel);
   color: var(--color-text);
   line-height: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .sidebar-action-button > svg {
@@ -200,31 +208,21 @@ a:focus-visible {
 }
 
 .sidebar-action-button:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: var(--color-muted);
   background: var(--color-panel-soft);
-}
-
-.sidebar-settings-button {
-  flex: 0 0 auto;
-}
-
-.sidebar-controls {
-  display: grid;
-  gap: 8px;
-  padding: 12px 16px 4px;
 }
 
 .search-control {
   position: relative;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 28px;
+  grid-template-columns: 18px minmax(0, 1fr) var(--size-sm);
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
+  gap: var(--sp-1);
+  min-height: var(--size-lg);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-panel-soft);
-  padding: 0 7px 0 11px;
+  padding: 0 var(--sp-1) 0 var(--sp-3);
 }
 
 .search-control > svg {
@@ -232,7 +230,7 @@ a:focus-visible {
 }
 
 .search-control input {
-  min-height: 36px;
+  min-height: var(--size-md);
   border: 0;
   outline: 0;
   background: transparent;
@@ -240,25 +238,25 @@ a:focus-visible {
 }
 
 .search-control:focus-within {
-  border-color: #93c5fd;
+  border-color: var(--color-accent);
   background: var(--color-panel);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: var(--shadow-focus);
 }
 
 .search-clear {
   display: grid;
-  width: 29px;
-  height: 29px;
+  width: var(--size-sm);
+  height: var(--size-sm);
   place-items: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
 }
 
 .search-clear:hover {
-  background: #e2e8f0;
+  background: var(--color-ghost-hover);
   color: var(--color-text);
 }
 
@@ -271,13 +269,13 @@ a:focus-visible {
 .source-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--sp-2);
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 8px 16px 16px;
+  padding: var(--sp-2) 0 var(--sp-4);
 }
 
 .source-accordion {
@@ -287,19 +285,19 @@ a:focus-visible {
   min-height: 0;
   overflow: visible;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-panel);
 }
 
 .source-row {
   display: grid;
   position: relative;
-  grid-template-columns: 18px 18px minmax(0, 1fr) auto 29px 29px;
+  grid-template-columns: 18px 18px minmax(0, 1fr) auto var(--size-sm) var(--size-sm);
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   min-height: 38px;
   background: var(--color-panel-soft);
-  padding: 4px 5px;
+  padding: var(--sp-1) var(--sp-1);
 }
 
 .source-drag-handle {
@@ -307,11 +305,18 @@ a:focus-visible {
   place-items: center;
   color: var(--color-text);
   cursor: grab;
-  opacity: 0.3;
+  opacity: 0.15;
+  transition: opacity 150ms ease;
 }
 
 .source-row:hover .source-drag-handle {
-  opacity: 1;
+  opacity: 0.5;
+}
+
+@media (hover: none) {
+  .source-drag-handle {
+    opacity: 0.35;
+  }
 }
 
 .source-visibility {
@@ -348,9 +353,9 @@ a:focus-visible {
 .track-main-button span {
   display: block;
   overflow: hidden;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 500;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -366,7 +371,7 @@ a:focus-visible {
 
 .source-counter {
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -387,6 +392,13 @@ a:focus-visible {
   pointer-events: auto;
 }
 
+@media (hover: none) {
+  .source-menu-trigger {
+    opacity: 0.5;
+    pointer-events: auto;
+  }
+}
+
 .source-context-menu {
   position: absolute;
   top: 32px;
@@ -394,21 +406,23 @@ a:focus-visible {
   z-index: 75;
   display: grid;
   min-width: 160px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .source-context-menu button {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-height: 34px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 0 9px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  padding: 0 var(--sp-3);
   text-align: left;
 }
 
@@ -426,10 +440,10 @@ a:focus-visible {
 
 .source-rename-input {
   min-width: 0;
-  height: 28px;
-  border: 1px solid #93c5fd;
-  border-radius: 7px;
-  padding: 0 7px;
+  height: var(--size-sm);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--sp-2);
 }
 
 /* ── Track list ── */
@@ -438,29 +452,51 @@ a:focus-visible {
   display: grid;
   gap: 1px;
   min-width: 0;
-  padding: 3px 5px 6px 8px;
+  padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-2);
 }
 
 .track-list-item {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   min-height: 32px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   padding: 3px 4px 3px 2px;
 }
 
 .track-list-item:hover {
-  background: #eef2f7;
+  background: var(--color-panel-soft);
 }
 
 .track-list-item.is-active {
-  background: #e6f7ff;
+  background: var(--color-info-bg);
 }
 
 .track-main-button {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.track-main-button span {
   display: block;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-main-button small {
+  display: block;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .track-metric {
@@ -468,9 +504,10 @@ a:focus-visible {
   min-width: 50px;
   place-items: center end;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
 }
 
 .track-error-icon {
@@ -478,7 +515,7 @@ a:focus-visible {
 }
 
 .source-progress {
-  padding: 2px 8px 4px;
+  padding: var(--sp-1) var(--sp-2) var(--sp-1);
 }
 
 /* ── Color palette ── */
@@ -487,7 +524,7 @@ a:focus-visible {
 .swatch {
   display: block;
   border: 1px solid rgba(15, 23, 42, 0.18);
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   cursor: pointer;
   padding: 0;
 }
@@ -503,7 +540,7 @@ a:focus-visible {
   display: grid;
   grid-template-columns: repeat(4, 22px);
   width: 132px;
-  gap: 7px;
+  gap: var(--sp-2);
 }
 
 .swatch {
@@ -514,9 +551,9 @@ a:focus-visible {
 .palette input[type="color"] {
   grid-column: span 4;
   width: 100%;
-  height: 28px;
+  height: var(--size-sm);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 0;
 }
 
@@ -530,7 +567,7 @@ a:focus-visible {
   z-index: 30;
   pointer-events: auto;
   width: min(380px, calc(100vw - 36px));
-  gap: 6px;
+  gap: var(--sp-1);
 }
 
 .track-tooltip > * {
@@ -541,7 +578,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 
 .tooltip-title {
@@ -556,19 +593,26 @@ a:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.tooltip-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
 }
 
 .tooltip-source {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 7px;
-  margin: -4px 0 0;
+  gap: var(--sp-2);
+  margin: 0;
   overflow: hidden;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -576,21 +620,21 @@ a:focus-visible {
 .tooltip-properties {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: var(--sp-1) var(--sp-3);
 }
 
 .tooltip-properties span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-1);
   color: var(--color-text);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .tooltip-difficulty {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--sp-1);
 }
 
 .tooltip-difficulty span,
@@ -604,38 +648,38 @@ a:focus-visible {
 .tooltip-metrics small {
   color: var(--color-muted);
   font-size: 9px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
 }
 
 .tooltip-difficulty strong {
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .difficulty-easy {
-  color: #15803d;
+  color: var(--color-success);
 }
 
 .difficulty-moderate {
-  color: #b45309;
+  color: var(--color-warning);
 }
 
 .difficulty-difficult {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 .tooltip-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 12px;
+  gap: var(--sp-2) var(--sp-3);
   border-block: 1px solid var(--color-border);
-  padding: 7px 0;
+  padding: var(--sp-2) 0;
 }
 
 .tooltip-metrics span {
   grid-template-columns: auto 1fr;
   align-items: center;
-  column-gap: 5px;
+  column-gap: var(--sp-1);
   color: var(--color-text);
 }
 
@@ -645,7 +689,7 @@ a:focus-visible {
 
 .tooltip-metrics strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -687,7 +731,7 @@ a:focus-visible {
 }
 
 .details-button:hover {
-  border-color: #94a3b8;
+  border-color: var(--color-muted);
   background: var(--color-panel-soft);
   color: var(--color-text);
 }
@@ -696,7 +740,7 @@ a:focus-visible {
 
 .color-picker-field {
   display: grid;
-  gap: 7px;
+  gap: var(--sp-2);
   margin: 0;
   border: 0;
   padding: 0;
@@ -705,24 +749,24 @@ a:focus-visible {
 .color-picker-field legend,
 .file-drop-field > span {
   color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .color-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .color-preset,
 .custom-color-button {
   display: grid;
-  width: 29px;
-  height: 29px;
+  width: var(--size-sm);
+  height: var(--size-sm);
   place-items: center;
   border: 2px solid transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   color: #fff;
   cursor: pointer;
   padding: 0;
@@ -742,67 +786,67 @@ a:focus-visible {
   width: 17px;
   height: 17px;
   border: 2px solid #fff;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
 }
 
 /* ── File drop ── */
 
 .file-drop-field {
   display: grid;
-  gap: 7px;
+  gap: var(--sp-2);
 }
 
 .file-dropzone {
   display: grid;
   min-height: 130px;
   place-items: center;
-  gap: 5px;
-  border: 1px dashed #94a3b8;
-  border-radius: 12px;
+  gap: var(--sp-1);
+  border: 1px dashed var(--color-muted);
+  border-radius: var(--radius-md);
   background: var(--color-panel-soft);
   color: var(--color-muted);
   cursor: pointer;
-  padding: 18px;
+  padding: var(--sp-5);
   text-align: center;
 }
 
 .file-dropzone:hover,
 .file-dropzone:focus-visible {
   border-color: var(--color-accent);
-  background: #eff6ff;
+  background: var(--color-info-bg);
 }
 
 .file-dropzone strong {
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .file-dropzone small,
 .selected-files {
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* ── Settings ── */
 
 .settings-section {
   display: grid;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .settings-section h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 850;
+  font-size: var(--text-base);
+  font-weight: var(--weight-extrabold);
 }
 
 .availability-toggle {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #334155;
+  gap: var(--sp-2);
+  color: var(--color-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.3;
 }
 
@@ -813,16 +857,16 @@ a:focus-visible {
 
 .availability-layer-list {
   display: grid;
-  gap: 7px;
+  gap: var(--sp-2);
 }
 
 .availability-layer-item {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #334155;
+  gap: var(--sp-2);
+  color: var(--color-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.3;
 }
 
@@ -835,17 +879,17 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--sp-3);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-panel-soft);
-  padding: 10px;
+  padding: var(--sp-3);
 }
 
 .komoot-connection-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-width: 0;
 }
 
@@ -855,14 +899,14 @@ a:focus-visible {
 }
 
 .komoot-connection-status h2 {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .komoot-connection-status p {
-  margin-top: 2px;
+  margin-top: var(--sp-1);
   overflow: hidden;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -875,15 +919,15 @@ a:focus-visible {
 /* ── Coordinates ── */
 
 .track-coordinates-block {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
   border-top: 1px solid var(--color-border);
 }
 
 .track-coordinates-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 12px;
+  gap: 0 var(--sp-3);
 }
 
 .coord-dropdown {
@@ -893,15 +937,15 @@ a:focus-visible {
 .track-coordinates-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   margin: 0;
   border: 0;
   background: transparent;
   padding: 0;
   font-family: inherit;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--color-link);
   pointer-events: auto;
   white-space: nowrap;
@@ -932,19 +976,19 @@ a:focus-visible {
   overscroll-behavior: contain;
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 4px;
+  padding: var(--sp-1);
 }
 
 .track-coordinates-menu-item {
   display: flex;
   align-items: center;
   min-height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   width: 100%;
 }
 
@@ -958,13 +1002,13 @@ a:focus-visible {
   flex: 1;
   min-width: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
   font-size: inherit;
   font-weight: inherit;
-  padding: 0 8px;
+  padding: 0 var(--sp-2);
   text-align: left;
 }
 
@@ -976,12 +1020,12 @@ a:focus-visible {
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
   padding: 0;
-  margin-right: 4px;
+  margin-right: var(--sp-1);
 }
 
 .track-coordinates-menu-item-action:hover {
@@ -1025,41 +1069,6 @@ a:focus-visible {
 
   .workspace {
     --controls-right: 0px;
-  }
-
-  .sidebar {
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: auto;
-    min-width: 0;
-    max-width: none;
-    height: min(64dvh, 560px);
-    max-height: calc(100dvh - 88px);
-    border-radius: 18px 18px 0 0;
-    transform: translateY(0);
-    box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.22);
-  }
-
-  .sidebar.is-collapsed {
-    transform: translateY(100%);
-  }
-
-  .sidebar-header {
-    padding-top: 24px;
-  }
-
-  .sidebar-header::before {
-    position: absolute;
-    top: 9px;
-    left: 50%;
-    width: 40px;
-    height: 4px;
-    border-radius: 999px;
-    background: #cbd5e1;
-    content: "";
-    transform: translateX(-50%);
   }
 
   .track-tooltip {

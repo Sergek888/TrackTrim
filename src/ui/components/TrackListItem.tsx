@@ -1,5 +1,5 @@
 import { TriangleAlert } from 'lucide-react'
-import type { TrackMeta } from '../../model/TrackMeta'
+import { type TrackMeta } from '../../model/TrackMeta'
 import { computeTotalDistanceMeters } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
 import Spinner from '../shared/Spinner'

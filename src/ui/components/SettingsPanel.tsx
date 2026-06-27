@@ -12,6 +12,7 @@ type SettingsPanelProps = {
   onKomootConnect: KomootConnectionService['connect']
   onKomootDisconnect: KomootConnectionService['disconnect']
   onOpenAvailability: () => void
+  onBack?: () => void
 }
 
 export default function SettingsPanel({
@@ -20,11 +21,14 @@ export default function SettingsPanel({
   onKomootConnect,
   onKomootDisconnect,
   onOpenAvailability,
+  onBack,
 }: SettingsPanelProps) {
   return (
     <Panel
       title="Settings"
       onClose={onClose}
+      onBack={onBack}
+      backLabel="Back to tracks"
       closeLabel="Close settings"
     >
       <section className="settings-section">

@@ -123,14 +123,19 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
   }
 
   return (
-    <aside className="surface track-tooltip" aria-label="Track details">
+    <aside
+      className="surface track-tooltip"
+      aria-label="Track details"
+    >
       <header className="surface-header">
         <div className="tooltip-title">
           <h2 title={meta.name}>{meta.name}</h2>
         </div>
-        <IconButton variant="ghost" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
-          <X aria-hidden="true" size={15} strokeWidth={2.2} />
-        </IconButton>
+        <div className="tooltip-header-actions">
+          <IconButton variant="ghost" type="button" aria-label="Close track details" title="Close track details" onClick={onClose}>
+            <X aria-hidden="true" size={15} strokeWidth={2.2} />
+          </IconButton>
+        </div>
       </header>
 
       <div className="tooltip-source-row">

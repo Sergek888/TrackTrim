@@ -28,6 +28,7 @@ type AddSourcePanelProps = {
   onOpenSettings: () => void
   onCancel: () => void
   onCreate: (source: TrackSource) => void
+  onBack?: () => void
 }
 
 type SourceMode = 'files' | 'komoot'
@@ -45,6 +46,7 @@ export default function AddSourcePanel({
   onOpenSettings,
   onCancel,
   onCreate,
+  onBack,
 }: AddSourcePanelProps) {
   const [mode, setMode] = useState<SourceMode>('files')
   const [name, setName] = useState('')
@@ -146,6 +148,8 @@ export default function AddSourcePanel({
       title="Add New Source"
       ariaLabel="Add new source"
       onClose={onCancel}
+      onBack={onBack}
+      backLabel="Back to tracks"
       closeLabel="Close add source"
       footer={
         <>

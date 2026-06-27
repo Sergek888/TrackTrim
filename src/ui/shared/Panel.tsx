@@ -1,6 +1,6 @@
+import { ChevronLeft, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import IconButton from './IconButton'
-import { X } from 'lucide-react'
 import './Panel.css'
 import './Surface.css'
 
@@ -9,8 +9,11 @@ type PanelProps = {
   title: string
   ariaLabel?: string
   onClose: () => void
+  onBack?: () => void
+  backLabel?: string
   children: ReactNode
   footer?: ReactNode
+  headerActions?: ReactNode
   className?: string
   closeLabel?: string
 }
@@ -20,8 +23,11 @@ export default function Panel({
   title,
   ariaLabel,
   onClose,
+  onBack,
+  backLabel = 'Back',
   children,
   footer,
+  headerActions,
   className,
   closeLabel = 'Close',
 }: PanelProps) {
@@ -43,15 +49,31 @@ export default function Panel({
         tabIndex={-1}
       >
         <header className="panel-header">
-          <h2>{title}</h2>
-          <IconButton
-            type="button"
-            aria-label={closeLabel}
-            title={closeLabel}
-            onClick={onClose}
-          >
-            <X aria-hidden="true" size={15} strokeWidth={2.2} />
-          </IconButton>
+          <div className="panel-header-left">
+            {onBack !== undefined && (
+              <IconButton
+                type="button"
+                aria-label={backLabel}
+                title={backLabel}
+                variant="ghost"
+                onClick={onBack}
+              >
+                <ChevronLeft aria-hidden="true" size={16} />
+              </IconButton>
+            )}
+            <h2>{title}</h2>
+          </div>
+          <div className="panel-header-right">
+            {headerActions}
+            <IconButton
+              type="button"
+              aria-label={closeLabel}
+              title={closeLabel}
+              onClick={onClose}
+            >
+              <X aria-hidden="true" size={15} strokeWidth={2.2} />
+            </IconButton>
+          </div>
         </header>
         <div className="panel-body">
           {children}

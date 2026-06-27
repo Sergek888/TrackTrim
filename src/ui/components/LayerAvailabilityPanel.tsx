@@ -6,9 +6,10 @@ type Props = {
   settings: MapSettings
   onChange: (settings: MapSettings) => void
   onClose: () => void
+  onBack?: () => void
 }
 
-export default function LayerAvailabilityPanel({ settings, onChange, onClose }: Props) {
+export default function LayerAvailabilityPanel({ settings, onChange, onClose, onBack }: Props) {
   const availability = settings.layerAvailability
   const toggle = (ids: readonly string[], id: string, enabled: boolean) =>
     enabled ? [...new Set([...ids, id])] : ids.filter((value) => value !== id)
@@ -18,7 +19,7 @@ export default function LayerAvailabilityPanel({ settings, onChange, onClose }: 
   }
 
   return (
-    <Panel title="Layer Availability" onClose={onClose} closeLabel="Close layer availability">
+    <Panel title="Layer Availability" onClose={onClose} onBack={onBack} backLabel="Back to settings" closeLabel="Close layer availability">
       <div className="availability-layer-list">
         <label className="availability-toggle">
           <input

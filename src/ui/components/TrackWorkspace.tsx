@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ListTree, Settings } from 'lucide-react'
+import { Layers, ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
@@ -34,8 +34,6 @@ type ColorPaletteState =
 
 type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings' | 'layer-availability'
 
-type SidebarMode = 'collapsed' | 'open' | 'full'
-
 export default function TrackWorkspace() {
   const [library] = useState(() => new TrackLibrary())
   const [komootConnection] = useState(() => new KomootConnectionService())
@@ -44,7 +42,6 @@ export default function TrackWorkspace() {
   const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [activePanel, setActivePanel] = useState<WorkspacePanel | null>(null)
   const [mapSettings, setMapSettings] = useState(loadMapSettings)
   const [layerStatus, setLayerStatusState] = useState<MapLayerStatusState>(createLayerStatusState)
@@ -111,23 +108,16 @@ export default function TrackWorkspace() {
     () => komootConnection.state,
     [komootConnection, komootConnectionVersion],
   )
-  const sidebarMode: SidebarMode = activePanel === null
-    ? 'collapsed'
-    : activePanel !== 'tracks' || isSearchFocused || searchQuery.trim() !== ''
-      ? 'full'
-      : 'open'
   const isRightPanelOpen = activePanel !== null
 
   function openPanel(active: WorkspacePanel): void {
     setActivePanel(active)
-    setIsSearchFocused(false)
     setTooltip(null)
     setColorPalette(null)
   }
 
   function closePanel(): void {
     setActivePanel(null)
-    setIsSearchFocused(false)
   }
 
   function handleSourceCreate(source: TrackSource): void {
@@ -222,6 +212,20 @@ export default function TrackWorkspace() {
       },
     },
     {
+      icon: <Layers aria-hidden="true" />,
+      label: 'Map layers',
+      title: 'Map layers',
+      active: activePanel === 'map-settings',
+      onClick: () => {
+        if (activePanel === 'map-settings') {
+          closePanel()
+          return
+        }
+
+        openPanel('map-settings')
+      },
+    },
+    {
       icon: <Settings aria-hidden="true" />,
       label: 'Settings',
       title: 'Settings',
@@ -242,7 +246,6 @@ export default function TrackWorkspace() {
     <section
       className="workspace"
       data-right-panel={isRightPanelOpen ? 'open' : 'closed'}
-      data-sidebar-mode={sidebarMode}
       aria-label="Track workspace"
     >
       <div className="map-area">
@@ -251,16 +254,7 @@ export default function TrackWorkspace() {
           activeTrack={activeTrack}
           focusedTrack={library.focusedTrack}
           mapSettings={mapSettings}
-          isMapSettingsOpen={activePanel === 'map-settings'}
           isRightPanelOpen={isRightPanelOpen}
-          onMapSettingsToggle={() => {
-            if (activePanel === 'map-settings') {
-              closePanel()
-              return
-            }
-
-            openPanel('map-settings')
-          }}
           onTrackClick={handleMapTrackClick}
           onMapClick={() => {
             setTooltip(null)
@@ -279,29 +273,28 @@ export default function TrackWorkspace() {
         )}
       </div>
 
-      <TrackSidebar
-        library={library}
-        searchQuery={searchQuery}
-        collapsed={activePanel !== 'tracks'}
-        mode={sidebarMode}
-        onSearchChange={setSearchQuery}
-        onSearchFocus={() => setIsSearchFocused(true)}
-        onSearchBlur={() => setIsSearchFocused(false)}
-        onAddSourceClick={() => {
-          openPanel('add-source')
-        }}
-        onSourceVisibilityChange={handleSourceVisibilityChange}
-        onSourceExpandedChange={handleSourceExpandedChange}
-        onSourceColorClick={(source, left, top) => {
-          setColorPalette({ kind: 'source', source, left, top })
-        }}
-        onSourceMove={(source, targetIndex) => library.moveSourceToIndex(source, targetIndex)}
-        onSourceRename={(source, name) => library.renameSource(source, name)}
-        onDeleteSource={handleDeleteSource}
-        onTrackActivate={handleTrackActivate}
-        onTrackFocus={handleTrackFocus}
-        onTrackVisibilityChange={handleTrackVisibilityChange}
-      />
+      {activePanel === 'tracks' && (
+        <TrackSidebar
+          library={library}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onAddSourceClick={() => {
+            openPanel('add-source')
+          }}
+          onClose={closePanel}
+          onSourceVisibilityChange={handleSourceVisibilityChange}
+          onSourceExpandedChange={handleSourceExpandedChange}
+          onSourceColorClick={(source, left, top) => {
+            setColorPalette({ kind: 'source', source, left, top })
+          }}
+          onSourceMove={(source, targetIndex) => library.moveSourceToIndex(source, targetIndex)}
+          onSourceRename={(source, name) => library.renameSource(source, name)}
+          onDeleteSource={handleDeleteSource}
+          onTrackActivate={handleTrackActivate}
+          onTrackFocus={handleTrackFocus}
+          onTrackVisibilityChange={handleTrackVisibilityChange}
+        />
+      )}
 
       <WorkspacePanels
         library={library}
@@ -326,6 +319,7 @@ export default function TrackWorkspace() {
         onLayerAvailabilityOpen={() => openPanel('layer-availability')}
         onColorPaletteChange={handleColorPaletteChange}
         onSourceCreate={handleSourceCreate}
+        onBackToTracks={() => openPanel('tracks')}
       />
     </section>
   )

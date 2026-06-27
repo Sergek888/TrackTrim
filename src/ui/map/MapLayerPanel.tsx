@@ -6,16 +6,16 @@ import BaseLayerSection from './mapLayerPanel/BaseLayerSection'
 import OverlaySection from './mapLayerPanel/OverlaySection'
 import TerrainSection from './mapLayerPanel/TerrainSection'
 
-type Props = { settings: MapSettings; layerStatus?: MapLayerStatusState; onChange: (settings: MapSettings) => void; onClose: () => void }
+type Props = { settings: MapSettings; layerStatus?: MapLayerStatusState; onChange: (settings: MapSettings) => void; onClose: () => void; onBack?: () => void }
 
-export default function MapLayerPanel({ settings, layerStatus, onChange, onClose }: Props) {
+export default function MapLayerPanel({ settings, layerStatus, onChange, onClose, onBack }: Props) {
   const groups = getAvailableMapLayerGroups(settings.layerAvailability)
   const active = settings.activeLayerState
   const update = (next: MapSettings) => onChange(normalizeMapSettings(next))
   const setActive = (change: Partial<MapSettings['activeLayerState']>) => update({ ...settings, activeLayerState: { ...active, ...change } })
 
   return (
-    <Panel id="map-settings-panel" title="Map layers" onClose={onClose} closeLabel="Close map settings">
+    <Panel id="map-settings-panel" title="Map layers" onClose={onClose} onBack={onBack} backLabel="Back to tracks" closeLabel="Close map settings">
       <div className="map-settings">
         {groups.map(({ group, layers }) => {
           const depth = getTreeDepth(mapLayerTree, group.id)

@@ -25,9 +25,7 @@ type Props = {
   activeTrack: Track | null
   focusedTrack: { track: Track; version: number } | null
   mapSettings: MapSettings
-  isMapSettingsOpen: boolean
   isRightPanelOpen: boolean
-  onMapSettingsToggle: () => void
   onTrackClick: (track: Track, point: TrackMapPoint) => void
   onMapClick: () => void
   onLayerStatus?: (layerId: string, status: MapLayerLoadStatus) => void
@@ -36,7 +34,7 @@ type Props = {
 
 export type TrackMapPoint = { latitude: number; longitude: number; x: number; y: number }
 
-export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isMapSettingsOpen, isRightPanelOpen, onMapSettingsToggle, onTrackClick, onMapClick, onLayerStatus, extraButtons }: Props) {
+export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isRightPanelOpen, onTrackClick, onMapClick, onLayerStatus, extraButtons }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [controlGroup, setControlGroup] = useState<HTMLElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -140,8 +138,6 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
       <MapControlBar
         controlGroup={controlGroup}
         extraButtons={extraButtons}
-        isMapSettingsOpen={isMapSettingsOpen}
-        onMapSettingsToggle={onMapSettingsToggle}
       />
     </>
   )

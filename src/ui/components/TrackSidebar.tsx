@@ -2,21 +2,16 @@ import { Plus, Search, X } from 'lucide-react'
 import type { TrackLibrary } from '../../application/TrackLibrary'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
-import IconButton from '../shared/IconButton'
 import EmptyState from '../shared/EmptyState'
+import Panel from '../shared/Panel'
 import SourceAccordion from './SourceAccordion'
-
-type SidebarMode = 'collapsed' | 'open' | 'full'
 
 type TrackSidebarProps = {
   library: TrackLibrary
   searchQuery: string
-  collapsed: boolean
-  mode?: SidebarMode
   onSearchChange: (value: string) => void
-  onSearchFocus?: () => void
-  onSearchBlur?: () => void
   onAddSourceClick: () => void
+  onClose: () => void
   onSourceVisibilityChange: (source: TrackSource, visible: boolean) => void
   onSourceExpandedChange: (source: TrackSource, expanded: boolean) => void
   onSourceColorClick: (source: TrackSource, left: number, top: number) => void
@@ -39,12 +34,9 @@ function trackMatchesQuery(meta: TrackMeta, query: string): boolean {
 export default function TrackSidebar({
   library,
   searchQuery,
-  collapsed,
-  mode = collapsed ? 'collapsed' : 'open',
   onSearchChange,
-  onSearchFocus,
-  onSearchBlur,
   onAddSourceClick,
+  onClose,
   onSourceVisibilityChange,
   onSourceExpandedChange,
   onSourceColorClick,
@@ -58,112 +50,94 @@ export default function TrackSidebar({
   const orderedSources = [...library.sources].sort((left, right) => left.order - right.order)
 
   return (
-    <>
-      <aside
-        id="track-sidebar"
-        className={`sidebar${collapsed ? ' is-collapsed' : ''}`}
-        data-sidebar-mode={mode}
-        aria-label="Track sources"
-        aria-hidden={collapsed}
-        inert={collapsed}
-      >
-        <div className="sidebar-sheet-handle" aria-hidden="true" />
-        <header className="sidebar-header">
-          {!collapsed && (
-            <div className="app-brand">
-              <h1>TrackViewer</h1>
-            </div>
+    <Panel
+      id="track-sidebar"
+      title="TrackViewer"
+      ariaLabel="Track sources"
+      onClose={onClose}
+      closeLabel="Close tracks"
+      headerActions={
+        <button
+          className="sidebar-action-button"
+          type="button"
+          aria-label="Add source"
+          title="Add source"
+          onClick={onAddSourceClick}
+        >
+          <Plus aria-hidden="true" />
+        </button>
+      }
+    >
+      {orderedSources.length > 0 && (
+        <label className="search-control">
+          <Search aria-hidden="true" size={16} />
+          <input
+            type="search"
+            value={searchQuery}
+            placeholder="Search tracks and sources..."
+            aria-label="Search tracks and sources"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+          {searchQuery !== '' && (
+            <button
+              className="search-clear"
+              type="button"
+              aria-label="Clear search"
+              title="Clear search"
+              onClick={() => onSearchChange('')}
+            >
+              <X aria-hidden="true" size={15} />
+            </button>
           )}
-          <div className="sidebar-header-actions">
-            {!collapsed && (
-              <>
-                <IconButton
-                  className="sidebar-action-button add-source-button"
-                  type="button"
-                  aria-label="Add source"
-                  title="Add source"
-                  onClick={onAddSourceClick}
-                >
-                  <Plus aria-hidden="true" />
-                </IconButton>
-              </>
-            )}
-          </div>
-        </header>
+        </label>
+      )}
 
-        <div className="sidebar-controls">
-          <label className="search-control">
-            <Search aria-hidden="true" size={16} />
-            <input
-              type="search"
-              value={searchQuery}
-              placeholder="Search tracks and sources..."
-              aria-label="Search tracks and sources"
-              onFocus={onSearchFocus}
-              onBlur={onSearchBlur}
-              onChange={(event) => onSearchChange(event.target.value)}
-            />
-            {searchQuery !== '' && (
-              <button
-                className="search-clear"
-                type="button"
-                aria-label="Clear search"
-                title="Clear search"
-                onClick={() => onSearchChange('')}
-              >
-                <X aria-hidden="true" size={15} />
-              </button>
-            )}
-          </label>
-        </div>
+      <div className="source-list">
+        {orderedSources.length === 0 ? (
+          <EmptyState heading="No sources">
+            <p>Add GPX files or a Komoot tour URL.</p>
+          </EmptyState>
+        ) : (
+          orderedSources.map((source, index) => {
+            const sourceMetas = library.sourceMetas(source)
+            const displayedMetas = sourceMetas.filter((meta) =>
+              trackMatchesQuery(meta, searchQuery),
+            )
+            const sourceMatches = source.name
+              .toLowerCase()
+              .includes(searchQuery.trim().toLowerCase())
 
-        <div className="source-list">
-          {orderedSources.length === 0 ? (
-            <EmptyState heading="No sources">
-              <p>Add GPX files or a Komoot tour URL.</p>
-            </EmptyState>
-          ) : (
-            orderedSources.map((source, index) => {
-              const sourceMetas = library.sourceMetas(source)
-              const displayedMetas = sourceMetas.filter((meta) =>
-                trackMatchesQuery(meta, searchQuery),
-              )
-              const sourceMatches = source.name
-                .toLowerCase()
-                .includes(searchQuery.trim().toLowerCase())
+            if (searchQuery.trim() !== '' && displayedMetas.length === 0 && !sourceMatches) {
+              return null
+            }
 
-              if (searchQuery.trim() !== '' && displayedMetas.length === 0 && !sourceMatches) {
-                return null
-              }
-
-              return (
-                <SourceAccordion
-                  key={`${source.name}:${source.order}`}
-                  source={source}
-                  sourceIndex={index}
-                  metas={sourceMetas}
-                  displayedMetas={sourceMatches ? sourceMetas : displayedMetas}
-                  activeMeta={library.activeMeta}
-                  progress={library.sourceProgress(source)}
-                  loadingMetadata={library.isSourceLoadingMetadata(source)}
-                  onSourceVisibilityChange={onSourceVisibilityChange}
-                  onSourceExpandedChange={onSourceExpandedChange}
-                  onSourceColorClick={onSourceColorClick}
-                  onSourceMove={(sourceOrder, targetIndex) => {
-                    const draggedSource = orderedSources.find((candidate) => candidate.order === sourceOrder)
-                    if (draggedSource !== undefined) onSourceMove(draggedSource, targetIndex)
-                  }}
-                  onSourceRename={onSourceRename}
-                  onDeleteSource={onDeleteSource}
-                  onTrackActivate={onTrackActivate}
-                  onTrackFocus={onTrackFocus}
-                  onTrackVisibilityChange={onTrackVisibilityChange}
-                />
-              )
-            })
-          )}
-        </div>
-      </aside>
-    </>
+            return (
+              <SourceAccordion
+                key={`${source.name}:${source.order}`}
+                source={source}
+                sourceIndex={index}
+                metas={sourceMetas}
+                displayedMetas={sourceMatches ? sourceMetas : displayedMetas}
+                activeMeta={library.activeMeta}
+                progress={library.sourceProgress(source)}
+                loadingMetadata={library.isSourceLoadingMetadata(source)}
+                onSourceVisibilityChange={onSourceVisibilityChange}
+                onSourceExpandedChange={onSourceExpandedChange}
+                onSourceColorClick={onSourceColorClick}
+                onSourceMove={(sourceOrder, targetIndex) => {
+                  const draggedSource = orderedSources.find((candidate) => candidate.order === sourceOrder)
+                  if (draggedSource !== undefined) onSourceMove(draggedSource, targetIndex)
+                }}
+                onSourceRename={onSourceRename}
+                onDeleteSource={onDeleteSource}
+                onTrackActivate={onTrackActivate}
+                onTrackFocus={onTrackFocus}
+                onTrackVisibilityChange={onTrackVisibilityChange}
+              />
+            )
+          })
+        )}
+      </div>
+    </Panel>
   )
 }

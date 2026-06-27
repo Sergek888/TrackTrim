@@ -1,45 +1,39 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { createMapStyleButton } from './mapIcons'
 
 export type ExtraButton = { icon: ReactNode; label: string; title: string; active?: boolean; controls?: string; onClick: () => void }
 
 type Props = {
   extraButtons?: readonly ExtraButton[]
-  isMapSettingsOpen: boolean
-  onMapSettingsToggle: () => void
   controlGroup: HTMLElement | null
 }
 
-export default function MapControlBar({ extraButtons, isMapSettingsOpen, onMapSettingsToggle, controlGroup }: Props) {
-  const styleButtonRef = useRef<HTMLButtonElement | null>(null)
+export default function MapControlBar({ extraButtons, controlGroup }: Props) {
   const extraButtonRefs = useRef<HTMLButtonElement[]>([])
   const [ready, setReady] = useState(false)
-  const latest = useRef({ extraButtons, isMapSettingsOpen, onMapSettingsToggle })
-  latest.current = { extraButtons, isMapSettingsOpen, onMapSettingsToggle }
+  const latest = useRef({ extraButtons })
+  latest.current = { extraButtons }
 
   useEffect(() => {
     if (controlGroup === null) return
 
-    const handleStyleClick = () => latest.current.onMapSettingsToggle()
-    const button = createMapStyleButton(handleStyleClick)
-    controlGroup.append(button)
-    styleButtonRef.current = button
-
-    extraButtonRefs.current = (latest.current.extraButtons ?? []).map(() => {
+    const buttons = (latest.current.extraButtons ?? []).map((cfg) => {
       const item = document.createElement('button')
       item.className = 'maplibregl-ctrl-icon map-extra-toggle'
       item.type = 'button'
+      item.setAttribute('aria-label', cfg.label)
+      item.setAttribute('title', cfg.title)
+      item.setAttribute('aria-pressed', String(cfg.active ?? false))
+      item.toggleAttribute('data-active', cfg.active ?? false)
+      if (cfg.controls !== undefined) item.setAttribute('aria-controls', cfg.controls)
+      item.onclick = cfg.onClick
       controlGroup.append(item)
       return item
     })
 
+    extraButtonRefs.current = buttons
     setReady(true)
   }, [controlGroup])
-
-  useEffect(() => {
-    styleButtonRef.current?.setAttribute('aria-expanded', String(isMapSettingsOpen))
-  }, [isMapSettingsOpen])
 
   useEffect(() => {
     extraButtonRefs.current.forEach((button, index) => {

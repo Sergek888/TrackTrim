@@ -17,42 +17,64 @@
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
   pointer-events: auto;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(14px);
+  border: 1px solid var(--surface-border-color);
+  border-radius: 0;
+  background: var(--surface-bg);
+  backdrop-filter: var(--surface-blur);
   box-shadow: var(--shadow-panel);
   padding: 0;
 }
 
 .panel-section {
   display: grid;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .panel-section h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 850;
+  font-size: var(--text-base);
+  font-weight: var(--weight-extrabold);
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
   border-bottom: 1px solid var(--color-border);
-  padding: 16px 16px 12px;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+}
+
+.panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
 }
 
 .panel-header h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .panel-body {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--sp-3);
+  min-height: 0;
+  padding: var(--sp-4);
   overflow-y: auto;
 }
 
@@ -60,8 +82,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--color-border);
 }
 
@@ -76,8 +98,8 @@
     max-width: none;
     height: var(--mobile-sheet-height, 96px);
     max-height: calc(100dvh - 48px);
-    border-radius: 18px 18px 0 0;
-    box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.24);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-panel);
   }
 
   .panel-header {
@@ -91,8 +113,8 @@
     left: 50%;
     width: 40px;
     height: 4px;
-    border-radius: 999px;
-    background: #cbd5e1;
+    border-radius: var(--radius-full);
+    background: var(--color-border);
     content: "";
     transform: translateX(-50%);
   }

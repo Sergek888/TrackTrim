@@ -35,6 +35,7 @@ type WorkspacePanelsProps = {
   onLayerAvailabilityOpen: () => void
   onColorPaletteChange: (color: string) => void
   onSourceCreate: (source: TrackSource) => void
+  onBackToTracks: () => void
 }
 
 export default function WorkspacePanels({
@@ -57,6 +58,7 @@ export default function WorkspacePanels({
   onLayerAvailabilityOpen,
   onColorPaletteChange,
   onSourceCreate,
+  onBackToTracks,
 }: WorkspacePanelsProps) {
   return (
     <>
@@ -93,6 +95,7 @@ export default function WorkspacePanels({
           }}
           onCancel={onAddSourceClose}
           onCreate={onSourceCreate}
+          onBack={onBackToTracks}
         />
       )}
 
@@ -103,6 +106,7 @@ export default function WorkspacePanels({
           onKomootConnect={(email, password) => komootConnection.connect(email, password)}
           onKomootDisconnect={() => komootConnection.disconnect()}
           onOpenAvailability={onLayerAvailabilityOpen}
+          onBack={onBackToTracks}
         />
       )}
 
@@ -111,6 +115,10 @@ export default function WorkspacePanels({
           settings={mapSettings}
           onChange={onMapSettingsChange}
           onClose={onLayerAvailabilityClose}
+          onBack={() => {
+            onLayerAvailabilityClose()
+            onSettingsOpen()
+          }}
         />
       )}
 
@@ -120,6 +128,7 @@ export default function WorkspacePanels({
           layerStatus={layerStatus}
           onChange={onMapSettingsChange}
           onClose={onMapSettingsClose}
+          onBack={onBackToTracks}
         />
       )}
     </>
