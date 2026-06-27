@@ -1,4 +1,4 @@
-import { defaultAvailableMapLayerIds, mapLayerGroups, mapLayers } from './mapLayers'
+import { defaultAvailableMapLayerIds, mapLayerTree, mapLayers, type MapLayerGroupWithLayers } from './mapLayers'
 
 export interface ActiveMapLayerState {
   baseLayerId: string
@@ -16,6 +16,7 @@ export interface MapLayerAvailabilitySettings {
 export interface MapSettings {
   activeLayerState: ActiveMapLayerState
   layerAvailability: MapLayerAvailabilitySettings
+  mapLanguage: string
 }
 
 type MapSettingsStorage = {
@@ -38,6 +39,7 @@ export const DEFAULT_MAP_SETTINGS: MapSettings = {
     showExperimentalLayers: false,
     showFragileLayers: false,
   },
+  mapLanguage: detectBrowserLanguage(),
 }
 
 export function loadMapSettings(storage = getMapSettingsStorage()): MapSettings {
@@ -74,6 +76,7 @@ export function normalizeMapSettings(settings: Partial<MapSettings>): MapSetting
 
   return {
     layerAvailability,
+    mapLanguage: normalizeMapLanguage(settings.mapLanguage),
     activeLayerState: {
       baseLayerId,
       overlayLayerIds,
@@ -96,12 +99,23 @@ export function getAvailableMapLayers(availability: MapLayerAvailabilitySettings
     })
 }
 
-export function getAvailableMapLayerGroups(availability: MapLayerAvailabilitySettings) {
+export function getAvailableMapLayerGroups(availability: MapLayerAvailabilitySettings): MapLayerGroupWithLayers[] {
   const layers = getAvailableMapLayers(availability)
-  return [...mapLayerGroups]
-    .sort((a, b) => a.order - b.order)
-    .map((group) => ({ group, layers: layers.filter((layer) => layer.groupId === group.id) }))
-    .filter(({ layers }) => layers.length > 0)
+  const result: MapLayerGroupWithLayers[] = []
+  for (const node of mapLayerTree) {
+    const hasSubgroupChildren = node.children.some((child) =>
+      layers.some((l) => l.groupId === node.id && l.subgroupId === child.id),
+    )
+    for (const child of node.children) {
+      const childLayers = hasSubgroupChildren
+        ? layers.filter((l) => l.groupId === node.id && l.subgroupId === child.id)
+        : layers.filter((l) => l.groupId === child.id && !l.subgroupId)
+      if (childLayers.length > 0) {
+        result.push({ group: child, layers: childLayers })
+      }
+    }
+  }
+  return result
 }
 
 export function getMapLayer(layerId: string) {
@@ -110,10 +124,21 @@ export function getMapLayer(layerId: string) {
 
 export function validateMapLayers(): void {
   const ids = new Set<string>()
-  const groupIds = new Set(mapLayerGroups.map((group) => group.id))
+  const knownGroupIds = new Set<string>()
+  const knownSubgroupIds = new Map<string, Set<string>>()
+  for (const node of mapLayerTree) {
+    knownGroupIds.add(node.id)
+    const subs = new Set<string>()
+    for (const child of node.children) subs.add(child.id)
+    knownSubgroupIds.set(node.id, subs)
+  }
   for (const layer of mapLayers) {
     if (ids.has(layer.id)) throw new Error(`Duplicate map layer id: ${layer.id}`)
-    if (!groupIds.has(layer.groupId)) throw new Error(`Unknown group ${layer.groupId} for map layer ${layer.id}`)
+    if (!knownGroupIds.has(layer.groupId)) throw new Error(`Unknown group ${layer.groupId} for map layer ${layer.id}`)
+    if (layer.subgroupId !== undefined) {
+      const subs = knownSubgroupIds.get(layer.groupId)
+      if (subs === undefined || !subs.has(layer.subgroupId)) throw new Error(`Unknown subgroup ${layer.subgroupId} in group ${layer.groupId} for map layer ${layer.id}`)
+    }
     if (!Number.isFinite(layer.order)) throw new Error(`Invalid order for map layer ${layer.id}`)
     if (layer.attribution.trim() === '') throw new Error(`Missing attribution for map layer ${layer.id}`)
     ids.add(layer.id)
@@ -146,8 +171,24 @@ function clampOpacity(opacity: number): number {
   return Math.max(0, Math.min(1, opacity))
 }
 
+function normalizeMapLanguage(lang: string | undefined): string {
+  if (typeof lang !== 'string') return detectBrowserLanguage()
+  const trimmed = lang.trim()
+  if (trimmed.length >= 2) return trimmed.slice(0, 2)
+  return 'en'
+}
+
 function cloneDefaultMapSettings(): MapSettings {
   return structuredClone(DEFAULT_MAP_SETTINGS) as MapSettings
+}
+
+function detectBrowserLanguage(): string {
+  try {
+    const lang = navigator.language
+    return lang.length >= 2 ? lang.slice(0, 2) : 'en'
+  } catch {
+    return 'en'
+  }
 }
 
 function getMapSettingsStorage(): MapSettingsStorage | null {

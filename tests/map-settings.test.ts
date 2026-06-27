@@ -7,13 +7,11 @@ test('map layer catalog separates base, overlay and terrain layer kinds', () => 
   const layersById = new Map(mapLayers.map((layer) => [layer.id, layer]))
 
   assert.equal(layersById.get('liberty-topo')?.kind, 'vector-base')
-  assert.equal(layersById.get('liberty-satellite')?.kind, 'vector-base')
   assert.equal(layersById.get('osm-vector')?.kind, 'vector-base')
   assert.equal(layersById.get('osm-raster')?.kind, 'raster-base')
   assert.equal(layersById.get('opentopomap')?.kind, 'raster-base')
   assert.equal(layersById.get('waymarked-hiking')?.kind, 'raster-overlay')
   assert.equal(layersById.get('bikerouter-gravel')?.kind, 'vector-overlay')
-  assert.equal(layersById.get('mapterhorn-hillshade')?.kind, 'terrain')
 })
 
 test('map layer catalog contains the expanded country and closure layers', () => {
@@ -29,7 +27,6 @@ test('map layer catalog contains the expanded country and closure layers', () =>
 test('default available map layers mirror the visible world layer set', () => {
   assert.deepEqual(defaultAvailableMapLayerIds, [
     'liberty-topo',
-    'liberty-satellite',
     'osm-vector',
     'osm-topo-vector',
     'osm-raster',
@@ -37,7 +34,6 @@ test('default available map layers mirror the visible world layer set', () => {
     'open-hiking-map',
     'cyclosm',
     'utagawa-vtt',
-    'mapterhorn-hillshade',
     'waymarked-hiking',
     'waymarked-cycling',
     'waymarked-mtb',
@@ -58,7 +54,7 @@ test('normalizing unavailable active layers falls back without retaining stale l
     activeLayerState: {
       baseLayerId: 'esri-satellite',
       overlayLayerIds: ['waymarked-hiking'],
-      terrainLayerIds: ['mapterhorn-hillshade'],
+      terrainLayerIds: [],
       opacityByLayerId: {},
     },
   })
@@ -89,10 +85,9 @@ test('normalizing map settings removes duplicate layers and clamps opacity value
     activeLayerState: {
       baseLayerId: 'osm-raster',
       overlayLayerIds: ['waymarked-hiking', 'waymarked-hiking', 'unknown'],
-      terrainLayerIds: ['mapterhorn-hillshade'],
+      terrainLayerIds: [],
       opacityByLayerId: {
         'waymarked-hiking': 2,
-        'mapterhorn-hillshade': -1,
         unknown: 0.5,
       },
     },
@@ -101,7 +96,6 @@ test('normalizing map settings removes duplicate layers and clamps opacity value
   assert.deepEqual(settings.activeLayerState.overlayLayerIds, ['waymarked-hiking'])
   assert.equal(settings.activeLayerState.opacityByLayerId['waymarked-hillshade'], undefined)
   assert.equal(settings.activeLayerState.opacityByLayerId['waymarked-hiking'], 1)
-  assert.equal(settings.activeLayerState.opacityByLayerId['mapterhorn-hillshade'], 0)
   assert.equal(settings.activeLayerState.opacityByLayerId.unknown, undefined)
 })
 

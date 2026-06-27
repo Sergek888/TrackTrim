@@ -180,7 +180,7 @@ export default function TrackWorkspace() {
   }
 
   function handleTrackActivate(meta: TrackMeta): void {
-    library.activateTrack(meta)
+    library.focusTrack(meta)
     setTooltip(null)
   }
 
@@ -246,6 +246,7 @@ export default function TrackWorkspace() {
           focusedTrack={library.focusedTrack}
           mapSettings={mapSettings}
           isMapSettingsOpen={activePanel === 'map-settings'}
+          isRightPanelOpen={isRightPanelOpen}
           onMapSettingsToggle={() => {
             if (activePanel === 'map-settings') {
               closePanel()
