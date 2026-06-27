@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defaultAvailableMapLayerIds, mapLayers } from '../src/map/mapLayers'
+import { defaultAvailableMapLayerIds, mapLayers } from '../src/map/mapLayerRegistry'
 import { DEFAULT_MAP_SETTINGS, loadMapSettings, normalizeMapSettings, saveMapSettings } from '../src/map/mapSettings'
 
 test('map layer catalog separates base, overlay and terrain layer kinds', () => {

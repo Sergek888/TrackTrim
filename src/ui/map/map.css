@@ -105,3 +105,31 @@
   display: grid;
   gap: 5px;
 }
+
+.map-layer-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-layer-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.map-layer-status--loading {
+  background: var(--accent, #f59e0b);
+  animation: map-layer-pulse 1s ease-in-out infinite;
+}
+
+.map-layer-status--failed {
+  background: var(--error, #ef4444);
+}
+
+@keyframes map-layer-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

@@ -4,6 +4,7 @@ import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
 import type { MapSettings } from '../../map/mapSettings'
+import type { MapLayerStatusState } from '../../map/mapLayerStatus'
 import MapLayerPanel from '../map/MapLayerPanel'
 import AddSourcePanel from './AddSourcePanel'
 import ColorPalette from './ColorPalette'
@@ -23,6 +24,7 @@ type WorkspacePanelsProps = {
   isMapSettingsOpen: boolean
   isLayerAvailabilityOpen: boolean
   mapSettings: MapSettings
+  layerStatus?: MapLayerStatusState
   colorPalette: ColorPaletteState | null
   onAddSourceClose: () => void
   onSettingsClose: () => void
@@ -44,6 +46,7 @@ export default function WorkspacePanels({
   isMapSettingsOpen,
   isLayerAvailabilityOpen,
   mapSettings,
+  layerStatus,
   colorPalette,
   onAddSourceClose,
   onSettingsClose,
@@ -114,6 +117,7 @@ export default function WorkspacePanels({
       {isMapSettingsOpen && (
         <MapLayerPanel
           settings={mapSettings}
+          layerStatus={layerStatus}
           onChange={onMapSettingsChange}
           onClose={onMapSettingsClose}
         />

@@ -1,4 +1,4 @@
-import { defaultAvailableMapLayerIds, mapLayerTree, mapLayers, type MapLayerGroupWithLayers } from './mapLayers'
+import { defaultAvailableMapLayerIds, mapLayers, getAvailableMapLayers, type MapLayerGroupWithLayers } from './mapLayerRegistry'
 
 export interface ActiveMapLayerState {
   baseLayerId: string
@@ -18,6 +18,8 @@ export interface MapSettings {
   layerAvailability: MapLayerAvailabilitySettings
   mapLanguage: string
 }
+
+export type { MapLayerGroupWithLayers }
 
 type MapSettingsStorage = {
   getItem(key: string): string | null
@@ -83,65 +85,6 @@ export function normalizeMapSettings(settings: Partial<MapSettings>): MapSetting
       terrainLayerIds,
       opacityByLayerId,
     },
-  }
-}
-
-export function getAvailableMapLayers(availability: MapLayerAvailabilitySettings) {
-  const availableIds = new Set(availability.availableLayerIds)
-  return [...mapLayers]
-    .sort((a, b) => a.order - b.order)
-    .filter((layer) => {
-      if (!availableIds.has(layer.id)) return false
-      if (layer.reliability === 'broken') return false
-      if (layer.reliability === 'experimental' && !availability.showExperimentalLayers) return false
-      if (layer.reliability === 'fragile' && !availability.showFragileLayers && !layer.defaultVisible) return false
-      return true
-    })
-}
-
-export function getAvailableMapLayerGroups(availability: MapLayerAvailabilitySettings): MapLayerGroupWithLayers[] {
-  const layers = getAvailableMapLayers(availability)
-  const result: MapLayerGroupWithLayers[] = []
-  for (const node of mapLayerTree) {
-    const hasSubgroupChildren = node.children.some((child) =>
-      layers.some((l) => l.groupId === node.id && l.subgroupId === child.id),
-    )
-    for (const child of node.children) {
-      const childLayers = hasSubgroupChildren
-        ? layers.filter((l) => l.groupId === node.id && l.subgroupId === child.id)
-        : layers.filter((l) => l.groupId === child.id && !l.subgroupId)
-      if (childLayers.length > 0) {
-        result.push({ group: child, layers: childLayers })
-      }
-    }
-  }
-  return result
-}
-
-export function getMapLayer(layerId: string) {
-  return mapLayers.find((layer) => layer.id === layerId) ?? null
-}
-
-export function validateMapLayers(): void {
-  const ids = new Set<string>()
-  const knownGroupIds = new Set<string>()
-  const knownSubgroupIds = new Map<string, Set<string>>()
-  for (const node of mapLayerTree) {
-    knownGroupIds.add(node.id)
-    const subs = new Set<string>()
-    for (const child of node.children) subs.add(child.id)
-    knownSubgroupIds.set(node.id, subs)
-  }
-  for (const layer of mapLayers) {
-    if (ids.has(layer.id)) throw new Error(`Duplicate map layer id: ${layer.id}`)
-    if (!knownGroupIds.has(layer.groupId)) throw new Error(`Unknown group ${layer.groupId} for map layer ${layer.id}`)
-    if (layer.subgroupId !== undefined) {
-      const subs = knownSubgroupIds.get(layer.groupId)
-      if (subs === undefined || !subs.has(layer.subgroupId)) throw new Error(`Unknown subgroup ${layer.subgroupId} in group ${layer.groupId} for map layer ${layer.id}`)
-    }
-    if (!Number.isFinite(layer.order)) throw new Error(`Invalid order for map layer ${layer.id}`)
-    if (layer.attribution.trim() === '') throw new Error(`Missing attribution for map layer ${layer.id}`)
-    ids.add(layer.id)
   }
 }
 

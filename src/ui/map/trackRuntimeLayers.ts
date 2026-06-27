@@ -1,6 +1,6 @@
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
-import { getMapLayer } from '../../map/mapSettings'
-import { mapVisualProfiles } from '../../map/mapLayers'
+import { findMapLayer, resolveLayerDefaults } from '../../map/mapLayerRegistry'
+import { mapVisualProfiles } from '../../map/mapVisualProfiles'
 import type { Track } from '../../model/Track'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
@@ -86,9 +86,10 @@ export function updateTrackRuntimeData(map: maplibregl.Map, tracks: readonly Tra
 }
 
 function getTrackStyle(baseLayerId: string): typeof DEFAULT_TRACK_STYLE {
-  const layer = getMapLayer(baseLayerId)
-  const profileId = layer?.visualProfileId
-  const profile = profileId === undefined ? undefined : mapVisualProfiles[profileId as keyof typeof mapVisualProfiles]
+  const layer = findMapLayer(baseLayerId)
+  if (layer === null) return DEFAULT_TRACK_STYLE
+  const { visualProfileId } = resolveLayerDefaults(layer)
+  const profile = mapVisualProfiles[visualProfileId as keyof typeof mapVisualProfiles]
   return { ...DEFAULT_TRACK_STYLE, ...profile?.track }
 }
 

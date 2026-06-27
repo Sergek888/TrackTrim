@@ -1,8 +1,9 @@
 import type maplibregl from 'maplibre-gl'
 import type { LayerSpecification, SourceSpecification, StyleSpecification } from 'maplibre-gl'
-import { mapVisualProfiles, type MapLayerData } from './mapLayers'
+import { mapVisualProfiles } from './mapVisualProfiles'
+import { type MapLayerData, findMapLayer, resolveLayerDefaults } from './mapLayerRegistry'
 import type { ActiveMapLayerState } from './mapSettings'
-import { getMapLayer } from './mapSettings'
+import type { MapLayerLoadStatus } from './mapLayerStatus'
 
 type MapLayerDefinition = MapLayerData
 type InlineStyleLayer = Exclude<MapLayerDefinition, { kind: 'vector-base' | 'vector-overlay' }>
@@ -29,7 +30,11 @@ export class MapStyleManager {
   private applyVersion = 0
   private currentLanguage = 'en'
 
-  constructor(private map: maplibregl.Map, private restoreRuntimeLayers: () => void) {
+  constructor(
+    private map: maplibregl.Map,
+    private restoreRuntimeLayers: () => void,
+    private onStatusChange?: (layerId: string, status: MapLayerLoadStatus) => void,
+  ) {
     this.map.on('error', (event) => console.warn('[map-style]', event.error ?? event))
     this.map.on('styleimagemissing', (event) => {
       const id = (event as { id?: string }).id
@@ -38,10 +43,14 @@ export class MapStyleManager {
     })
   }
 
+  // Style application paths:
+  // 1. No changes → applyLayerOpacities only (no setStyle)
+  // 2. Overlay/terrain changed, base same → applyOverlayDiff (incremental add/remove, no setStyle)
+  // 3. Base changed → full setStyle rebuild
   async applyState(state: ActiveMapLayerState, language?: string): Promise<void> {
     if (language !== undefined) this.currentLanguage = language
     const version = ++this.applyVersion
-    const base = getMapLayer(state.baseLayerId) ?? getMapLayer('liberty-topo') ?? getMapLayer('osm-raster')
+    const base = findMapLayer(state.baseLayerId) ?? findMapLayer('liberty-topo') ?? findMapLayer('osm-raster')
     if (base === null || base.role !== 'base') throw new Error('No default base map is registered')
 
     const runtimeLayers = resolveRuntimeLayerStack(state)
@@ -68,7 +77,7 @@ export class MapStyleManager {
       baseStyle = await this.buildBaseStyle(base, state)
     } catch (error) {
       console.warn('[map-style] Failed to load style, falling back to osm-raster:', error)
-      const fallback = getMapLayer('osm-raster')
+      const fallback = findMapLayer('osm-raster')
       if (fallback === null || fallback.role !== 'base') return
       runtimeComposition = await this.composeRuntimeLayers(runtimeLayers, state)
       baseStyle = await this.buildBaseStyle(fallback, state)
@@ -129,7 +138,7 @@ export class MapStyleManager {
 
   private async buildBaseStyle(base: Extract<MapLayerDefinition, { role: 'base' }>, state: ActiveMapLayerState): Promise<StyleSpecification> {
     const style = base.kind === 'vector-base'
-      ? await this.readRemoteStyle(base.id, base.styleUrl)
+      ? structuredClone(await this.readRemoteStyle(base.id, base.styleUrl)) as StyleSpecification
       : this.applyVisualProfile(this.readInlineStyle(base), base, state.opacityByLayerId[base.id])
     ensureApplicationAnchors(style)
     return style
@@ -177,7 +186,7 @@ export class MapStyleManager {
 
   private applyLayerOpacities(layers: readonly MapLayerDefinition[], state: ActiveMapLayerState): void {
     for (const layer of layers) {
-      const opacity = state.opacityByLayerId[layer.id] ?? layer.defaultOpacity
+      const opacity = state.opacityByLayerId[layer.id] ?? resolveLayerDefaults(layer).defaultOpacity
       for (const styleLayerId of this.paintLayerIdsByLayerId.get(layer.id) ?? []) this.applyManagedLayerOpacity(styleLayerId, layer, opacity)
     }
   }
@@ -190,7 +199,7 @@ export class MapStyleManager {
 
   private applyVisualProfile(style: StyleSpecification, layer: MapLayerDefinition, opacityOverride?: number): StyleSpecification {
     const profile = resolveVisualProfile(layer)
-    const opacity = opacityOverride ?? layer.defaultOpacity
+    const opacity = opacityOverride ?? resolveLayerDefaults(layer).defaultOpacity
     const rasterProfile = getRasterProfile(profile)
     const hillshadeProfile = getHillshadeProfile(profile)
     const layers = (style.layers ?? []).map((entry) => {
@@ -228,19 +237,30 @@ export class MapStyleManager {
   }
 
   private async readRemoteStyle(layerId: string, styleUrl: string): Promise<StyleSpecification> {
-    const resolvedStyleUrl = resolveProjectOwnedStyleUrl(styleUrl)
     const cached = this.styleCache.get(layerId)
-    if (cached !== undefined) return structuredClone(cached) as StyleSpecification
-    const response = await fetch(resolvedStyleUrl, { cache: 'no-cache' })
-    if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
-    const style = normalizeRemoteStyle(await response.json() as StyleSpecification, resolvedStyleUrl, this.currentLanguage)
-    this.styleCache.set(layerId, style)
-    return structuredClone(style) as StyleSpecification
+    if (cached !== undefined) return cached
+    this.emitStatus(layerId, 'loading')
+    try {
+      const fetchUrl = resolveProjectOwnedStyleUrl(styleUrl)
+      const response = await fetch(fetchUrl)
+      if (!response.ok) throw new Error(`Map style ${layerId} failed: ${response.status}`)
+      const style = normalizeRemoteStyle(await response.json() as StyleSpecification, styleUrl, this.currentLanguage)
+      this.styleCache.set(layerId, style)
+      this.emitStatus(layerId, 'ready')
+      return style
+    } catch (error) {
+      this.emitStatus(layerId, 'failed')
+      throw error
+    }
+  }
+
+  private emitStatus(layerId: string, status: MapLayerLoadStatus): void {
+    this.onStatusChange?.(layerId, status)
   }
 }
 
 function resolveRuntimeLayerStack(state: ActiveMapLayerState): MapLayerDefinition[] {
-  return [...state.terrainLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'terrain'), ...state.overlayLayerIds.map((id) => getMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'overlay')].sort((a, b) => a.order - b.order)
+  return [...state.terrainLayerIds.map((id) => findMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'terrain'), ...state.overlayLayerIds.map((id) => findMapLayer(id)).filter((layer): layer is MapLayerDefinition => layer?.role === 'overlay')].sort((a, b) => a.order - b.order)
 }
 
 function ensureApplicationAnchors(style: StyleSpecification): void {
@@ -260,12 +280,13 @@ function resolveProjectOwnedStyleUrl(styleUrl: string): string {
   if (styleUrl === 'https://styles.gpx.studio/liberty-topo.json') return '/map-styles/liberty-topo.json'
   if (styleUrl === 'https://styles.gpx.studio/osm.json') return '/map-styles/osm-vector.json'
   if (styleUrl === 'https://styles.gpx.studio/osm-topo.json') return '/map-styles/osm-topo-vector.json'
+  if (styleUrl === 'https://maps.utagawavtt.com/styles/utagawavtt/style.json') return '/map-styles/utagawa-vtt.json'
   return styleUrl
 }
 
 function normalizeRemoteStyle(style: StyleSpecification, styleUrl: string, lang: string): StyleSpecification {
   const base = new URL(styleUrl, window.location.href)
-  const copy = structuredClone(style) as StyleSpecification
+  const copy = { ...style, sources: { ...(style.sources ?? {}) }, layers: [...(style.layers ?? [])] } as StyleSpecification
   if (typeof copy.sprite === 'string') copy.sprite = resolveRelativeUrl(copy.sprite, base)
   if (typeof copy.glyphs === 'string') copy.glyphs = resolveRelativeUrl(copy.glyphs, base)
   for (const source of Object.values(copy.sources ?? {})) {
@@ -308,7 +329,9 @@ function rewriteTextFieldForLang(textField: unknown[], lang: string): unknown[] 
 }
 
 function resolveVisualProfile(layer: MapLayerDefinition | null) {
-  return layer?.visualProfileId === undefined ? undefined : mapVisualProfiles[layer.visualProfileId as keyof typeof mapVisualProfiles]
+  if (layer === null) return undefined
+  const { visualProfileId } = resolveLayerDefaults(layer)
+  return mapVisualProfiles[visualProfileId as keyof typeof mapVisualProfiles]
 }
 
 function getRasterProfile(profile: ReturnType<typeof resolveVisualProfile>) {

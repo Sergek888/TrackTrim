@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
@@ -9,6 +9,7 @@ import type { TrackSource } from '../../application/sources/TrackSource'
 import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { loadMapSettings, saveMapSettings } from '../../map/mapSettings'
+import { createLayerStatusState, setLayerStatus, type MapLayerStatusState } from '../../map/mapLayerStatus'
 import { defaultTrackColor } from '../trackColors'
 import Notice from '../shared/Notice'
 import TrackMap from '../map/TrackMap'
@@ -46,8 +47,13 @@ export default function TrackWorkspace() {
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [activePanel, setActivePanel] = useState<WorkspacePanel | null>(null)
   const [mapSettings, setMapSettings] = useState(loadMapSettings)
+  const [layerStatus, setLayerStatusState] = useState<MapLayerStatusState>(createLayerStatusState)
   const [colorPalette, setColorPalette] = useState<ColorPaletteState | null>(null)
   const [sourceLinkError, setSourceLinkError] = useState<string | null>(null)
+
+  const handleLayerStatus = useCallback((layerId: string, status: 'idle' | 'loading' | 'ready' | 'failed') => {
+    setLayerStatusState((prev) => setLayerStatus(prev, layerId, status))
+  }, [])
 
   useEffect(
     () => library.subscribe((change) => {
@@ -260,6 +266,7 @@ export default function TrackWorkspace() {
             setTooltip(null)
             setColorPalette(null)
           }}
+          onLayerStatus={handleLayerStatus}
           extraButtons={extraButtons}
         />
 
@@ -305,6 +312,7 @@ export default function TrackWorkspace() {
         isMapSettingsOpen={activePanel === 'map-settings'}
         isLayerAvailabilityOpen={activePanel === 'layer-availability'}
         mapSettings={mapSettings}
+        layerStatus={layerStatus}
         colorPalette={colorPalette}
         onAddSourceClose={closePanel}
         onSettingsClose={closePanel}

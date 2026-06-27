@@ -1,43 +1,60 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { Track } from '../../model/Track'
 import type { MapSettings } from '../../map/mapSettings'
+import type { MapLayerLoadStatus } from '../../map/mapLayerStatus'
 import { MapStyleManager } from '../../map/mapStyleManager'
+import {
+  type MapRuntimeState,
+  createMapRuntimeState,
+  recordManualPan,
+  recordAutoPosition,
+  updateCamera,
+  shouldAutoFit,
+} from '../../map/mapRuntimeState'
 import { allTracksBounds, trackBounds } from './mapBounds'
-import { createMapStyleButton } from './mapIcons'
-import { queryTrackFeatures, resetInteractiveCursor, setInteractiveCursor } from './mapHitTest'
+import { bindMapEvents } from './MapEvents'
+import { getInitialFitPadding, getFocusFitPadding } from './MapFitPadding'
+import MapControlBar, { type ExtraButton } from './MapControlBar'
+import MapCanvas from './MapCanvas'
 import { restoreTrackRuntimeLayers, updateTrackRuntimeData } from './trackRuntimeLayers'
 import './map.css'
 
-type ExtraButton = { icon: ReactNode; label: string; title: string; active?: boolean; controls?: string; onClick: () => void }
-type Props = { tracks: readonly Track[]; activeTrack: Track | null; focusedTrack: { track: Track; version: number } | null; mapSettings: MapSettings; isMapSettingsOpen: boolean; isRightPanelOpen: boolean; onMapSettingsToggle: () => void; onTrackClick: (track: Track, point: TrackMapPoint) => void; onMapClick: () => void; extraButtons?: readonly ExtraButton[] }
+type Props = {
+  tracks: readonly Track[]
+  activeTrack: Track | null
+  focusedTrack: { track: Track; version: number } | null
+  mapSettings: MapSettings
+  isMapSettingsOpen: boolean
+  isRightPanelOpen: boolean
+  onMapSettingsToggle: () => void
+  onTrackClick: (track: Track, point: TrackMapPoint) => void
+  onMapClick: () => void
+  onLayerStatus?: (layerId: string, status: MapLayerLoadStatus) => void
+  extraButtons?: readonly ExtraButton[]
+}
+
 export type TrackMapPoint = { latitude: number; longitude: number; x: number; y: number }
 
-export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isMapSettingsOpen, isRightPanelOpen, onMapSettingsToggle, onTrackClick, onMapClick, extraButtons }: Props) {
+export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isMapSettingsOpen, isRightPanelOpen, onMapSettingsToggle, onTrackClick, onMapClick, onLayerStatus, extraButtons }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const [controlGroup, setControlGroup] = useState<HTMLElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const styleManagerRef = useRef<MapStyleManager | null>(null)
-  const styleButtonRef = useRef<HTMLButtonElement | null>(null)
-  const extraButtonRefs = useRef<HTMLButtonElement[]>([])
-  const [controlsReady, setControlsReady] = useState(false)
-  const latest = useRef({ tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onMapSettingsToggle, isRightPanelOpen })
-  const fittedRef = useRef(false)
+  const runtimeStateRef = useRef<MapRuntimeState>(createMapRuntimeState())
+  const initialFittedRef = useRef(false)
+  const programmaticMoveRef = useRef(false)
   const readyRef = useRef(false)
-  latest.current = { tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onMapSettingsToggle, isRightPanelOpen }
+  const latest = useRef({ tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onLayerStatus })
+  latest.current = { tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onLayerStatus }
 
   useEffect(() => {
     if (containerRef.current === null) return
+
     const map = new maplibregl.Map({ container: containerRef.current, style: { version: 8, sources: {}, layers: [] }, center: [10, 45], zoom: 4 })
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
-    const group = containerRef.current.querySelector<HTMLElement>('.maplibregl-ctrl-top-right .maplibregl-ctrl-group')
-    const handleStyleClick = () => latest.current.onMapSettingsToggle()
-    if (group !== null) {
-      const button = createMapStyleButton(handleStyleClick); group.append(button); styleButtonRef.current = button
-      extraButtonRefs.current = (extraButtons ?? []).map(() => { const item = document.createElement('button'); item.className = 'maplibregl-ctrl-icon map-extra-toggle'; item.type = 'button'; group.append(item); return item })
-      setControlsReady(true)
-    }
+    setControlGroup(containerRef.current.querySelector<HTMLElement>('.maplibregl-ctrl-top-right .maplibregl-ctrl-group'))
 
     const restoreRuntime = () => restoreTrackRuntimeLayers(
       map,
@@ -45,18 +62,87 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
       latest.current.activeTrack,
       latest.current.mapSettings.activeLayerState.baseLayerId,
     )
-    styleManagerRef.current = new MapStyleManager(map, restoreRuntime)
-    map.on('load', () => { readyRef.current = true; void styleManagerRef.current?.applyState(latest.current.mapSettings.activeLayerState, latest.current.mapSettings.mapLanguage).then(() => { const bounds = allTracksBounds(latest.current.tracks); if (bounds !== null) { const padding = latest.current.isRightPanelOpen ? { top: 64, right: 424, bottom: 64, left: 64 } : 64; map.fitBounds(bounds, { padding, duration: 0, maxZoom: 16 }); fittedRef.current = true } }) })
-    map.on('mousemove', (event) => queryTrackFeatures(map, event.point).length > 0 ? setInteractiveCursor(map) : resetInteractiveCursor(map))
-    map.on('click', (event) => { const index = queryTrackFeatures(map, event.point)[0]?.properties?.featureIndex; const track = typeof index === 'number' ? latest.current.tracks[index] : undefined; if (track === undefined) latest.current.onMapClick(); else latest.current.onTrackClick(track, { latitude: event.lngLat.lat, longitude: event.lngLat.lng, x: event.point.x, y: event.point.y }) })
-    return () => { map.remove(); mapRef.current = null; styleManagerRef.current = null; readyRef.current = false }
+    styleManagerRef.current = new MapStyleManager(map, restoreRuntime, (layerId, status) => latest.current.onLayerStatus?.(layerId, status))
+
+    map.on('movestart', () => {
+      if (!programmaticMoveRef.current) {
+        runtimeStateRef.current = recordManualPan(runtimeStateRef.current)
+      }
+    })
+
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      const zoom = map.getZoom()
+      runtimeStateRef.current = updateCamera(runtimeStateRef.current, center, zoom)
+    })
+
+    map.on('load', () => {
+      readyRef.current = true
+      void styleManagerRef.current?.applyState(latest.current.mapSettings.activeLayerState, latest.current.mapSettings.mapLanguage).then(() => {
+        const bounds = allTracksBounds(latest.current.tracks)
+        if (bounds !== null) {
+          programmaticMoveRef.current = true
+          map.fitBounds(bounds, { padding: getInitialFitPadding(false), duration: 0, maxZoom: 16 })
+          initialFittedRef.current = true
+          const center = map.getCenter()
+          const zoom = map.getZoom()
+          runtimeStateRef.current = recordAutoPosition(runtimeStateRef.current, center, zoom)
+          programmaticMoveRef.current = false
+        }
+      })
+    })
+
+    bindMapEvents(map, {
+      onTrackClick: (track, point) => latest.current.onTrackClick(track, point),
+      onMapClick: () => latest.current.onMapClick(),
+    }, () => latest.current.tracks)
+
+    return () => { map.remove(); mapRef.current = null; styleManagerRef.current = null; readyRef.current = false; initialFittedRef.current = false; programmaticMoveRef.current = false }
   }, [])
 
-  useEffect(() => { styleButtonRef.current?.setAttribute('aria-expanded', String(isMapSettingsOpen)) }, [isMapSettingsOpen])
-  useEffect(() => { if (readyRef.current) void styleManagerRef.current?.applyState(mapSettings.activeLayerState, mapSettings.mapLanguage) }, [mapSettings.activeLayerState, mapSettings.mapLanguage])
-  useEffect(() => { const map = mapRef.current; if (map === null || !readyRef.current) return; updateTrackRuntimeData(map, tracks, activeTrack); if (!fittedRef.current) { const bounds = allTracksBounds(tracks); if (bounds !== null) { const padding = isRightPanelOpen ? { top: 64, right: 424, bottom: 64, left: 64 } : 64; map.fitBounds(bounds, { padding, duration: 0, maxZoom: 16 }); fittedRef.current = true } } }, [tracks, activeTrack, isRightPanelOpen])
-  useEffect(() => { const map = mapRef.current; if (map === null || focusedTrack === null) return; const bounds = trackBounds(focusedTrack.track); if (bounds !== null) { const padding = isRightPanelOpen ? { top: 80, right: 440, bottom: 80, left: 80 } : 80; map.fitBounds(bounds, { padding, duration: 450, maxZoom: 16 }) } }, [focusedTrack, isRightPanelOpen])
-  useEffect(() => { extraButtonRefs.current.forEach((button, index) => { const cfg = extraButtons?.[index]; if (cfg === undefined) return; button.setAttribute('aria-label', cfg.label); button.setAttribute('title', cfg.title); button.setAttribute('aria-pressed', String(cfg.active ?? false)); button.toggleAttribute('data-active', cfg.active ?? false); if (cfg.controls !== undefined) button.setAttribute('aria-controls', cfg.controls); button.onclick = cfg.onClick }) }, [extraButtons])
+  useEffect(() => {
+    if (readyRef.current) void styleManagerRef.current?.applyState(mapSettings.activeLayerState, mapSettings.mapLanguage)
+  }, [mapSettings.activeLayerState, mapSettings.mapLanguage])
 
-  return <><div className="track-map" ref={containerRef} aria-label="Track map" />{controlsReady && extraButtonRefs.current.map((button, index) => { const config = extraButtons?.[index]; return config === undefined ? null : createPortal(config.icon, button) })}</>
+  useEffect(() => {
+    const map = mapRef.current
+    if (map === null || !readyRef.current) return
+    updateTrackRuntimeData(map, tracks, activeTrack)
+    const state = runtimeStateRef.current
+    if (!initialFittedRef.current || shouldAutoFit(state)) {
+      const bounds = allTracksBounds(tracks)
+      if (bounds !== null) {
+        programmaticMoveRef.current = true
+        map.fitBounds(bounds, { padding: getInitialFitPadding(isRightPanelOpen), duration: 0, maxZoom: 16 })
+        initialFittedRef.current = true
+        const center = map.getCenter()
+        const zoom = map.getZoom()
+        runtimeStateRef.current = recordAutoPosition(state, center, zoom)
+        programmaticMoveRef.current = false
+      }
+    }
+  }, [tracks, activeTrack, isRightPanelOpen])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map === null || focusedTrack === null) return
+    const bounds = trackBounds(focusedTrack.track)
+    if (bounds !== null) {
+      programmaticMoveRef.current = true
+      map.fitBounds(bounds, { padding: getFocusFitPadding(isRightPanelOpen), duration: 450, maxZoom: 16 })
+      programmaticMoveRef.current = false
+    }
+  }, [focusedTrack, isRightPanelOpen])
+
+  return (
+    <>
+      <MapCanvas ref={containerRef} />
+      <MapControlBar
+        controlGroup={controlGroup}
+        extraButtons={extraButtons}
+        isMapSettingsOpen={isMapSettingsOpen}
+        onMapSettingsToggle={onMapSettingsToggle}
+      />
+    </>
+  )
 }

@@ -1,4 +1,4 @@
-import { mapLayers } from '../../map/mapLayers'
+import { mapLayers } from '../../map/mapLayerRegistry'
 import { normalizeMapSettings, type MapSettings } from '../../map/mapSettings'
 import Panel from '../shared/Panel'
 
