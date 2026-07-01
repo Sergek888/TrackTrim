@@ -17,35 +17,48 @@ import {
   type KomootSport,
   type KomootTarget,
   type KomootTourSummary,
-  type KomootUserListType,
 } from '../../komoot/KomootApi'
 import { downloadTextFile } from '../download/downloadTextFile'
+import { getKomootApi } from '../komoot/getKomootApi'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
 
 export type { KomootUserListType } from '../../komoot/KomootApi'
+
+export type KomootTrackSourceOptions = {
+  readonly url: string
+  readonly name: string
+  readonly color: string
+  readonly visible?: boolean
+  readonly expanded?: boolean
+  readonly order?: number
+}
 
 export class KomootTrackSource implements TrackSource {
   public visible = true
   public expanded = true
   public order = 0
+  public readonly url: string
+  public name: string
+  public color: string
 
   private readonly target: KomootTarget
   private readonly komootApi: KomootApi
   private readonly summaries = new WeakMap<TrackMeta, KomootTourSummary>()
 
-  public constructor(
-    public readonly url: string,
-    public name: string,
-    public color: string,
-    userListType: KomootUserListType = 'planned',
-    komootApi: KomootApi,
-  ) {
-    const target = komootApi.urls.parse(url, { userListType })
+  public constructor(options: KomootTrackSourceOptions) {
+    const komootApi = getKomootApi()
+    const target = komootApi.urls.parse(options.url)
 
     if (target === null) {
       throw new Error('Komoot tour, collection, profile URL, or user id is invalid.')
     }
 
+    this.url = options.url
+    this.name = options.name
+    this.color = options.color
+    this.visible = options.visible ?? true
+    this.expanded = options.expanded ?? true
+    this.order = options.order ?? 0
     this.target = target
     this.komootApi = komootApi
   }
@@ -136,6 +149,17 @@ export class KomootTrackSource implements TrackSource {
       this.gpxFileName(meta?.name ?? 'komoot-tour'),
       payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
     )
+  }
+
+  public exportState(): Record<string, unknown> {
+    return {
+      url: this.url,
+      name: this.name,
+      color: this.color,
+      visible: this.visible,
+      expanded: this.expanded,
+      order: this.order,
+    }
   }
 
   public getOriginalUrl(meta: TrackMeta): string | null {

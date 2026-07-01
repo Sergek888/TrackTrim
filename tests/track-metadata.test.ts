@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { configureKomootApi } from '../src/application/komoot/getKomootApi'
 import { KomootTrackSource } from '../src/application/sources/KomootTrackSource'
 import type { TrackFormat, TrackSource } from '../src/application/sources/TrackSource'
 import { gpxConverter } from '../src/formats/gpx/GpxConverter'
@@ -142,6 +143,7 @@ test('Komoot source prepares metadata without extra requests and preserves sourc
       getTargetType: () => 'tour',
       getTourUrl: () => 'https://www.komoot.com/tour/42',
       getTourShareUrl: () => null,
+      getUserUrl: (userId: string) => `https://www.komoot.com/user/${userId}`,
     },
     import: {
       importTarget: async () => {
@@ -157,7 +159,13 @@ test('Komoot source prepares metadata without extra requests and preserves sourc
     },
   } as unknown as KomootApi
 
-  const source = new KomootTrackSource('https://www.komoot.com/tour/42', 'Komoot', '#123456', 'planned', api)
+  configureKomootApi(api)
+
+  const source = new KomootTrackSource({
+    url: 'https://www.komoot.com/tour/42',
+    name: 'Komoot',
+    color: '#123456',
+  })
   const meta = (await source.loadTrackMetas())[0]
 
   assert.equal(importCalls, 1)
@@ -169,6 +177,42 @@ test('Komoot source prepares metadata without extra requests and preserves sourc
   assert.equal(meta?.durationSeconds, 1200)
   assert.equal(meta?.elevationGainMeters, 99)
   assert.equal(meta?.elevationLossMeters, 30)
+})
+
+test('Komoot source constructor and exportState use serializable state only', () => {
+  const api = {
+    urls: {
+      parse: () => ({ kind: 'tour', id: '42' }),
+      getTargetType: () => 'tour',
+      getTourUrl: () => 'https://www.komoot.com/tour/42',
+      getTourShareUrl: () => null,
+      getUserUrl: (userId: string) => `https://www.komoot.com/user/${userId}`,
+    },
+  } as unknown as KomootApi
+
+  configureKomootApi(api)
+
+  const source = new KomootTrackSource({
+    url: 'https://www.komoot.com/tour/42',
+    name: 'Komoot',
+    color: '#123456',
+    visible: false,
+    expanded: false,
+    order: 7,
+  })
+
+  assert.deepEqual(source.exportState(), {
+    url: 'https://www.komoot.com/tour/42',
+    name: 'Komoot',
+    color: '#123456',
+    visible: false,
+    expanded: false,
+    order: 7,
+  })
+  assert.equal('komootApi' in source.exportState(), false)
+  assert.equal('target' in source.exportState(), false)
+  assert.equal('summaries' in source.exportState(), false)
+  assert.equal('userListType' in source.exportState(), false)
 })
 
 test('Track calculations use standalone functions', () => {

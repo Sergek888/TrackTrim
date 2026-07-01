@@ -2,14 +2,11 @@ import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes.js'
 
 const USER_ID_PATTERN = /^\d{6,16}$/
 
-export function parseKomootTarget(
-  input: string,
-  options: { userListType?: KomootUserListType } = {},
-): KomootTarget | null {
+export function parseKomootTarget(input: string): KomootTarget | null {
   const trimmed = input.trim()
 
   if (USER_ID_PATTERN.test(trimmed)) {
-    return { kind: 'user', id: trimmed, listType: options.userListType ?? 'planned' }
+    return { kind: 'user', id: trimmed, listType: 'planned' }
   }
 
   let url: URL
@@ -40,8 +37,12 @@ export function parseKomootTarget(
     return { kind: 'collection', id, shareToken }
   }
   if (type === 'user') {
-    return { kind: 'user', id, listType: options.userListType ?? 'planned' }
+    return { kind: 'user', id, listType: userListTypeFromUrl(url) }
   }
 
   return null
+}
+
+function userListTypeFromUrl(url: URL): KomootUserListType {
+  return url.searchParams.get('type') === 'completed' ? 'recorded' : 'planned'
 }

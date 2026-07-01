@@ -1,4 +1,5 @@
 import type { KomootApi } from '../komoot/KomootApi.js'
+import { configureKomootApi } from './komoot/getKomootApi.js'
 import { KomootTrackSource } from './sources/KomootTrackSource.js'
 import type { TrackSource } from './sources/TrackSource.js'
 
@@ -24,19 +25,16 @@ export function createTrackSourceFromAppUrl(
     throw new Error('The source link is not supported.')
   }
 
-  const source = new KomootTrackSource(
-    sourceUrl,
-    targetType === 'tour'
+  configureKomootApi(options.komootApi)
+
+  return new KomootTrackSource({
+    url: sourceUrl,
+    name: targetType === 'tour'
       ? 'Komoot tour'
       : targetType === 'collection'
         ? 'Komoot collection'
         : 'Komoot profile',
-    options.color,
-    'planned',
-    options.komootApi,
-  )
-
-  source.order = options.order
-
-  return source
+    color: options.color,
+    order: options.order,
+  })
 }

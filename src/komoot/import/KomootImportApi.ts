@@ -11,7 +11,7 @@ import type { KomootUrlApi } from '../url/KomootUrlApi.js'
 
 export interface KomootImportApi {
   importTarget(target: KomootTarget): Promise<KomootImportResult>
-  importUrl(input: string, options?: { userListType?: KomootUserListType }): Promise<KomootImportResult>
+  importUrl(input: string): Promise<KomootImportResult>
   importTour(id: string, options?: KomootShareOptions): Promise<KomootImportResult>
   importCollection(id: string, options?: KomootShareOptions): Promise<KomootImportResult>
   importUserTours(userId: string, listType: KomootUserListType): Promise<KomootImportResult>
@@ -34,11 +34,8 @@ export class DefaultKomootImportApi implements KomootImportApi {
     return this.importUserTours(target.id, target.listType)
   }
 
-  public importUrl(
-    input: string,
-    options: { userListType?: KomootUserListType } = {},
-  ): Promise<KomootImportResult> {
-    const target = this.urls.parse(input, options)
+  public importUrl(input: string): Promise<KomootImportResult> {
+    const target = this.urls.parse(input)
     if (target === null) {
       throw new Error('Komoot URL is not supported.')
     }

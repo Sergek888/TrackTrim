@@ -1,8 +1,8 @@
-import type { KomootTarget, KomootUserListType } from '../shared/KomootTypes.js'
+import type { KomootTarget } from '../shared/KomootTypes.js'
 import { parseKomootTarget } from './KomootUrlParser.js'
 
 export interface KomootUrlApi {
-  parse(input: string, options?: { userListType?: KomootUserListType }): KomootTarget | null
+  parse(input: string): KomootTarget | null
   getTargetType(input: string): KomootTarget['kind'] | null
   getTourUrl(id: string): string
   getTourShareUrl(id: string): string
@@ -11,8 +11,8 @@ export interface KomootUrlApi {
 }
 
 export class DefaultKomootUrlApi implements KomootUrlApi {
-  public parse(input: string, options?: { userListType?: KomootUserListType }): KomootTarget | null {
-    return parseKomootTarget(input, options)
+  public parse(input: string): KomootTarget | null {
+    return parseKomootTarget(input)
   }
 
   public getTargetType(input: string): KomootTarget['kind'] | null {
