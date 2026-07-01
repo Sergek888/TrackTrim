@@ -2,7 +2,7 @@ import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import { findMapLayer, resolveLayerDefaults } from '../../map/mapLayerRegistry'
 import { MAP_LAYER_ANCHORS } from '../../map/mapStyleManager'
 import { mapVisualProfiles } from '../../map/mapVisualProfiles'
-import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import {
   activeTrackToMarkerFeatureCollectionGeoJson,
   tracksToFeatureCollectionGeoJson,
@@ -36,14 +36,16 @@ export const ACTIVE_TRACK_CASING_LAYER_ID = 'active-track-lines-casing'
 
 export function restoreTrackRuntimeLayers(
   map: maplibregl.Map,
-  tracks: readonly Track[],
-  activeTrack: Track | null,
+  trackMetas: readonly TrackMeta[],
+  activeMeta: TrackMeta | null,
   baseLayerId: string,
 ): void {
+  const activeTrack = activeMeta?.track ?? null
+
   if (map.getSource(TRACKS_SOURCE_ID) === undefined) {
     map.addSource(TRACKS_SOURCE_ID, {
       type: 'geojson',
-      data: tracks.length === 0 ? EMPTY_TRACKS : tracksToFeatureCollectionGeoJson(tracks, activeTrack),
+      data: trackMetas.length === 0 ? EMPTY_TRACKS : tracksToFeatureCollectionGeoJson(trackMetas, activeMeta),
     })
   }
 
@@ -77,13 +79,26 @@ export function restoreTrackRuntimeLayers(
   }
 }
 
-export function updateTrackRuntimeData(map: maplibregl.Map, tracks: readonly Track[], activeTrack: Track | null): void {
-  (map.getSource(TRACKS_SOURCE_ID) as GeoJSONSource | undefined)?.setData(
-    tracks.length === 0 ? EMPTY_TRACKS : tracksToFeatureCollectionGeoJson(tracks, activeTrack),
-  )
-  ;(map.getSource(TRACK_MARKERS_SOURCE_ID) as GeoJSONSource | undefined)?.setData(
-    activeTrack === null ? EMPTY_MARKERS : activeTrackToMarkerFeatureCollectionGeoJson(activeTrack),
-  )
+export function updateTrackRuntimeData(
+  map: maplibregl.Map,
+  trackMetas: readonly TrackMeta[],
+  activeMeta: TrackMeta | null,
+): void {
+  const activeTrack = activeMeta?.track ?? null
+  const tracksSource = map.getSource(TRACKS_SOURCE_ID) as GeoJSONSource | undefined
+  const markersSource = map.getSource(TRACK_MARKERS_SOURCE_ID) as GeoJSONSource | undefined
+
+  if (tracksSource !== undefined) {
+    tracksSource.setData(
+      trackMetas.length === 0 ? EMPTY_TRACKS : tracksToFeatureCollectionGeoJson(trackMetas, activeMeta),
+    )
+  }
+
+  if (markersSource !== undefined) {
+    markersSource.setData(
+      activeTrack === null ? EMPTY_MARKERS : activeTrackToMarkerFeatureCollectionGeoJson(activeTrack),
+    )
+  }
 }
 
 function getTrackStyle(baseLayerId: string): typeof DEFAULT_TRACK_STYLE {

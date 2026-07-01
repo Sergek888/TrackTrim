@@ -14,7 +14,7 @@ export interface TrackSource {
   loadTrackMetas(): Promise<TrackMeta[]>
   loadTrack(meta: TrackMeta): Promise<Track>
   loadTracks(onTrackLoaded?: TrackLoadCallback): Promise<Track[]>
-  saveTrack(track: Track, format: TrackFormat): Promise<void>
+  saveTrack(meta: TrackMeta, format: TrackFormat): Promise<void>
   getOriginalUrl(meta: TrackMeta): string | null
   getShareUrl(meta: TrackMeta): string | null
 }

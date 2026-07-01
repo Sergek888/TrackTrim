@@ -1,4 +1,3 @@
-import type { TrackMeta } from './TrackMeta'
 import type { TrackPoint } from './TrackPoint'
 import { TrackSegment } from './TrackSegment'
 import type { ViewPoint } from './ViewPoint'
@@ -10,7 +9,6 @@ export class Track {
   public constructor(
     segments: TrackSegment[],
     viewpoints: ViewPoint[],
-    public readonly meta: TrackMeta | null = null,
   ) {
     this.segments = Object.freeze([...segments])
     this.viewpoints = Object.freeze([...viewpoints])
@@ -18,13 +16,11 @@ export class Track {
 
   public static fromPoints(
     points: TrackPoint[],
-    meta?: TrackMeta | null,
     viewpoints?: ViewPoint[],
   ): Track {
     return new Track(
       [new TrackSegment(points)],
       viewpoints ?? [],
-      meta ?? null,
     )
   }
 

@@ -67,11 +67,11 @@ export class TrackLibrary {
         this.trackMetas.push(meta)
       }
 
-      const firstReadyTrack = metas.find((meta) => meta.track !== null)?.track ?? null
+      const firstReadyMeta = metas.find((meta) => meta.track !== null) ?? null
 
-      if (this.activeMeta === null && firstReadyTrack !== null && firstReadyTrack.meta !== null) {
-        this.activeMeta = firstReadyTrack.meta
-        this.focusedTrack = { track: firstReadyTrack, version: Date.now() }
+      if (this.activeMeta === null && firstReadyMeta !== null && firstReadyMeta.track !== null) {
+        this.activeMeta = firstReadyMeta
+        this.focusedTrack = { track: firstReadyMeta.track, version: Date.now() }
       }
 
       this.notify(true)
@@ -249,9 +249,14 @@ export class TrackLibrary {
   }
 
   public visibleTracks(): Track[] {
-    return this.visibleMetasInMapLayerOrder()
+    return this.visibleTrackMetas()
       .map((meta) => meta.track)
       .filter((track): track is Track => track !== null)
+  }
+
+  public visibleTrackMetas(): TrackMeta[] {
+    return this.visibleMetasInMapLayerOrder()
+      .filter((meta) => meta.track !== null)
   }
 
   public isLoading(): boolean {

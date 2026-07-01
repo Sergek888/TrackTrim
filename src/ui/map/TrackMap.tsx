@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 import type { MapSettings } from '../../map/mapSettings'
 import type { MapLayerLoadStatus } from '../../map/mapLayerStatus'
 import { MapStyleManager } from '../../map/mapStyleManager'
@@ -21,12 +22,12 @@ import { restoreTrackRuntimeLayers, updateTrackRuntimeData } from './trackRuntim
 import './map.css'
 
 type Props = {
-  tracks: readonly Track[]
-  activeTrack: Track | null
+  trackMetas: readonly TrackMeta[]
+  activeMeta: TrackMeta | null
   focusedTrack: { track: Track; version: number } | null
   mapSettings: MapSettings
   isRightPanelOpen: boolean
-  onTrackClick: (track: Track, point: TrackMapPoint) => void
+  onTrackClick: (meta: TrackMeta, point: TrackMapPoint) => void
   onMapClick: () => void
   onLayerStatus?: (layerId: string, status: MapLayerLoadStatus) => void
   extraButtons?: readonly ExtraButton[]
@@ -34,7 +35,11 @@ type Props = {
 
 export type TrackMapPoint = { latitude: number; longitude: number; x: number; y: number }
 
-export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSettings, isRightPanelOpen, onTrackClick, onMapClick, onLayerStatus, extraButtons }: Props) {
+export default function TrackMap({ trackMetas, activeMeta, focusedTrack, mapSettings, isRightPanelOpen, onTrackClick, onMapClick, onLayerStatus, extraButtons }: Props) {
+  const tracks = useMemo(
+    () => trackMetas.map((meta) => meta.track).filter((track): track is Track => track !== null),
+    [trackMetas],
+  )
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [controlGroup, setControlGroup] = useState<HTMLElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -43,8 +48,8 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
   const initialFittedRef = useRef(false)
   const programmaticMoveRef = useRef(false)
   const readyRef = useRef(false)
-  const latest = useRef({ tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onLayerStatus })
-  latest.current = { tracks, activeTrack, mapSettings, onTrackClick, onMapClick, onLayerStatus }
+  const latest = useRef({ tracks, trackMetas, activeMeta, mapSettings, onTrackClick, onMapClick, onLayerStatus })
+  latest.current = { tracks, trackMetas, activeMeta, mapSettings, onTrackClick, onMapClick, onLayerStatus }
 
   useEffect(() => {
     if (containerRef.current === null) return
@@ -56,8 +61,8 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
 
     const restoreRuntime = (appliedBaseLayerId: string) => restoreTrackRuntimeLayers(
       map,
-      latest.current.tracks,
-      latest.current.activeTrack,
+      latest.current.trackMetas,
+      latest.current.activeMeta,
       appliedBaseLayerId,
     )
     styleManagerRef.current = new MapStyleManager(map, restoreRuntime, (layerId, status) => latest.current.onLayerStatus?.(layerId, status))
@@ -91,7 +96,16 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
     })
 
     const unbindMapEvents = bindMapEvents(map, {
-      onTrackClick: (track, point) => latest.current.onTrackClick(track, point),
+      onTrackClick: (track, point) => {
+        const meta = latest.current.trackMetas.find((item) => item.track === track) ?? null
+
+        if (meta === null) {
+          latest.current.onMapClick()
+          return
+        }
+
+        latest.current.onTrackClick(meta, point)
+      },
       onMapClick: () => latest.current.onMapClick(),
     }, () => latest.current.tracks)
 
@@ -105,7 +119,7 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
   useEffect(() => {
     const map = mapRef.current
     if (map === null || !readyRef.current) return
-    updateTrackRuntimeData(map, tracks, activeTrack)
+    updateTrackRuntimeData(map, trackMetas, activeMeta)
     const state = runtimeStateRef.current
     if (!initialFittedRef.current || shouldAutoFit(state)) {
       const bounds = allTracksBounds(tracks)
@@ -119,7 +133,7 @@ export default function TrackMap({ tracks, activeTrack, focusedTrack, mapSetting
         programmaticMoveRef.current = false
       }
     }
-  }, [tracks, activeTrack, isRightPanelOpen])
+  }, [tracks, trackMetas, activeMeta, isRightPanelOpen])
 
   useEffect(() => {
     const map = mapRef.current

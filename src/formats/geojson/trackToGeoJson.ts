@@ -1,4 +1,5 @@
 import type { Track } from '../../model/Track'
+import type { TrackMeta } from '../../model/TrackMeta'
 
 export type TracksFeatureCollectionGeoJson = {
   type: 'FeatureCollection'
@@ -77,22 +78,30 @@ export function activeTrackToMarkerFeatureCollectionGeoJson(
 }
 
 export function tracksToFeatureCollectionGeoJson(
-  tracks: readonly Track[],
-  activeTrack: Track | null,
+  metas: readonly TrackMeta[],
+  activeMeta: TrackMeta | null,
 ): TracksFeatureCollectionGeoJson {
   return {
     type: 'FeatureCollection',
-    features: tracks.map((track, featureIndex) => ({
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: track.getPoints().map((point) => [point.lon, point.lat]),
-      },
-      properties: {
-        featureIndex,
-        color: track.meta?.color ?? '#2563eb',
-        active: track === activeTrack,
-      },
-    })),
+    features: metas.flatMap((meta, featureIndex) => {
+      const track = meta.track
+
+      if (track === null) {
+        return []
+      }
+
+      return [{
+        type: 'Feature' as const,
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: track.getPoints().map((point) => [point.lon, point.lat]),
+        },
+        properties: {
+          featureIndex,
+          color: meta.color,
+          active: meta === activeMeta,
+        },
+      }]
+    }),
   }
 }

@@ -6,7 +6,6 @@ import {
 import { TrackLibrary } from '../../application/TrackLibrary'
 import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
 import type { TrackSource } from '../../application/sources/TrackSource'
-import type { Track } from '../../model/Track'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { loadMapSettings, saveMapSettings } from '../../map/mapSettings'
 import { createLayerStatusState, setLayerStatus, type MapLayerStatusState } from '../../map/mapLayerStatus'
@@ -99,11 +98,10 @@ export default function TrackWorkspace() {
     return () => { controller.abort() }
   }, [])
 
-  const visibleTracks = useMemo(
-    () => library.visibleTracks(),
+  const visibleTrackMetas = useMemo(
+    () => library.visibleTrackMetas(),
     [library, mapVersion],
   )
-  const activeTrack = library.activeMeta?.track ?? null
   const komootState = useMemo(
     () => komootConnection.state,
     [komootConnection, komootConnectionVersion],
@@ -186,12 +184,9 @@ export default function TrackWorkspace() {
     setColorPalette(null)
   }
 
-  function handleMapTrackClick(track: Track): void {
-    if (track.meta !== null) {
-      library.activateTrack(track.meta)
-      setTooltip({ meta: track.meta })
-    }
-
+  function handleMapTrackClick(meta: TrackMeta): void {
+    library.activateTrack(meta)
+    setTooltip({ meta })
     setColorPalette(null)
   }
 
@@ -250,8 +245,8 @@ export default function TrackWorkspace() {
     >
       <div className="map-area">
         <TrackMap
-          tracks={visibleTracks}
-          activeTrack={activeTrack}
+          trackMetas={visibleTrackMetas}
+          activeMeta={library.activeMeta}
           focusedTrack={library.focusedTrack}
           mapSettings={mapSettings}
           isRightPanelOpen={isRightPanelOpen}

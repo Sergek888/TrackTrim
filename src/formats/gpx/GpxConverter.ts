@@ -349,7 +349,7 @@ export class GpxConverter implements TrackConverter {
       const name = typeof rawTrack.name === 'string' ? rawTrack.name : null
       const mergedOptions = { ...metadata, ...options }
 
-      const track = new Track(segments, viewpoints, null)
+      const track = new Track(segments, viewpoints)
       const metaOptions: TrackMetaOptions = {
         ...mergedOptions,
         name: name ?? 'GPX track',
@@ -366,7 +366,7 @@ export class GpxConverter implements TrackConverter {
       const name = typeof rawRoute.name === 'string' ? rawRoute.name : null
       const mergedOptions = { ...metadata, ...options }
 
-      const track = new Track(segments, [], null)
+      const track = new Track(segments, [])
       const metaOptions: TrackMetaOptions = {
         ...mergedOptions,
         name: name ?? 'GPX route',
@@ -377,7 +377,7 @@ export class GpxConverter implements TrackConverter {
     }
 
     if (tracks.length === 0 && viewpoints.length > 0) {
-      tracks.push(new Track([], viewpoints, null))
+      tracks.push(new Track([], viewpoints))
     }
 
     return tracks

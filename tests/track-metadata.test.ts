@@ -32,7 +32,7 @@ function sourceStub(): TrackSource {
     async loadTrackMetas() { return [] },
     async loadTrack() { throw new Error('Not implemented') },
     async loadTracks() { return [] },
-    async saveTrack(_track: Track, _format: TrackFormat) {},
+    async saveTrack(_meta: TrackMeta, _format: TrackFormat) {},
     getOriginalUrl() { return null },
     getShareUrl() { return null },
   }
@@ -239,7 +239,7 @@ test('local GPX metadata keeps activity time separate from file update time', ()
   const track = Track.fromPoints([
     { lat: 0, lon: 0, ele: 100, time: activityTime },
     { lat: 0, lon: 0.01, ele: 80, time: new Date(activityTime.getTime() + 60_000) },
-  ], meta)
+  ])
 
   meta.fillMissingFromPoints(track.getPoints())
 

@@ -23,7 +23,7 @@ function readySource(): { source: TrackSource; meta: TrackMeta } {
     async loadTracks() {
       return meta.track === null ? [] : [meta.track]
     },
-    async saveTrack(_track: Track, _format: TrackFormat) {},
+    async saveTrack(_meta: TrackMeta, _format: TrackFormat) {},
     getOriginalUrl() {
       return null
     },
@@ -36,7 +36,7 @@ function readySource(): { source: TrackSource; meta: TrackMeta } {
   meta.track = new Track([
     { lat: 1, lon: 2, ele: null, time: null },
     { lat: 2, lon: 3, ele: null, time: null },
-  ], [], meta)
+  ], [])
 
   return { source, meta }
 }
@@ -107,7 +107,7 @@ test('loaded track geometry invalidates the map after loading status updates', a
     async loadTracks() {
       return []
     },
-    async saveTrack(_track: Track, _format: TrackFormat) {},
+    async saveTrack(_meta: TrackMeta, _format: TrackFormat) {},
     getOriginalUrl() {
       return null
     },
@@ -132,7 +132,7 @@ test('loaded track geometry invalidates the map after loading status updates', a
   resolveTrack(new Track([
     { lat: 1, lon: 2, ele: null, time: null },
     { lat: 2, lon: 3, ele: null, time: null },
-  ], [], meta))
+  ], []))
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
 
   assert.deepEqual(changes, [{ mapChanged: true }])

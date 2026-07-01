@@ -111,7 +111,7 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
     if (meta.track === null) return
 
     try {
-      await meta.source.saveTrack(meta.track, 'gpx')
+      await meta.source.saveTrack(meta, 'gpx')
     } catch (error) {
       setNotice({
         kind: 'error',

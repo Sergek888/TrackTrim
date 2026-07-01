@@ -110,7 +110,7 @@ export class KomootTrackSource implements TrackSource {
     meta.loadStatus = 'ready'
     meta.loadError = null
 
-    const track = TrackModel.fromPoints(points.map((point) => this.trackPoint(point)), meta)
+    const track = TrackModel.fromPoints(points.map((point) => this.trackPoint(point)))
 
     meta.track = track
     meta.fillMissingFromPoints(track.getPoints())
@@ -132,13 +132,16 @@ export class KomootTrackSource implements TrackSource {
     return tracks
   }
 
-  public async saveTrack(track: Track, format: TrackFormat): Promise<void> {
+  public async saveTrack(meta: TrackMeta, format: TrackFormat): Promise<void> {
     if (format !== 'gpx') {
       throw new Error('Only GPX export is supported.')
     }
 
-    const meta = track.meta
-    const payload = gpxConverter.serialize(track, meta?.name ?? 'Komoot tour')
+    if (meta.track === null) {
+      throw new Error('Track is not loaded.')
+    }
+
+    const payload = gpxConverter.serialize(meta.track, meta.name)
 
     if (typeof payload.data !== 'string') {
       throw new Error('GPX payload must be text.')
@@ -146,7 +149,7 @@ export class KomootTrackSource implements TrackSource {
 
     downloadTextFile(
       payload.data,
-      this.gpxFileName(meta?.name ?? 'komoot-tour'),
+      this.gpxFileName(meta.name),
       payload.mimeType ?? 'application/gpx+xml;charset=utf-8',
     )
   }
@@ -203,7 +206,7 @@ export class KomootTrackSource implements TrackSource {
 
     if (hasGeometry) {
       const points = summary.coordinates?.map((point) => this.trackPoint(point)) ?? []
-      const track = TrackModel.fromPoints(points, meta)
+      const track = TrackModel.fromPoints(points)
 
       meta.track = track
       meta.fillMissingFromPoints(track.getPoints())
