@@ -1,6 +1,8 @@
 import { Check, FolderUp } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import type { KomootConnectionState } from '../../application/KomootConnectionService'
+import { browserLocalFileSystem } from '../../application/files/browserLocalFileSystem'
+import { configureLocalFileSystem } from '../../application/files/localFileSystem'
 import { LocalFileTrackSource } from '../../application/sources/LocalFileSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import { defaultTrackColor, TRACK_COLORS } from '../trackColors'
@@ -91,11 +93,15 @@ export default function AddSourcePanel({
           return
         }
 
-        const source = new LocalFileTrackSource(
-          files,
-          name.trim() === '' ? 'GPX import' : name.trim(),
+        const localFileSource = browserLocalFileSystem.register(files)
+
+        configureLocalFileSystem(browserLocalFileSystem)
+
+        const source = new LocalFileTrackSource({
+          ...localFileSource,
+          name: name.trim() === '' ? 'GPX import' : name.trim(),
           color,
-        )
+        })
 
         source.order = sourceIndex
         onCreate(source)

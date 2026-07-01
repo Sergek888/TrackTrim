@@ -3,34 +3,56 @@ import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
 import { downloadTextFile } from '../download/downloadTextFile'
-import { readTextFile } from '../files/readTextFile'
+import {
+  getLocalFileSystem,
+  type LocalFilePathKind,
+} from '../files/localFileSystem'
 import type { TrackFormat, TrackLoadCallback, TrackSource } from './TrackSource'
+
+export type LocalFileTrackSourceOptions = {
+  readonly path: string
+  readonly pathKind: LocalFilePathKind
+  readonly name: string
+  readonly color: string
+  readonly visible?: boolean
+  readonly expanded?: boolean
+  readonly order?: number
+}
 
 export class LocalFileTrackSource implements TrackSource {
   public visible = true
   public expanded = true
   public order = 0
+  public readonly path: string
+  public readonly pathKind: LocalFilePathKind
+  public name: string
+  public color: string
 
   private readonly sourceTexts = new Map<string, string>()
 
-  public constructor(
-    private readonly files: readonly File[],
-    public name: string,
-    public color: string,
-  ) {}
+  public constructor(options: LocalFileTrackSourceOptions) {
+    this.path = options.path
+    this.pathKind = options.pathKind
+    this.name = options.name
+    this.color = options.color
+    this.visible = options.visible ?? true
+    this.expanded = options.expanded ?? true
+    this.order = options.order ?? 0
+  }
 
   public async loadTrackMetas(): Promise<TrackMeta[]> {
     const metas: TrackMeta[] = []
+    const entries = await getLocalFileSystem().read(this.path, this.pathKind)
 
-    for (const file of this.files) {
-      const sourceText = await readTextFile(file)
-      const remoteId = this.createRemoteId(file)
+    for (const entry of entries) {
+      const sourceText = await entry.readText()
+      const remoteId = entry.path
       const meta = new TrackMeta(
         this,
         remoteId,
-        file.name,
+        entry.name,
         this.color,
-        { sourceUpdatedAt: new Date(file.lastModified) },
+        { sourceUpdatedAt: entry.lastModified },
       )
 
       this.sourceTexts.set(remoteId, sourceText)
@@ -109,8 +131,16 @@ export class LocalFileTrackSource implements TrackSource {
     )
   }
 
-  private createRemoteId(file: File): string {
-    return `${file.name}:${file.size}:${file.lastModified}`
+  public exportState(): Record<string, unknown> {
+    return {
+      path: this.path,
+      pathKind: this.pathKind,
+      name: this.name,
+      color: this.color,
+      visible: this.visible,
+      expanded: this.expanded,
+      order: this.order,
+    }
   }
 
   private createTrackFromText(text: string, meta: TrackMeta): Track {

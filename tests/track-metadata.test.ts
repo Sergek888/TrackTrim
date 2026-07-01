@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { configureKomootApi } from '../src/application/komoot/getKomootApi'
+import { configureLocalFileSystem, type LocalFileSystem } from '../src/application/files/localFileSystem'
+import { LocalFileTrackSource } from '../src/application/sources/LocalFileSource'
 import { KomootTrackSource } from '../src/application/sources/KomootTrackSource'
 import type { TrackFormat, TrackSource } from '../src/application/sources/TrackSource'
 import { gpxConverter } from '../src/formats/gpx/GpxConverter'
@@ -247,6 +249,60 @@ test('local GPX metadata keeps activity time separate from file update time', ()
   assert.equal(meta.elevationGainMeters, 0)
   assert.equal(meta.elevationLossMeters, 20)
   assert.ok((meta.distanceMeters ?? 0) > 0)
+})
+
+test('Local file source loads through configured file system and exports serializable state', async () => {
+  const sourceUpdatedAt = new Date('2026-03-02T12:00:00Z')
+  const fileSystem: LocalFileSystem = {
+    async read(path, pathKind) {
+      assert.equal(path, 'browser-directory://source-1')
+      assert.equal(pathKind, 'directory')
+
+      return [{
+        path: 'browser-directory://source-1/0-track.gpx',
+        name: 'track.gpx',
+        lastModified: sourceUpdatedAt,
+        async readText() {
+          return [
+            '<gpx version="1.1">',
+            '<trk><name>Track</name><trkseg>',
+            '<trkpt lat="1" lon="2"><ele>10</ele><time>2026-03-01T08:00:00Z</time></trkpt>',
+            '<trkpt lat="1.1" lon="2.1"><ele>20</ele><time>2026-03-01T08:10:00Z</time></trkpt>',
+            '</trkseg></trk>',
+            '</gpx>',
+          ].join('')
+        },
+      }]
+    },
+  }
+
+  configureLocalFileSystem(fileSystem)
+
+  const source = new LocalFileTrackSource({
+    path: 'browser-directory://source-1',
+    pathKind: 'directory',
+    name: 'GPX import',
+    color: '#123456',
+    visible: false,
+    expanded: false,
+    order: 3,
+  })
+  const meta = (await source.loadTrackMetas())[0]
+
+  assert.equal(meta?.remoteId, 'browser-directory://source-1/0-track.gpx')
+  assert.equal(meta?.name, 'track.gpx')
+  assert.equal(meta?.sourceUpdatedAt, sourceUpdatedAt)
+  assert.equal(meta?.track?.pointsCount(), 2)
+  assert.deepEqual(source.exportState(), {
+    path: 'browser-directory://source-1',
+    pathKind: 'directory',
+    name: 'GPX import',
+    color: '#123456',
+    visible: false,
+    expanded: false,
+    order: 3,
+  })
+  assert.equal('files' in source.exportState(), false)
 })
 
 test('Komoot elapsed coordinates do not create 1970 timestamps in GPX', () => {
