@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { configureKomootApi } from '../src/application/komoot/getKomootApi'
 import { KomootTrackSource } from '../src/application/sources/KomootTrackSource'
+import { LocalFileTrackSource } from '../src/application/sources/LocalFileSource'
 import type { KomootApi } from '../src/komoot/KomootApi'
+import { BaseModel } from '../src/model/base/BaseModel'
 import { ModelSerializer } from '../src/model/base/ModelSerializer'
 import { registerTrackModels } from '../src/model/base/registerTrackModels'
 import { Track } from '../src/model/Track'
@@ -59,4 +61,71 @@ test('ModelSerializer restores track model prototypes and persistent state', () 
   assert.equal('meta' in restoredMeta.track, false)
   assert.equal(restoredMeta.track.pointsCount(), 1)
   assert.equal(restoredMeta.track.getViewPoints()[0]?.name, 'Start')
+  assert.equal(restoredMeta.source.getOriginalUrl(restoredMeta), 'https://www.komoot.com/tour/42')
+})
+
+test('ModelSerializer keeps runtime source fields out of ModelState', () => {
+  registerTrackModels()
+
+  const source = new LocalFileTrackSource({
+    path: 'browser-directory://source-1',
+    pathKind: 'directory',
+    name: 'GPX import',
+    color: '#123456',
+  })
+  const state = ModelSerializer.serialize(source)
+  const serializedText = JSON.stringify(state)
+
+  assert.doesNotMatch(serializedText, /sourceTexts|File|temporary/)
+})
+
+test('ModelSerializer calls afterDeserialize without invoking constructor', () => {
+  class ProbeModel extends BaseModel {
+    public static modelType = 'serializer-probe'
+    public static throwInConstructor = false
+    public value = ''
+    public afterDeserializeCalled = false
+
+    public constructor() {
+      super()
+
+      if (ProbeModel.throwInConstructor) {
+        throw new Error('Constructor should not be called.')
+      }
+    }
+
+    public override afterDeserialize(): void {
+      this.afterDeserializeCalled = true
+    }
+  }
+
+  ModelSerializer.register(ProbeModel)
+
+  const source = new ProbeModel()
+  source.value = 'persisted'
+  const state = ModelSerializer.serialize(source)
+
+  ProbeModel.throwInConstructor = true
+
+  try {
+    const restored = ModelSerializer.deserialize<ProbeModel>(state)
+
+    assert.ok(restored instanceof ProbeModel)
+    assert.equal(restored.value, 'persisted')
+    assert.equal(restored.afterDeserializeCalled, true)
+  } finally {
+    ProbeModel.throwInConstructor = false
+  }
+})
+
+test('ModelSerializer rejects unregistered model types', () => {
+  assert.throws(
+    () => ModelSerializer.deserialize({
+      __kind: 'model',
+      __id: 1,
+      __type: 'missing-model-type',
+      fields: {},
+    }),
+    /Model type is not registered: missing-model-type/,
+  )
 })
