@@ -1,4 +1,5 @@
 import { gpxConverter } from '../../formats/gpx/GpxConverter'
+import { BaseModel } from '../../model/base/BaseModel'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import {
@@ -8,7 +9,7 @@ import {
   TrackMeta,
   type TrackDifficulty,
 } from '../../model/TrackMeta'
-import type { TrackPoint } from '../../model/TrackPoint'
+import { TrackPoint } from '../../model/TrackPoint'
 import {
   type KomootApi,
   type KomootCoordinate,
@@ -33,24 +34,25 @@ export type KomootTrackSourceOptions = {
   readonly order?: number
 }
 
-export class KomootTrackSource implements TrackSource {
+export class KomootTrackSource extends BaseModel implements TrackSource {
+  public static modelType = 'komoot-track-source'
+
   public visible = true
   public expanded = true
   public order = 0
-  public readonly url: string
-  public name: string
-  public color: string
+  public url = ''
+  public name = ''
+  public color = '#2563eb'
 
-  private readonly target: KomootTarget
-  private readonly komootApi: KomootApi
-  private readonly summaries = new WeakMap<TrackMeta, KomootTourSummary>()
+  private target!: KomootTarget
+  private komootApi!: KomootApi
+  private summaries = new WeakMap<TrackMeta, KomootTourSummary>()
 
-  public constructor(options: KomootTrackSourceOptions) {
-    const komootApi = getKomootApi()
-    const target = komootApi.urls.parse(options.url)
+  public constructor(options?: KomootTrackSourceOptions) {
+    super()
 
-    if (target === null) {
-      throw new Error('Komoot tour, collection, profile URL, or user id is invalid.')
+    if (options === undefined) {
+      return
     }
 
     this.url = options.url
@@ -59,8 +61,7 @@ export class KomootTrackSource implements TrackSource {
     this.visible = options.visible ?? true
     this.expanded = options.expanded ?? true
     this.order = options.order ?? 0
-    this.target = target
-    this.komootApi = komootApi
+    this.initializeRuntime()
   }
 
   public static getTargetType(
@@ -165,6 +166,19 @@ export class KomootTrackSource implements TrackSource {
     }
   }
 
+  protected override importState(state: Record<string, unknown>): void {
+    this.url = String(state.url ?? '')
+    this.name = String(state.name ?? '')
+    this.color = String(state.color ?? '#2563eb')
+    this.visible = state.visible !== false
+    this.expanded = state.expanded !== false
+    this.order = typeof state.order === 'number' ? state.order : 0
+  }
+
+  public override afterDeserialize(): void {
+    this.initializeRuntime()
+  }
+
   public getOriginalUrl(meta: TrackMeta): string | null {
     return this.komootApi.urls.getTourUrl(meta.remoteId)
   }
@@ -216,12 +230,7 @@ export class KomootTrackSource implements TrackSource {
   }
 
   private trackPoint(point: KomootCoordinate): TrackPoint {
-    return {
-      lat: point.lat,
-      lon: point.lon,
-      ele: point.elevation,
-      time: point.time,
-    }
+    return new TrackPoint(point.lat, point.lon, point.elevation, point.time)
   }
 
 
@@ -313,5 +322,18 @@ export class KomootTrackSource implements TrackSource {
     const baseName = name.trim().replace(/\.gpx$/i, '').replace(/[<>:"/\\|?*]+/g, '-')
 
     return `${baseName || 'komoot-tour'}.gpx`
+  }
+
+  private initializeRuntime(): void {
+    const komootApi = getKomootApi()
+    const target = komootApi.urls.parse(this.url)
+
+    if (target === null) {
+      throw new Error('Komoot tour, collection, profile URL, or user id is invalid.')
+    }
+
+    this.komootApi = komootApi
+    this.target = target
+    this.summaries = new WeakMap<TrackMeta, KomootTourSummary>()
   }
 }

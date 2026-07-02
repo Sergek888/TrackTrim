@@ -1,15 +1,19 @@
+import { BaseModel } from './base/BaseModel'
 import type { TrackPoint } from './TrackPoint'
 import { TrackSegment } from './TrackSegment'
 import type { ViewPoint } from './ViewPoint'
 
-export class Track {
+export class Track extends BaseModel {
+  public static modelType = 'track'
+
   private readonly segments: readonly TrackSegment[]
   private readonly viewpoints: readonly ViewPoint[]
 
   public constructor(
-    segments: TrackSegment[],
-    viewpoints: ViewPoint[],
+    segments: TrackSegment[] = [],
+    viewpoints: ViewPoint[] = [],
   ) {
+    super()
     this.segments = Object.freeze([...segments])
     this.viewpoints = Object.freeze([...viewpoints])
   }
@@ -72,5 +76,20 @@ export class Track {
     }
 
     return null
+  }
+
+  protected override exportState(): Record<string, unknown> {
+    return {
+      segments: this.segments,
+      viewpoints: this.viewpoints,
+    }
+  }
+
+  protected override importState(state: Record<string, unknown>): void {
+    ;(this as unknown as { segments: readonly TrackSegment[] }).segments =
+      Object.freeze([...(state.segments as TrackSegment[] ?? [])])
+
+    ;(this as unknown as { viewpoints: readonly ViewPoint[] }).viewpoints =
+      Object.freeze([...(state.viewpoints as ViewPoint[] ?? [])])
   }
 }

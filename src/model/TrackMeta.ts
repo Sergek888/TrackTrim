@@ -1,4 +1,5 @@
 import type { TrackSource } from '../application/sources/TrackSource'
+import { BaseModel } from './base/BaseModel'
 import type { Track } from './Track'
 import type { TrackPoint } from './TrackPoint'
 
@@ -158,7 +159,9 @@ export function computeElevationLossMeters(points: readonly TrackPoint[]): numbe
   return hasElevation ? loss : null
 }
 
-export class TrackMeta {
+export class TrackMeta extends BaseModel {
+  public static modelType = 'track-meta'
+
   public track: Track | null = null
   public loadError: string | null = null
   public visible: boolean
@@ -189,6 +192,7 @@ export class TrackMeta {
     public color: string,
     options: TrackMetaOptions = {},
   ) {
+    super()
     this.visible = options.visible ?? true
     this.loadStatus = options.loadStatus ?? 'ready'
     this.activityKind = options.activityKind ?? null
@@ -227,5 +231,65 @@ export class TrackMeta {
 
   public getShareUrl(): string | null {
     return this.source.getShareUrl(this)
+  }
+
+  protected override exportState(): Record<string, unknown> {
+    return {
+      source: this.source,
+      remoteId: this.remoteId,
+      name: this.name,
+      color: this.color,
+      visible: this.visible,
+      loadStatus: this.loadStatus,
+      loadError: this.loadError,
+      activityKind: this.activityKind,
+      activityType: this.activityType,
+      difficulty: this.difficulty,
+      dateTime: this.dateTime,
+      sourceUpdatedAt: this.sourceUpdatedAt,
+      distanceMeters: this.distanceMeters,
+      durationSeconds: this.durationSeconds,
+      elevationGainMeters: this.elevationGainMeters,
+      elevationLossMeters: this.elevationLossMeters,
+      description: this.description,
+      src: this.src,
+      trackType: this.trackType,
+      number: this.number,
+      author: this.author,
+      links: this.links,
+      copyright: this.copyright,
+      startPoint: this.startPoint,
+      finishPoint: this.finishPoint,
+      track: this.track,
+    }
+  }
+
+  protected override importState(state: Record<string, unknown>): void {
+    ;(this as unknown as { source: TrackSource }).source = state.source as TrackSource
+    ;(this as unknown as { remoteId: string }).remoteId = String(state.remoteId ?? '')
+    this.name = String(state.name ?? '')
+    this.color = String(state.color ?? '#2563eb')
+    this.visible = state.visible !== false
+    this.loadStatus = (state.loadStatus as TrackLoadStatus | undefined) ?? 'ready'
+    this.loadError = (state.loadError as string | null | undefined) ?? null
+    this.activityKind = (state.activityKind as TrackActivityKind | null | undefined) ?? null
+    this.activityType = (state.activityType as TrackActivityType | null | undefined) ?? null
+    this.difficulty = (state.difficulty as TrackDifficulty | null | undefined) ?? null
+    this.dateTime = (state.dateTime as Date | null | undefined) ?? null
+    this.sourceUpdatedAt = (state.sourceUpdatedAt as Date | null | undefined) ?? null
+    this.distanceMeters = (state.distanceMeters as number | null | undefined) ?? null
+    this.durationSeconds = (state.durationSeconds as number | null | undefined) ?? null
+    this.elevationGainMeters = (state.elevationGainMeters as number | null | undefined) ?? null
+    this.elevationLossMeters = (state.elevationLossMeters as number | null | undefined) ?? null
+    this.description = (state.description as string | null | undefined) ?? null
+    this.src = (state.src as string | null | undefined) ?? null
+    this.trackType = (state.trackType as string | null | undefined) ?? null
+    this.number = (state.number as number | null | undefined) ?? null
+    this.author = (state.author as { readonly name?: string; readonly email?: string } | null | undefined) ?? null
+    this.links = (state.links as ReadonlyArray<{ readonly href: string; readonly text?: string; readonly mimeType?: string }> | null | undefined) ?? null
+    this.copyright = (state.copyright as { readonly author?: string; readonly year?: number; readonly license?: string } | null | undefined) ?? null
+    this.startPoint = (state.startPoint as TrackPoint | null | undefined) ?? null
+    this.finishPoint = (state.finishPoint as TrackPoint | null | undefined) ?? null
+    this.track = (state.track as Track | null | undefined) ?? null
   }
 }

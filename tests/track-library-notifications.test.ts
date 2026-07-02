@@ -4,6 +4,7 @@ import { TrackLibrary, type TrackLibraryChange } from '../src/application/TrackL
 import type { TrackFormat, TrackSource } from '../src/application/sources/TrackSource'
 import { Track } from '../src/model/Track'
 import { TrackMeta } from '../src/model/TrackMeta'
+import { TrackPoint } from '../src/model/TrackPoint'
 
 function readySource(): { source: TrackSource; meta: TrackMeta } {
   let source: TrackSource
@@ -34,8 +35,8 @@ function readySource(): { source: TrackSource; meta: TrackMeta } {
 
   const meta = new TrackMeta(source, 'track-1', 'Track', source.color)
   meta.track = new Track([
-    { lat: 1, lon: 2, ele: null, time: null },
-    { lat: 2, lon: 3, ele: null, time: null },
+    new TrackPoint(1, 2, null, null),
+    new TrackPoint(2, 3, null, null),
   ], [])
 
   return { source, meta }
@@ -130,8 +131,8 @@ test('loaded track geometry invalidates the map after loading status updates', a
   changes.length = 0
 
   resolveTrack(new Track([
-    { lat: 1, lon: 2, ele: null, time: null },
-    { lat: 2, lon: 3, ele: null, time: null },
+    new TrackPoint(1, 2, null, null),
+    new TrackPoint(2, 3, null, null),
   ], []))
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
 

@@ -2,8 +2,8 @@ import { XMLParser } from 'fast-xml-parser'
 import type { TrackConverter, RawPayload } from '../TrackConverter'
 import { Track } from '../../model/Track'
 import { TrackSegment } from '../../model/TrackSegment'
-import type { TrackPoint, TrackPointExtensions } from '../../model/TrackPoint'
-import type { ViewPoint } from '../../model/ViewPoint'
+import { TrackPoint, type TrackPointExtensions } from '../../model/TrackPoint'
+import { ViewPoint } from '../../model/ViewPoint'
 import type { TrackMetaOptions } from '../../model/TrackMeta'
 import type {
   GpxRoot,
@@ -61,13 +61,13 @@ function parseTrackPoint(raw: GpxTrackPoint): TrackPoint | null {
     return null
   }
 
-  return {
+  return new TrackPoint(
     lat,
     lon,
-    ele: parseNumber(raw.ele),
-    time: parseDate(raw.time),
-    extensions: parseExtensions(raw.extensions),
-  }
+    parseNumber(raw.ele),
+    parseDate(raw.time),
+    parseExtensions(raw.extensions),
+  )
 }
 
 function parseExtensions(raw: Record<string, unknown> | undefined): TrackPointExtensions | undefined {
@@ -201,17 +201,17 @@ function parseWaypoint(raw: GpxWaypoint): ViewPoint | null {
     return null
   }
 
-  return {
+  return new ViewPoint(
     lat,
     lon,
-    ele: parseNumber(raw.ele),
-    time: parseDate(raw.time),
-    name: typeof raw.name === 'string' ? raw.name : null,
-    description: typeof raw.desc === 'string' ? raw.desc : null,
-    comment: typeof raw.cmt === 'string' ? raw.cmt : null,
-    symbol: typeof raw.sym === 'string' ? raw.sym : null,
-    type: typeof raw.type === 'string' ? raw.type : null,
-  }
+    parseNumber(raw.ele),
+    parseDate(raw.time),
+    typeof raw.name === 'string' ? raw.name : null,
+    typeof raw.desc === 'string' ? raw.desc : null,
+    typeof raw.cmt === 'string' ? raw.cmt : null,
+    typeof raw.sym === 'string' ? raw.sym : null,
+    typeof raw.type === 'string' ? raw.type : null,
+  )
 }
 
 function parseMetadata(raw: NonNullable<GpxRoot['metadata']>): TrackMetaOptions {

@@ -20,6 +20,7 @@ import {
   TrackDifficultyLevel,
   TrackMeta,
 } from '../src/model/TrackMeta'
+import { TrackPoint } from '../src/model/TrackPoint'
 import { computeDurationSeconds, computeElevationGainMeters, computeElevationLossMeters } from '../src/model/TrackMeta'
 
 function sourceStub(): TrackSource {
@@ -219,9 +220,9 @@ test('Komoot source constructor and exportState use serializable state only', ()
 
 test('Track calculations use standalone functions', () => {
   const points = [
-    { lat: 0, lon: 0, ele: 100, time: null },
-    { lat: 0, lon: 0.01, ele: 140, time: null },
-    { lat: 0, lon: 0.02, ele: 110, time: null },
+    new TrackPoint(0, 0, 100, null),
+    new TrackPoint(0, 0.01, 140, null),
+    new TrackPoint(0, 0.02, 110, null),
   ]
 
   const elevationGain = computeElevationGainMeters(points)
@@ -237,8 +238,8 @@ test('local GPX metadata keeps activity time separate from file update time', ()
   const activityTime = new Date('2026-03-01T08:00:00Z')
   const meta = new TrackMeta(source, 'local', 'local.gpx', source.color, { sourceUpdatedAt })
   const track = Track.fromPoints([
-    { lat: 0, lon: 0, ele: 100, time: activityTime },
-    { lat: 0, lon: 0.01, ele: 80, time: new Date(activityTime.getTime() + 60_000) },
+    new TrackPoint(0, 0, 100, activityTime),
+    new TrackPoint(0, 0.01, 80, new Date(activityTime.getTime() + 60_000)),
   ])
 
   meta.fillMissingFromPoints(track.getPoints())
@@ -310,12 +311,9 @@ test('Komoot elapsed coordinates do not create 1970 timestamps in GPX', () => {
     { lat: 1, lng: 2, alt: 3, t: 0 },
     { lat: 1.1, lng: 2.1, alt: 4, t: 60000 },
   ])
-  const track = Track.fromPoints(coordinates.map((point) => ({
-    lat: point.lat,
-    lon: point.lon,
-    ele: point.elevation,
-    time: point.time,
-  })))
+  const track = Track.fromPoints(
+    coordinates.map((point) => new TrackPoint(point.lat, point.lon, point.elevation, point.time)),
+  )
   const payload = gpxConverter.serialize(track, 'Komoot')
 
   assert.equal(typeof payload.data, 'string')

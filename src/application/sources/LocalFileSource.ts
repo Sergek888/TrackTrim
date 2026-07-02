@@ -1,4 +1,5 @@
 import { gpxConverter } from '../../formats/gpx/GpxConverter'
+import { BaseModel } from '../../model/base/BaseModel'
 import type { Track } from '../../model/Track'
 import { Track as TrackModel } from '../../model/Track'
 import { TrackMeta } from '../../model/TrackMeta'
@@ -19,18 +20,26 @@ export type LocalFileTrackSourceOptions = {
   readonly order?: number
 }
 
-export class LocalFileTrackSource implements TrackSource {
+export class LocalFileTrackSource extends BaseModel implements TrackSource {
+  public static modelType = 'local-file-track-source'
+
   public visible = true
   public expanded = true
   public order = 0
-  public readonly path: string
-  public readonly pathKind: LocalFilePathKind
-  public name: string
-  public color: string
+  public path = ''
+  public pathKind: LocalFilePathKind = 'file'
+  public name = ''
+  public color = '#2563eb'
 
-  private readonly sourceTexts = new Map<string, string>()
+  private sourceTexts = new Map<string, string>()
 
-  public constructor(options: LocalFileTrackSourceOptions) {
+  public constructor(options?: LocalFileTrackSourceOptions) {
+    super()
+
+    if (options === undefined) {
+      return
+    }
+
     this.path = options.path
     this.pathKind = options.pathKind
     this.name = options.name
@@ -139,6 +148,21 @@ export class LocalFileTrackSource implements TrackSource {
       expanded: this.expanded,
       order: this.order,
     }
+  }
+
+  protected override importState(state: Record<string, unknown>): void {
+    this.path = String(state.path ?? '')
+    this.pathKind = state.pathKind === 'file' ? 'file' : 'directory'
+    this.name = String(state.name ?? '')
+    this.color = String(state.color ?? '#2563eb')
+    this.visible = state.visible !== false
+    this.expanded = state.expanded !== false
+    this.order = typeof state.order === 'number' ? state.order : 0
+    this.sourceTexts = new Map<string, string>()
+  }
+
+  public override afterDeserialize(): void {
+    this.sourceTexts = new Map<string, string>()
   }
 
   private createTrackFromText(text: string): Track {
