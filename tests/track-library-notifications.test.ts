@@ -138,3 +138,20 @@ test('loaded track geometry invalidates the map after loading status updates', a
 
   assert.deepEqual(changes, [{ mapChanged: true }])
 })
+
+test('metadata-only persistent state keeps sources and tracks without geometry', async () => {
+  const library = new TrackLibrary()
+  const { source, meta } = readySource()
+
+  await library.addSource(source)
+
+  const state = library.persistentState({ includeTrackGeometry: false })
+
+  assert.equal(state.sources.length, 1)
+  assert.equal(state.trackMetas.length, 1)
+  assert.equal(state.trackMetas[0].source, source)
+  assert.equal(state.trackMetas[0].remoteId, meta.remoteId)
+  assert.equal(state.trackMetas[0].name, meta.name)
+  assert.equal(state.trackMetas[0].distanceMeters, meta.distanceMeters)
+  assert.equal(state.trackMetas[0].track, null)
+})

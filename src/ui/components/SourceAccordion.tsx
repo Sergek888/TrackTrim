@@ -163,7 +163,7 @@ export default function SourceAccordion(props: SourceAccordionProps) {
             </p>
           )}
           {displayedMetas.length === 0 ? <p className="empty-source">No tracks yet</p> : displayedMetas.map((meta) => (
-            <TrackListItem key={`${meta.source.name}:${meta.remoteId}`} meta={meta} active={meta === activeMeta} onActivate={onTrackActivate} onFocus={onTrackFocus} onVisibilityChange={onTrackVisibilityChange} />
+            <TrackListItem key={`${meta.source?.name ?? source.name}:${meta.remoteId}`} meta={meta} active={meta === activeMeta} onActivate={onTrackActivate} onFocus={onTrackFocus} onVisibilityChange={onTrackVisibilityChange} />
           ))}
         </div>
       )}

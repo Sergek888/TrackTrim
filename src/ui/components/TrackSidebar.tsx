@@ -28,7 +28,7 @@ function trackMatchesQuery(meta: TrackMeta, query: string): boolean {
 
   return normalizedQuery === '' ||
     meta.name.toLowerCase().includes(normalizedQuery) ||
-    meta.source.name.toLowerCase().includes(normalizedQuery)
+    (meta.source?.name ?? '').toLowerCase().includes(normalizedQuery)
 }
 
 export default function TrackSidebar({

@@ -6,6 +6,7 @@ import {
   KomootParseError,
   KomootRateLimitError,
 } from './KomootErrors.js'
+import type { KomootRequestQueue } from './KomootRequestQueue.js'
 
 export type KomootQuery = Readonly<Record<string, string | number | boolean | null | undefined>>
 
@@ -35,6 +36,7 @@ export type KomootHttpClientOptions = {
   readonly apiBaseUrl?: string
   readonly fetch?: typeof fetch
   readonly transport?: KomootRequestTransport
+  readonly queue?: KomootRequestQueue
   readonly onAuthorizationExpired?: () => void
 }
 
@@ -99,9 +101,9 @@ export class KomootHttpClient {
     options: KomootRequestOptions = {},
   ): Promise<Response> {
     assertRelativePath(path)
-    const response = this.options.transport === undefined
-      ? await this.directRequest(method, path, options)
-      : await this.options.transport({
+    const run = () => this.options.transport === undefined
+      ? this.directRequest(method, path, options)
+      : this.options.transport({
           method,
           path,
           query: options.query,
@@ -109,6 +111,9 @@ export class KomootHttpClient {
           contentType: options.contentType,
           body: options.body,
         })
+    const response = this.options.queue === undefined
+      ? await run()
+      : await this.options.queue.enqueue(run)
 
     if (response.status === 401 || response.status === 403) {
       this.options.onAuthorizationExpired?.()

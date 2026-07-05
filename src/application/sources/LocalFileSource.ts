@@ -138,7 +138,7 @@ export class LocalFileTrackSource extends BaseModel implements TrackSource {
     )
   }
 
-  public exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       path: this.path,
       pathKind: this.pathKind,
@@ -150,19 +150,23 @@ export class LocalFileTrackSource extends BaseModel implements TrackSource {
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
-    this.path = String(state.path ?? '')
-    this.pathKind = state.pathKind === 'file' ? 'file' : 'directory'
-    this.name = String(state.name ?? '')
-    this.color = String(state.color ?? '#2563eb')
-    this.visible = state.visible !== false
-    this.expanded = state.expanded !== false
-    this.order = typeof state.order === 'number' ? state.order : 0
+  public override deserializeFields(fields: Record<string, unknown>): void {
+    this.path = String(fields.path ?? '')
+    this.pathKind = fields.pathKind === 'file' ? 'file' : 'directory'
+    this.name = String(fields.name ?? '')
+    this.color = String(fields.color ?? '#2563eb')
+    this.visible = fields.visible !== false
+    this.expanded = fields.expanded !== false
+    this.order = typeof fields.order === 'number' ? fields.order : 0
     this.sourceTexts = new Map<string, string>()
   }
 
   public override afterDeserialize(): void {
     this.sourceTexts = new Map<string, string>()
+  }
+
+  protected override runtimeFields(): readonly string[] {
+    return ['sourceTexts']
   }
 
   private createTrackFromText(text: string): Track {

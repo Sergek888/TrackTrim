@@ -4,10 +4,8 @@ import {
   setTrackTrimSessionCookie,
 } from './_cookies.js'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
-import {
-  KomootApiClient,
-} from '../../src/komoot/KomootApiClient.js'
 import { KomootAuthError } from '../../src/komoot/transport/KomootErrors.js'
+import { createKomootApiClient } from './_komootRuntime.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
 const loginSchema = z.object({
@@ -23,7 +21,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const body = loginSchema.parse(await readJsonBody(request))
-    const auth = await new KomootApiClient().auth.loginWithPassword(body.email, body.password)
+    const auth = await createKomootApiClient().auth.loginWithPassword(body.email, body.password)
     const now = new Date().toISOString()
     const sessionId = createSessionId()
 

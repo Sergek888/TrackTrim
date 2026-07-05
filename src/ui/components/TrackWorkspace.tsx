@@ -3,8 +3,9 @@ import { Layers, ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
-import { TrackLibrary } from '../../application/TrackLibrary'
+import { TrackLibrary, type TrackLibraryPersistentState } from '../../application/TrackLibrary'
 import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
+import { LocalModelStorage } from '../../application/storage/LocalModelStorage'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { loadMapSettings, saveMapSettings } from '../../map/mapSettings'
@@ -33,8 +34,19 @@ type ColorPaletteState =
 
 type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings' | 'layer-availability'
 
+const LIBRARY_STORAGE_KEY = 'trackviewer.library'
+
 export default function TrackWorkspace() {
-  const [library] = useState(() => new TrackLibrary())
+  const [library] = useState(() => {
+    const restoredState = new LocalModelStorage(LIBRARY_STORAGE_KEY).load<TrackLibraryPersistentState>()
+    const restoredLibrary = new TrackLibrary()
+
+    if (restoredState !== null) {
+      restoredLibrary.restorePersistentState(restoredState)
+    }
+
+    return restoredLibrary
+  })
   const [komootConnection] = useState(() => new KomootConnectionService())
   const [, setLibraryVersion] = useState(0)
   const [mapVersion, setMapVersion] = useState(0)
@@ -54,6 +66,11 @@ export default function TrackWorkspace() {
   useEffect(
     () => library.subscribe((change) => {
       setLibraryVersion((version) => version + 1)
+      const storage = new LocalModelStorage(LIBRARY_STORAGE_KEY)
+
+      if (!storage.save(library.persistentState())) {
+        storage.save(library.persistentState({ includeTrackGeometry: false }))
+      }
 
       if (change.mapChanged) {
         setMapVersion((version) => version + 1)

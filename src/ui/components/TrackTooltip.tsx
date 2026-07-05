@@ -92,6 +92,7 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
   const { meta } = tooltip
   const originalUrl = meta.getOriginalUrl()
   const shareUrl = meta.getShareUrl()
+  const sourceName = meta.source?.name ?? 'Unknown source'
 
   async function copyShareUrl(): Promise<void> {
     if (shareUrl === null) return
@@ -108,7 +109,7 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
   }
 
   async function downloadGpx(): Promise<void> {
-    if (meta.track === null) return
+    if (meta.track === null || meta.source === null) return
 
     try {
       await meta.source.saveTrack(meta, 'gpx')
@@ -139,9 +140,9 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
       </header>
 
       <div className="tooltip-source-row">
-        <p className="tooltip-source" title={meta.source.name}>
+        <p className="tooltip-source" title={sourceName}>
           <Folder aria-hidden="true" size={14} />
-          {meta.source.name}
+          {sourceName}
         </p>
         <div className="tooltip-actions-inline">
           {originalUrl !== null && (
@@ -154,7 +155,7 @@ export default function TrackTooltip({ tooltip, onClose }: TrackTooltipProps) {
               <Link aria-hidden="true" size={14} />
             </IconButton>
           )}
-          {meta.track !== null && (
+          {meta.track !== null && meta.source !== null && (
             <IconButton type="button" aria-label="Download GPX" title="Download GPX" onClick={() => void downloadGpx()}>
               <Download aria-hidden="true" size={14} />
             </IconButton>

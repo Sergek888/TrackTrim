@@ -155,7 +155,7 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     )
   }
 
-  public exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       url: this.url,
       name: this.name,
@@ -166,17 +166,31 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
-    this.url = String(state.url ?? '')
-    this.name = String(state.name ?? '')
-    this.color = String(state.color ?? '#2563eb')
-    this.visible = state.visible !== false
-    this.expanded = state.expanded !== false
-    this.order = typeof state.order === 'number' ? state.order : 0
+  public override deserializeFields(fields: Record<string, unknown>): void {
+    this.url = String(fields.url ?? '')
+    this.name = String(fields.name ?? '')
+    this.color = String(fields.color ?? '#2563eb')
+    this.visible = fields.visible !== false
+    this.expanded = fields.expanded !== false
+    this.order = typeof fields.order === 'number' ? fields.order : 0
   }
 
   public override afterDeserialize(): void {
-    this.initializeRuntime()
+    this.summaries = new WeakMap<TrackMeta, KomootTourSummary>()
+
+    if (this.url.trim() === '') {
+      return
+    }
+
+    try {
+      this.initializeRuntime()
+    } catch {
+      return
+    }
+  }
+
+  protected override runtimeFields(): readonly string[] {
+    return ['target', 'komootApi', 'summaries']
   }
 
   public getOriginalUrl(meta: TrackMeta): string | null {

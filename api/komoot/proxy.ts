@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { KomootHttpClient } from '../../src/komoot/transport/KomootHttpClient.js'
 import { authorizeKomootRequest } from './_auth.js'
 import { clearTrackTrimSessionCookie } from './_cookies.js'
 import { readJsonBody, sendJson, methodNotAllowed, type ApiRequest, type ApiResponse } from './_http.js'
+import { createKomootHttpClient } from './_komootRuntime.js'
 import { isAllowedKomootProxyRequest } from './_proxyAllowlist.js'
 import { getKomootSessionStore } from './_sessionStore.js'
 
@@ -35,7 +35,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
-    const upstream = await new KomootHttpClient({
+    const upstream = await createKomootHttpClient({
       session: auth.session.auth,
     }).requestRaw('GET', body.path, {
       query: body.query,
