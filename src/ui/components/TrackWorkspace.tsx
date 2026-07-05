@@ -3,7 +3,6 @@ import { Layers, ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
-import { configureKomootApi } from '../../application/komoot/getKomootApi'
 import { TrackLibrary, type TrackLibraryPersistentState } from '../../application/TrackLibrary'
 import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
 import { IndexedDbModelStore } from '../../application/storage/IndexedDbModelStore'
@@ -61,10 +60,6 @@ export default function TrackWorkspace() {
     setLayerStatusState((prev) => setLayerStatus(prev, layerId, status))
   }, [])
 
-  useEffect(() => {
-    configureKomootApi(komootConnection.publicApi())
-  }, [komootConnection])
-
   function runLibrarySave(): void {
     if (saveInProgressRef.current) {
       saveAgainRef.current = true
@@ -98,7 +93,10 @@ export default function TrackWorkspace() {
   useEffect(() => {
     let cancelled = false
 
-    modelStore.loadRoot<TrackLibraryPersistentState>(LIBRARY_STORAGE_KEY)
+    komootConnection.refresh()
+      .then(() => {
+        return modelStore.loadRoot<TrackLibraryPersistentState>(LIBRARY_STORAGE_KEY)
+      })
       .then((restoredState) => {
         if (cancelled) {
           return
@@ -113,6 +111,7 @@ export default function TrackWorkspace() {
       })
       .catch(() => {
         if (!cancelled) {
+          komootConnection.configureRuntimeApi(false)
           setHydrated(true)
         }
       })
@@ -120,7 +119,7 @@ export default function TrackWorkspace() {
     return () => {
       cancelled = true
     }
-  }, [library, modelStore])
+  }, [komootConnection, library, modelStore])
 
   useEffect(
     () => {

@@ -536,7 +536,7 @@ a:focus-visible {
 
 .palette {
   position: absolute;
-  z-index: 60;
+  z-index: 100;
   display: grid;
   grid-template-columns: repeat(4, 22px);
   width: 132px;

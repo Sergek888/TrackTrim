@@ -24,7 +24,9 @@ export class IndexedDbModelStore {
     }
 
     try {
+      await yieldToMainThread()
       const serialized = serializeModelRecords(value)
+      await yieldToMainThread()
       const database = await this.database()
       const readTransaction = database.transaction([MODEL_STORE, ROOT_STORE], 'readonly')
       const models = readTransaction.objectStore(MODEL_STORE)
@@ -35,6 +37,7 @@ export class IndexedDbModelStore {
       const existingRoot = await existingRootRequest
 
       await transactionDone(readTransaction)
+      await yieldToMainThread()
 
       const existingRecordSignatures = new Map(
         existingRecords.map((record) => [record.id, modelRecordSignature(record)]),
@@ -96,6 +99,7 @@ export class IndexedDbModelStore {
         recordsTransaction.objectStore(MODEL_STORE).getAll(),
       )
       await transactionDone(recordsTransaction)
+      await yieldToMainThread()
 
       return deserializeModelRecords<T>(
         {
@@ -171,6 +175,12 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'))
     transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction was aborted.'))
+  })
+}
+
+function yieldToMainThread(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0)
   })
 }
 

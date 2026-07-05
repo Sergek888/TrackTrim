@@ -1,5 +1,6 @@
 import { KomootApiClient } from '../komoot/KomootApiClient.js'
 import type { KomootApi, KomootRequestTransport } from '../komoot/KomootApi.js'
+import { configureKomootApi } from './komoot/getKomootApi.js'
 
 export type KomootConnectionState =
   | {
@@ -124,6 +125,14 @@ export class KomootConnectionService {
     })
   }
 
+  public configureRuntimeApi(preferAccount = false): void {
+    configureKomootApi(
+      preferAccount && this.state.connected
+        ? this.accountApi()
+        : this.publicApi(),
+    )
+  }
+
   private stateFromPayload(payload: KomootConnectionPayload): KomootConnectionState {
     if (
       payload.connected === true &&
@@ -187,6 +196,7 @@ export class KomootConnectionService {
 
   private setState(state: KomootConnectionState): KomootConnectionState {
     this.state = state
+    this.configureRuntimeApi(state.connected)
 
     for (const listener of this.listeners) {
       listener()

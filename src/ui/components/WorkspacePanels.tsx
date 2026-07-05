@@ -1,6 +1,5 @@
 import type { KomootConnectionService, KomootConnectionState } from '../../application/KomootConnectionService'
 import type { TrackLibrary } from '../../application/TrackLibrary'
-import { configureKomootApi } from '../../application/komoot/getKomootApi'
 import { withUserListTypeInUrl } from '../../application/komoot/withUserListTypeInUrl'
 import { KomootTrackSource } from '../../application/sources/KomootTrackSource'
 import type { TrackSource } from '../../application/sources/TrackSource'
@@ -85,12 +84,11 @@ export default function WorkspacePanels({
               throw new Error('Enter a Komoot tour or collection URL.')
             }
 
-            const komootApi = accountSource ? komootConnection.accountApi() : publicApi
             const sourceUrl = accountSource
               ? withUserListTypeInUrl(target, listType, publicApi)
               : target
 
-            configureKomootApi(komootApi)
+            komootConnection.configureRuntimeApi(accountSource)
 
             return new KomootTrackSource({
               url: sourceUrl,
