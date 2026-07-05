@@ -19,3 +19,4 @@ export interface KomootApi {
 export * from './shared/KomootTypes.js'
 export * from './transport/KomootErrors.js'
 export type { KomootRequestTransport, KomootTransportRequest } from './transport/KomootHttpClient.js'
+export type { KomootRequestQueue } from './transport/KomootRequestQueue.js'

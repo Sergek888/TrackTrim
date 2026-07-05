@@ -9,6 +9,7 @@ import {
   KomootHttpClient,
   type KomootRequestTransport,
 } from './transport/KomootHttpClient.js'
+import type { KomootRequestQueue } from './transport/KomootRequestQueue.js'
 import { DefaultKomootUrlApi } from './url/KomootUrlApi.js'
 import { DefaultKomootUsersApi } from './users/KomootUsersApi.js'
 
@@ -17,6 +18,7 @@ export type KomootApiClientOptions = {
   readonly apiBaseUrl?: string
   readonly fetch?: typeof fetch
   readonly transport?: KomootRequestTransport
+  readonly queue?: KomootRequestQueue
   readonly onAuthorizationExpired?: () => void
 }
 

@@ -80,7 +80,7 @@ export class LocalFileTrackSource extends BaseModel implements TrackSource {
       return meta.track
     }
 
-    const sourceText = this.sourceTexts.get(meta.remoteId) ?? null
+    const sourceText = this.sourceTexts.get(meta.remoteId) ?? await this.readSourceText(meta.remoteId)
 
     if (sourceText === null) {
       throw new Error(`${meta.name} could not be read.`)
@@ -138,7 +138,7 @@ export class LocalFileTrackSource extends BaseModel implements TrackSource {
     )
   }
 
-  public exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       path: this.path,
       pathKind: this.pathKind,
@@ -150,19 +150,41 @@ export class LocalFileTrackSource extends BaseModel implements TrackSource {
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
-    this.path = String(state.path ?? '')
-    this.pathKind = state.pathKind === 'file' ? 'file' : 'directory'
-    this.name = String(state.name ?? '')
-    this.color = String(state.color ?? '#2563eb')
-    this.visible = state.visible !== false
-    this.expanded = state.expanded !== false
-    this.order = typeof state.order === 'number' ? state.order : 0
+  public override modelKey(): string | null {
+    return this.path.trim() === '' ? null : `${this.pathKind}:${this.path}`
+  }
+
+  public override deserializeFields(fields: Record<string, unknown>): void {
+    this.path = String(fields.path ?? '')
+    this.pathKind = fields.pathKind === 'file' ? 'file' : 'directory'
+    this.name = String(fields.name ?? '')
+    this.color = String(fields.color ?? '#2563eb')
+    this.visible = fields.visible !== false
+    this.expanded = fields.expanded !== false
+    this.order = typeof fields.order === 'number' ? fields.order : 0
     this.sourceTexts = new Map<string, string>()
   }
 
   public override afterDeserialize(): void {
     this.sourceTexts = new Map<string, string>()
+  }
+
+  protected override runtimeFields(): readonly string[] {
+    return ['sourceTexts']
+  }
+
+  private async readSourceText(remoteId: string): Promise<string | null> {
+    const entries = await getLocalFileSystem().read(this.path, this.pathKind)
+    const entry = entries.find((candidate) => candidate.path === remoteId) ?? null
+
+    if (entry === null) {
+      return null
+    }
+
+    const sourceText = await entry.readText()
+    this.sourceTexts.set(remoteId, sourceText)
+
+    return sourceText
   }
 
   private createTrackFromText(text: string): Track {

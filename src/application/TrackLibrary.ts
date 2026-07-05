@@ -1,5 +1,5 @@
 import type { Track } from '../model/Track'
-import type { TrackMeta } from '../model/TrackMeta'
+import { TrackMeta } from '../model/TrackMeta'
 import type { TrackSource } from './sources/TrackSource'
 
 export type SourceProgress = {
@@ -8,6 +8,13 @@ export type SourceProgress = {
   loading: number
   ready: number
   error: number
+}
+
+export type TrackLoadRuntimeStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+export type TrackLoadRuntimeState = {
+  readonly status: TrackLoadRuntimeStatus
+  readonly error: string | null
 }
 
 type FocusedTrackState = {
@@ -21,7 +28,10 @@ export type TrackLibraryChange = {
 
 type Listener = (change: TrackLibraryChange) => void
 
-const MAX_PARALLEL_TRACK_LOADS = 3
+export type TrackLibraryPersistentState = {
+  readonly sources: readonly TrackSource[]
+  readonly trackMetas: readonly TrackMeta[]
+}
 
 export class TrackLibrary {
   public readonly sources: TrackSource[] = []
@@ -33,8 +43,8 @@ export class TrackLibrary {
   private readonly listeners = new Set<Listener>()
   private readonly deletedSources = new Set<TrackSource>()
   private readonly metadataLoadingSources = new Set<TrackSource>()
-  private activeLoadCount = 0
-  private roundRobinSourceIndex = 0
+  private trackLoadStates = new WeakMap<TrackMeta, TrackLoadRuntimeState>()
+  private loadingTracks = new WeakMap<TrackMeta, Promise<Track | null>>()
 
   public subscribe(listener: Listener): () => void {
     this.listeners.add(listener)
@@ -42,6 +52,56 @@ export class TrackLibrary {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  public persistentState(options: { includeTrackGeometry?: boolean } = {}): TrackLibraryPersistentState {
+    const includeTrackGeometry = options.includeTrackGeometry ?? true
+
+    return {
+      sources: this.sources,
+      trackMetas: includeTrackGeometry
+        ? this.trackMetas
+        : this.trackMetas.map((meta) => this.metaWithoutTrackGeometry(meta)),
+    }
+  }
+
+  public restorePersistentState(state: TrackLibraryPersistentState): void {
+    this.sources.splice(0, this.sources.length, ...state.sources)
+    this.trackMetas.splice(
+      0,
+      this.trackMetas.length,
+      ...state.trackMetas.filter((meta) => meta.source !== null),
+    )
+    this.activeMeta = null
+    this.focusedTrack = null
+    this.lastError = null
+    this.deletedSources.clear()
+    this.metadataLoadingSources.clear()
+    this.trackLoadStates = new WeakMap<TrackMeta, TrackLoadRuntimeState>()
+    this.loadingTracks = new WeakMap<TrackMeta, Promise<Track | null>>()
+
+    for (const meta of this.trackMetas) {
+      if (meta.loadStatus === 'loading') {
+        meta.loadStatus = 'queued'
+      }
+
+      this.setTrackLoadState(meta, meta.track === null ? 'idle' : 'ready')
+    }
+
+    const firstReadyMeta = this.trackMetas.find((meta) => meta.track !== null) ?? null
+    const firstMeta = firstReadyMeta ?? this.trackMetas[0] ?? null
+
+    if (firstMeta !== null) {
+      this.activeMeta = firstMeta
+
+      if (firstMeta.track !== null) {
+        this.focusedTrack = { track: firstMeta.track, version: Date.now() }
+      } else {
+        void this.loadTrack(firstMeta)
+      }
+    }
+
+    this.notify(true)
   }
 
   public async addSource(source: TrackSource): Promise<void> {
@@ -60,22 +120,25 @@ export class TrackLibrary {
       this.metadataLoadingSources.delete(source)
 
       for (const meta of metas) {
-        if (meta.track !== null) {
-          meta.loadStatus = 'ready'
-        }
+        this.setTrackLoadState(meta, meta.track === null ? 'idle' : 'ready')
 
         this.trackMetas.push(meta)
       }
 
       const firstReadyMeta = metas.find((meta) => meta.track !== null) ?? null
+      const firstMeta = firstReadyMeta ?? metas[0] ?? null
 
-      if (this.activeMeta === null && firstReadyMeta !== null && firstReadyMeta.track !== null) {
-        this.activeMeta = firstReadyMeta
-        this.focusedTrack = { track: firstReadyMeta.track, version: Date.now() }
+      if (this.activeMeta === null && firstMeta !== null) {
+        this.activeMeta = firstMeta
+
+        if (firstMeta.track !== null) {
+          this.focusedTrack = { track: firstMeta.track, version: Date.now() }
+        } else {
+          void this.loadTrack(firstMeta)
+        }
       }
 
       this.notify(true)
-      this.pumpQueue()
     } catch (error) {
       this.metadataLoadingSources.delete(source)
       this.removeSource(source)
@@ -87,7 +150,6 @@ export class TrackLibrary {
   public deleteSource(source: TrackSource): void {
     this.removeSource(source)
     this.notify(true)
-    this.pumpQueue()
   }
 
   public setSourceVisible(source: TrackSource, visible: boolean): void {
@@ -104,8 +166,12 @@ export class TrackLibrary {
 
     this.notify(true)
 
-    if (visible) {
-      this.pumpQueue()
+    const firstVisibleMeta = visible
+      ? this.sourceMetas(source).find((meta) => meta.visible && meta.track === null) ?? null
+      : null
+
+    if (firstVisibleMeta !== null) {
+      void this.loadTrack(firstVisibleMeta)
     }
   }
 
@@ -173,7 +239,7 @@ export class TrackLibrary {
   public setTrackVisible(meta: TrackMeta, visible: boolean): void {
     meta.visible = visible
 
-    if (visible) {
+    if (visible && meta.source !== null) {
       meta.source.visible = true
     }
 
@@ -184,8 +250,8 @@ export class TrackLibrary {
 
     this.notify(true)
 
-    if (visible) {
-      this.pumpQueue()
+    if (visible && meta.track === null) {
+      void this.loadTrack(meta)
     }
   }
 
@@ -197,7 +263,10 @@ export class TrackLibrary {
   public activateTrack(meta: TrackMeta): void {
     this.activeMeta = meta
     this.notify(true)
-    this.pumpQueue()
+
+    if (meta.track === null) {
+      void this.loadTrack(meta)
+    }
   }
 
   public focusTrack(meta: TrackMeta): void {
@@ -208,24 +277,103 @@ export class TrackLibrary {
         track: meta.track,
         version: (this.focusedTrack?.version ?? 0) + 1,
       }
+      this.notify(true)
+      return
     }
 
     this.notify(true)
-    this.pumpQueue()
+
+    void this.loadTrack(meta).then((track) => {
+      if (track === null || this.activeMeta !== meta) {
+        return
+      }
+
+      this.focusedTrack = {
+        track,
+        version: (this.focusedTrack?.version ?? 0) + 1,
+      }
+
+      this.notify(true)
+    })
   }
 
   public retryFailed(source?: TrackSource): void {
+    const failedMetas: TrackMeta[] = []
+
     for (const meta of this.trackMetas) {
-      if (meta.loadStatus !== 'error' || (source !== undefined && meta.source !== source)) {
+      if (
+        this.trackLoadState(meta).status !== 'error' ||
+        (source !== undefined && meta.source !== source)
+      ) {
         continue
       }
 
-      meta.loadStatus = 'queued'
-      meta.loadError = null
+      this.setTrackLoadState(meta, 'idle')
+      failedMetas.push(meta)
     }
 
     this.notify()
-    this.pumpQueue()
+
+    for (const meta of failedMetas) {
+      void this.loadTrack(meta)
+    }
+  }
+
+  public loadTrack(meta: TrackMeta): Promise<Track | null> {
+    if (meta.track !== null) {
+      this.setTrackLoadState(meta, 'ready')
+      return Promise.resolve(meta.track)
+    }
+
+    const existing = this.loadingTracks.get(meta)
+
+    if (existing !== undefined) {
+      return existing
+    }
+
+    if (meta.source === null) {
+      this.setTrackLoadState(meta, 'error', 'Track source is missing.')
+      this.notify()
+      return Promise.resolve(null)
+    }
+
+    const source = meta.source
+
+    this.setTrackLoadState(meta, 'loading')
+    this.notify()
+
+    const promise = source.loadTrack(meta)
+      .then((track) => {
+        if (this.deletedSources.has(source)) {
+          return null
+        }
+
+        meta.track = track
+        this.setTrackLoadState(meta, 'ready')
+        this.notify(true)
+
+        return track
+      })
+      .catch((error) => {
+        if (!this.deletedSources.has(source)) {
+          meta.track = null
+          this.setTrackLoadState(
+            meta,
+            'error',
+            error instanceof Error ? error.message : 'Track could not be loaded.',
+          )
+          this.notify()
+        }
+
+        return null
+      })
+      .finally(() => {
+        this.loadingTracks.delete(meta)
+      })
+
+    this.loadingTracks.set(meta, promise)
+
+    return promise
   }
 
   public sourceMetas(source: TrackSource): TrackMeta[] {
@@ -234,14 +382,23 @@ export class TrackLibrary {
 
   public sourceProgress(source: TrackSource): SourceProgress {
     const metas = this.sourceMetas(source)
+    const states = metas.map((meta) => this.trackLoadState(meta))
 
     return {
       total: metas.length,
-      queued: metas.filter((meta) => meta.loadStatus === 'queued').length,
-      loading: metas.filter((meta) => meta.loadStatus === 'loading').length,
-      ready: metas.filter((meta) => meta.loadStatus === 'ready').length,
-      error: metas.filter((meta) => meta.loadStatus === 'error').length,
+      queued: states.filter((state) => state.status === 'idle').length,
+      loading: states.filter((state) => state.status === 'loading').length,
+      ready: states.filter((state) => state.status === 'ready').length,
+      error: states.filter((state) => state.status === 'error').length,
     }
+  }
+
+  public trackLoadState(meta: TrackMeta): TrackLoadRuntimeState {
+    if (meta.track !== null) {
+      return { status: 'ready', error: null }
+    }
+
+    return this.trackLoadStates.get(meta) ?? { status: 'idle', error: null }
   }
 
   public isSourceLoadingMetadata(source: TrackSource): boolean {
@@ -262,8 +419,7 @@ export class TrackLibrary {
   public isLoading(): boolean {
     return (
       this.metadataLoadingSources.size > 0 ||
-      this.activeLoadCount > 0 ||
-      this.trackMetas.some((meta) => meta.loadStatus === 'queued' || meta.loadStatus === 'loading')
+      this.trackMetas.some((meta) => this.trackLoadState(meta).status === 'loading')
     )
   }
 
@@ -296,7 +452,7 @@ export class TrackLibrary {
     for (const source of orderedSources) {
       orderedMetas.push(
         ...this.sourceMetas(source)
-          .filter((meta) => meta.visible && meta.source.visible)
+          .filter((meta) => meta.visible && meta.source?.visible === true)
           .reverse(),
       )
     }
@@ -304,84 +460,60 @@ export class TrackLibrary {
     return orderedMetas
   }
 
-  private pumpQueue(): void {
-    while (this.activeLoadCount < MAX_PARALLEL_TRACK_LOADS) {
-      const meta = this.pickNextMeta()
-
-      if (meta === null) {
-        return
-      }
-
-      void this.loadQueuedMeta(meta)
-    }
-  }
-
-  private async loadQueuedMeta(meta: TrackMeta): Promise<void> {
-    meta.loadStatus = 'loading'
-    meta.loadError = null
-    this.activeLoadCount += 1
-    this.notify()
-    let mapChanged = false
-
-    try {
-      const track = await meta.source.loadTrack(meta)
-
-      if (!this.deletedSources.has(meta.source)) {
-        meta.track = track
-        meta.loadStatus = 'ready'
-        mapChanged = true
-      }
-    } catch (error) {
-      if (!this.deletedSources.has(meta.source)) {
-        meta.track = null
-        meta.loadStatus = 'error'
-        meta.loadError = error instanceof Error ? error.message : 'Track could not be loaded.'
-      }
-    } finally {
-      this.activeLoadCount = Math.max(0, this.activeLoadCount - 1)
-      this.notify(mapChanged)
-      this.pumpQueue()
-    }
-  }
-
-  private pickNextMeta(): TrackMeta | null {
-    const activeQueuedMeta =
-      this.activeMeta?.loadStatus === 'queued' && !this.deletedSources.has(this.activeMeta.source)
-        ? this.activeMeta
-        : null
-
-    if (activeQueuedMeta !== null) {
-      return activeQueuedMeta
-    }
-
-    const orderedSources = [...this.sources].sort((left, right) => left.order - right.order)
-
-    if (orderedSources.length === 0) {
-      return null
-    }
-
-    for (let offset = 0; offset < orderedSources.length; offset += 1) {
-      const sourceIndex = (this.roundRobinSourceIndex + offset) % orderedSources.length
-      const source = orderedSources[sourceIndex]
-      const nextMeta = this.trackMetas.find(
-        (meta) =>
-          meta.source === source &&
-          meta.loadStatus === 'queued' &&
-          !this.deletedSources.has(meta.source),
-      )
-
-      if (nextMeta !== undefined) {
-        this.roundRobinSourceIndex = (sourceIndex + 1) % orderedSources.length
-        return nextMeta
-      }
-    }
-
-    return null
-  }
-
   private notify(mapChanged = false): void {
     for (const listener of this.listeners) {
       listener({ mapChanged })
     }
+  }
+
+  private setTrackLoadState(
+    meta: TrackMeta,
+    status: TrackLoadRuntimeStatus,
+    error: string | null = null,
+  ): void {
+    this.trackLoadStates.set(meta, { status, error })
+
+    if (status === 'idle') {
+      meta.loadStatus = 'queued'
+      meta.loadError = null
+      return
+    }
+
+    meta.loadStatus = status
+    meta.loadError = error
+  }
+
+  private metaWithoutTrackGeometry(meta: TrackMeta): TrackMeta {
+    const restoredStatus = meta.loadStatus === 'loading'
+      ? 'queued'
+      : meta.track === null
+        ? meta.loadStatus
+        : 'ready'
+    const clone = new TrackMeta(meta.source, meta.remoteId, meta.name, meta.color, {
+      visible: meta.visible,
+      loadStatus: restoredStatus,
+      activityKind: meta.activityKind,
+      activityType: meta.activityType,
+      difficulty: meta.difficulty,
+      dateTime: meta.dateTime,
+      sourceUpdatedAt: meta.sourceUpdatedAt,
+      distanceMeters: meta.distanceMeters,
+      durationSeconds: meta.durationSeconds,
+      elevationGainMeters: meta.elevationGainMeters,
+      elevationLossMeters: meta.elevationLossMeters,
+      description: meta.description,
+      src: meta.src,
+      trackType: meta.trackType,
+      number: meta.number,
+      author: meta.author,
+      links: meta.links === null ? null : [...meta.links],
+      copyright: meta.copyright,
+      startPoint: meta.startPoint,
+      finishPoint: meta.finishPoint,
+    })
+
+    clone.loadError = meta.loadError
+
+    return clone
   }
 }

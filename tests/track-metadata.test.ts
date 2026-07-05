@@ -13,6 +13,11 @@ import {
   summaryFromTourResponse,
   summaryFromUserTourItem,
 } from '../src/komoot/normalize/KomootTourNormalizer'
+import {
+  deserializeModelRecords,
+  serializeModelRecords,
+} from '../src/model/base/ModelRecordSerializer'
+import { registerModels } from '../src/model/base/registerModels'
 import { Track } from '../src/model/Track'
 import {
   TrackActivityKind,
@@ -304,6 +309,64 @@ test('Local file source loads through configured file system and exports seriali
     order: 3,
   })
   assert.equal('files' in source.exportState(), false)
+})
+
+test('restored metadata-only local track reloads geometry from the original file entry', async () => {
+  registerModels()
+
+  let readCalls = 0
+  const fileSystem: LocalFileSystem = {
+    async read() {
+      readCalls += 1
+
+      return [{
+        path: 'browser-directory://source-1/0-track.gpx',
+        name: 'track.gpx',
+        lastModified: new Date('2026-03-02T12:00:00Z'),
+        async readText() {
+          return [
+            '<gpx version="1.1">',
+            '<trk><name>Track</name><trkseg>',
+            '<trkpt lat="1" lon="2"><ele>10</ele><time>2026-03-01T08:00:00Z</time></trkpt>',
+            '<trkpt lat="1.1" lon="2.1"><ele>20</ele><time>2026-03-01T08:10:00Z</time></trkpt>',
+            '</trkseg></trk>',
+            '</gpx>',
+          ].join('')
+        },
+      }]
+    },
+  }
+
+  configureLocalFileSystem(fileSystem)
+
+  const source = new LocalFileTrackSource({
+    path: 'browser-directory://source-1',
+    pathKind: 'directory',
+    name: 'GPX import',
+    color: '#123456',
+  })
+  const meta = (await source.loadTrackMetas())[0]
+
+  assert.ok(meta !== undefined)
+  meta.track = null
+
+  const serialized = serializeModelRecords({
+    sources: [source],
+    trackMetas: [meta],
+  })
+  const restored = deserializeModelRecords<{
+    sources: LocalFileTrackSource[]
+    trackMetas: TrackMeta[]
+  }>(serialized.root, serialized.records)
+  const restoredMeta = restored.trackMetas[0]
+
+  assert.equal(restoredMeta.track, null)
+
+  const track = await restored.sources[0].loadTrack(restoredMeta)
+
+  assert.equal(track.pointsCount(), 2)
+  assert.equal(restoredMeta.track, track)
+  assert.equal(readCalls, 2)
 })
 
 test('Komoot elapsed coordinates do not create 1970 timestamps in GPX', () => {

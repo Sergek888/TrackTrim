@@ -78,18 +78,18 @@ export class Track extends BaseModel {
     return null
   }
 
-  protected override exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       segments: this.segments,
       viewpoints: this.viewpoints,
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
+  public override deserializeFields(fields: Record<string, unknown>): void {
     ;(this as unknown as { segments: readonly TrackSegment[] }).segments =
-      Object.freeze([...(state.segments as TrackSegment[] ?? [])])
+      Object.freeze([...(fields.segments as TrackSegment[] ?? [])])
 
     ;(this as unknown as { viewpoints: readonly ViewPoint[] }).viewpoints =
-      Object.freeze([...(state.viewpoints as ViewPoint[] ?? [])])
+      Object.freeze([...(fields.viewpoints as ViewPoint[] ?? [])])
   }
 }

@@ -72,6 +72,8 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
   }
 
   public async loadTrackMetas(): Promise<TrackMeta[]> {
+    this.ensureRuntime()
+
     if (this.target.kind === 'user') {
       const displayName = await this.komootApi.users.getDisplayName(this.target.id)
       const sourceName = displayName === null
@@ -96,6 +98,8 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     if (meta.track !== null) {
       return meta.track
     }
+
+    this.ensureRuntime()
 
     const summary = this.summaries.get(meta) ?? await this.komootApi.tours.getSummary(meta.remoteId)
     const points = await this.komootApi.tours.getCoordinates(summary)
@@ -155,7 +159,7 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     )
   }
 
-  public exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       url: this.url,
       name: this.name,
@@ -166,24 +170,46 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
-    this.url = String(state.url ?? '')
-    this.name = String(state.name ?? '')
-    this.color = String(state.color ?? '#2563eb')
-    this.visible = state.visible !== false
-    this.expanded = state.expanded !== false
-    this.order = typeof state.order === 'number' ? state.order : 0
+  public override modelKey(): string | null {
+    return this.url.trim() === '' ? null : this.url
+  }
+
+  public override deserializeFields(fields: Record<string, unknown>): void {
+    this.url = String(fields.url ?? '')
+    this.name = String(fields.name ?? '')
+    this.color = String(fields.color ?? '#2563eb')
+    this.visible = fields.visible !== false
+    this.expanded = fields.expanded !== false
+    this.order = typeof fields.order === 'number' ? fields.order : 0
   }
 
   public override afterDeserialize(): void {
-    this.initializeRuntime()
+    this.summaries = new WeakMap<TrackMeta, KomootTourSummary>()
+
+    if (this.url.trim() === '') {
+      return
+    }
+
+    try {
+      this.initializeRuntime()
+    } catch {
+      return
+    }
+  }
+
+  protected override runtimeFields(): readonly string[] {
+    return ['target', 'komootApi', 'summaries']
   }
 
   public getOriginalUrl(meta: TrackMeta): string | null {
+    this.ensureRuntime()
+
     return this.komootApi.urls.getTourUrl(meta.remoteId)
   }
 
   public getShareUrl(meta: TrackMeta): string | null {
+    this.ensureRuntime()
+
     return this.komootApi.urls.getTourShareUrl(meta.remoteId)
   }
 
@@ -335,5 +361,13 @@ export class KomootTrackSource extends BaseModel implements TrackSource {
     this.komootApi = komootApi
     this.target = target
     this.summaries = new WeakMap<TrackMeta, KomootTourSummary>()
+  }
+
+  private ensureRuntime(): void {
+    if (this.komootApi !== undefined && this.target !== undefined) {
+      return
+    }
+
+    this.initializeRuntime()
   }
 }

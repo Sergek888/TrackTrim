@@ -1,7 +1,8 @@
-import { KomootApiClient } from '../../src/komoot/KomootApiClient.js'
 import { getTrackTrimSessionId } from './_cookies.js'
 import type { ApiRequest } from './_http.js'
+import { createKomootApiClient } from './_komootRuntime.js'
 import { getKomootSessionStore, type StoredKomootSession } from './_sessionStore.js'
+import type { KomootApiClient } from '../../src/komoot/KomootApiClient.js'
 
 export type AuthorizedKomootContext =
   | { ok: true; session: StoredKomootSession; komoot: KomootApiClient }
@@ -25,6 +26,6 @@ export async function authorizeKomootRequest(
   return {
     ok: true,
     session,
-    komoot: new KomootApiClient({ session: session.auth }),
+    komoot: createKomootApiClient({ session: session.auth }),
   }
 }

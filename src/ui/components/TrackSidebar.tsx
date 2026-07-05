@@ -28,7 +28,7 @@ function trackMatchesQuery(meta: TrackMeta, query: string): boolean {
 
   return normalizedQuery === '' ||
     meta.name.toLowerCase().includes(normalizedQuery) ||
-    meta.source.name.toLowerCase().includes(normalizedQuery)
+    (meta.source?.name ?? '').toLowerCase().includes(normalizedQuery)
 }
 
 export default function TrackSidebar({
@@ -121,6 +121,7 @@ export default function TrackSidebar({
                 activeMeta={library.activeMeta}
                 progress={library.sourceProgress(source)}
                 loadingMetadata={library.isSourceLoadingMetadata(source)}
+                getTrackLoadState={(meta) => library.trackLoadState(meta)}
                 onSourceVisibilityChange={onSourceVisibilityChange}
                 onSourceExpandedChange={onSourceExpandedChange}
                 onSourceColorClick={onSourceColorClick}

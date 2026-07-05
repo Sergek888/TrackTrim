@@ -31,14 +31,14 @@ export class TrackSegment extends BaseModel {
     return this.points[index] ?? null
   }
 
-  protected override exportState(): Record<string, unknown> {
+  public override serialize(): Record<string, unknown> {
     return {
       points: this.points,
     }
   }
 
-  protected override importState(state: Record<string, unknown>): void {
+  public override deserializeFields(fields: Record<string, unknown>): void {
     ;(this as unknown as { points: readonly TrackPoint[] }).points =
-      Object.freeze([...(state.points as TrackPoint[] ?? [])])
+      Object.freeze([...(fields.points as TrackPoint[] ?? [])])
   }
 }

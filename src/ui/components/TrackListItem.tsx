@@ -1,4 +1,5 @@
 import { TriangleAlert } from 'lucide-react'
+import type { TrackLoadRuntimeState } from '../../application/TrackLibrary'
 import { type TrackMeta } from '../../model/TrackMeta'
 import { computeTotalDistanceMeters } from '../../model/TrackMeta'
 import { formatDistance } from '../formatters'
@@ -6,15 +7,16 @@ import Spinner from '../shared/Spinner'
 
 type TrackListItemProps = {
   meta: TrackMeta
+  loadState: TrackLoadRuntimeState
   active: boolean
   onActivate: (meta: TrackMeta) => void
   onFocus: (meta: TrackMeta) => void
   onVisibilityChange: (meta: TrackMeta, visible: boolean) => void
 }
 
-export default function TrackListItem({ meta, active, onActivate, onFocus, onVisibilityChange }: TrackListItemProps) {
+export default function TrackListItem({ meta, loadState, active, onActivate, onFocus, onVisibilityChange }: TrackListItemProps) {
   const track = meta.track
-  const loading = meta.loadStatus === 'queued' || meta.loadStatus === 'loading'
+  const loading = loadState.status === 'loading'
 
   return (
     <article
@@ -45,10 +47,10 @@ export default function TrackListItem({ meta, active, onActivate, onFocus, onVis
       <span className="track-metric">
         {loading ? (
           <Spinner
-            label={meta.loadStatus === 'queued' ? 'Waiting to load' : 'Loading track'}
+            label="Loading track"
           />
-        ) : meta.loadStatus === 'error' ? (
-          <span title={meta.loadError ?? 'Track could not be loaded'}>
+        ) : loadState.status === 'error' ? (
+          <span title={loadState.error ?? 'Track could not be loaded'}>
             <TriangleAlert className="track-error-icon" aria-label="Track loading failed" size={17} />
           </span>
         ) : track !== null ? formatDistance(computeTotalDistanceMeters(track.getPoints()) / 1000) : null}

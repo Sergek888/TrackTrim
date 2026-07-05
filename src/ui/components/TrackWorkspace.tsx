@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Layers, ListTree, Settings } from 'lucide-react'
 import {
   KomootConnectionService,
 } from '../../application/KomootConnectionService'
-import { TrackLibrary } from '../../application/TrackLibrary'
+import { configureKomootApi } from '../../application/komoot/getKomootApi'
+import { TrackLibrary, type TrackLibraryPersistentState } from '../../application/TrackLibrary'
 import { resolveWorkspaceStartup } from '../../application/resolveWorkspaceStartup'
+import { IndexedDbModelStore } from '../../application/storage/IndexedDbModelStore'
 import type { TrackSource } from '../../application/sources/TrackSource'
 import type { TrackMeta } from '../../model/TrackMeta'
 import { loadMapSettings, saveMapSettings } from '../../map/mapSettings'
@@ -33,12 +35,20 @@ type ColorPaletteState =
 
 type WorkspacePanel = 'tracks' | 'add-source' | 'settings' | 'map-settings' | 'layer-availability'
 
+const LIBRARY_STORAGE_KEY = 'trackviewer.library'
+const LIBRARY_SAVE_DELAY_MS = 800
+
 export default function TrackWorkspace() {
   const [library] = useState(() => new TrackLibrary())
+  const modelStore = useMemo(() => new IndexedDbModelStore(), [])
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveInProgressRef = useRef(false)
+  const saveAgainRef = useRef(false)
   const [komootConnection] = useState(() => new KomootConnectionService())
   const [, setLibraryVersion] = useState(0)
   const [mapVersion, setMapVersion] = useState(0)
   const [komootConnectionVersion, setKomootConnectionVersion] = useState(0)
+  const [hydrated, setHydrated] = useState(false)
   const [tooltip, setTooltip] = useState<TrackTooltipState | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activePanel, setActivePanel] = useState<WorkspacePanel | null>(null)
@@ -51,15 +61,94 @@ export default function TrackWorkspace() {
     setLayerStatusState((prev) => setLayerStatus(prev, layerId, status))
   }, [])
 
+  useEffect(() => {
+    configureKomootApi(komootConnection.publicApi())
+  }, [komootConnection])
+
+  function runLibrarySave(): void {
+    if (saveInProgressRef.current) {
+      saveAgainRef.current = true
+      return
+    }
+
+    saveInProgressRef.current = true
+
+    void modelStore.saveRoot(LIBRARY_STORAGE_KEY, library.persistentState())
+      .finally(() => {
+        saveInProgressRef.current = false
+
+        if (saveAgainRef.current) {
+          saveAgainRef.current = false
+          scheduleLibrarySave()
+        }
+      })
+  }
+
+  function scheduleLibrarySave(): void {
+    if (saveTimerRef.current !== null) {
+      clearTimeout(saveTimerRef.current)
+    }
+
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null
+      runLibrarySave()
+    }, LIBRARY_SAVE_DELAY_MS)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    modelStore.loadRoot<TrackLibraryPersistentState>(LIBRARY_STORAGE_KEY)
+      .then((restoredState) => {
+        if (cancelled) {
+          return
+        }
+
+        if (restoredState !== null) {
+          library.restorePersistentState(restoredState)
+          setMapVersion((version) => version + 1)
+        }
+
+        setHydrated(true)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHydrated(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [library, modelStore])
+
   useEffect(
-    () => library.subscribe((change) => {
+    () => {
+      if (!hydrated) {
+        return
+      }
+
+      return library.subscribe((change) => {
       setLibraryVersion((version) => version + 1)
+      scheduleLibrarySave()
 
       if (change.mapChanged) {
         setMapVersion((version) => version + 1)
       }
-    }),
-    [library],
+    })
+    },
+    [hydrated, library, modelStore],
+  )
+
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current !== null) {
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+        runLibrarySave()
+      }
+    },
+    [],
   )
 
   useEffect(() => saveMapSettings(mapSettings), [mapSettings])
@@ -72,6 +161,10 @@ export default function TrackWorkspace() {
   )
 
   useEffect(() => {
+    if (!hydrated) {
+      return
+    }
+
     const controller = new AbortController()
     const sourceCount = library.sources.length
 
@@ -96,7 +189,7 @@ export default function TrackWorkspace() {
     }).catch(() => {})
 
     return () => { controller.abort() }
-  }, [])
+  }, [hydrated, komootConnection, library])
 
   const visibleTrackMetas = useMemo(
     () => library.visibleTrackMetas(),
@@ -132,7 +225,8 @@ export default function TrackWorkspace() {
   }
 
   function handleSourceExpandedChange(source: TrackSource, expanded: boolean): void {
-    library.setSourceExpanded(source, expanded)
+    source.expanded = expanded
+    scheduleLibrarySave()
   }
 
   function handleSourceColorChange(source: TrackSource, color: string): void {
